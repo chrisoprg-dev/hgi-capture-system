@@ -1296,62 +1296,207 @@ function FinancialPricing({ sharedCtx={} }) {
   const saveODC = (rows) => { setOdcs(rows); store.set("odcs", rows); };
   const savePeriods = (rows) => { setPeriods(rows); store.set("pricePeriods", rows); };
 
-  // Auto-populate ALL fields from every data source the system has collected
-  useEffect(() => {
-    const ex = (text, ...fields) => {
-      if (!text) return "";
-      for (const f of fields) {
-        const line = text.split("\n").find(l => l.trim().toLowerCase().startsWith(f.toLowerCase()+":"));
-        if (line) { const v = line.slice(f.length+1).trim(); if (v && !v.toLowerCase().includes("not found") && v.toLowerCase() !== "tbd") return v; }
-      }
-      return "";
-    };
-
+  // Master auto-populate — populates EVERY input across ALL tabs from ALL system data
+  const autoPopulateFromSystem = (force=false) => {
     const decomp = sharedCtx.decomposition || "";
     const brief = sharedCtx.execBrief || "";
     const research = sharedCtx.research || "";
     const wfState = store.get("wfState") || {};
+    let populated = 0;
 
-    const updates = {};
+    const ex = (text, ...fields) => {
+      if (!text) return "";
+      for (const f of fields) {
+        const lines = text.split("\n");
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.toLowerCase().startsWith(f.toLowerCase()+":")) {
+            const v = trimmed.slice(f.length+1).trim();
+            if (v && !v.toLowerCase().includes("not found") && v.toLowerCase() !== "tbd" && v.length > 1) return v;
+          }
+        }
+      }
+      return "";
+    };
 
-    // From decomposition
-    const val = ex(decomp, "Estimated Value","Contract Value","Award Amount","Budget","Total Value");
-    const geo = ex(decomp, "Geography","Place of Performance","State","Location");
-    const period = ex(decomp, "Period of Performance");
-    const pricingType = ex(decomp, "Pricing Type","Contract Type");
-    const incumbent = ex(decomp, "Incumbent","Current Contractor","Existing Contractor");
+    // ── PRICE INTELLIGENCE FIELDS ──────────────────────────────────────────
+    const val = ex(decomp, "Estimated Value","Contract Value","Award Amount","Budget","Total Value","Total Contract Value");
+    const geo = ex(decomp, "Geography","Place of Performance","State","Location","Performance Location");
+    const period = ex(decomp, "Period of Performance","Contract Duration","Performance Period");
+    const pricingType = ex(decomp, "Pricing Type","Contract Type","Award Type","Procurement Type");
+    const setAsideRaw = ex(decomp, "Set-Aside","Set Aside","Small Business","Competition Type");
+    const incumbentVal = ex(decomp, "Incumbent","Current Contractor","Existing Contractor","Current Awardee")
+      || ex(brief, "Incumbent","Current Incumbent","Existing Incumbent")
+      || wfState.incumbent || "";
 
-    if (val && !intel.estimatedValue) updates.estimatedValue = val;
-    if (geo && intel.geography === "Louisiana") updates.geography = geo;
+    // Contract type detection
+    let contractType = intel.contractType;
+    const dl = decomp.toLowerCase();
+    if (force || contractType === "best_value") {
+      if (dl.includes("lowest price technically acceptable") || dl.includes("lpta")) contractType = "lpta";
+      else if (dl.includes("time and material") || dl.includes("time & material")) contractType = "t_and_m";
+      else if (dl.includes("cost plus") || dl.includes("cpff")) contractType = "cost_plus";
+      else if (dl.includes("firm fixed price") || dl.includes("ffp")) contractType = "ffp";
+      else contractType = "best_value";
+    }
+
+    // Set-aside detection
+    let setAside = intel.setAside;
+    if (force || setAside === "none") {
+      const sa = (setAsideRaw + decomp).toLowerCase();
+      if (sa.includes("8(a)") || sa.includes("8a ")) setAside = "8a";
+      else if (sa.includes("sdvosb") || sa.includes("service-disabled")) setAside = "sdvosb";
+      else if (sa.includes("hubzone")) setAside = "hubzone";
+      else if (sa.includes("wosb") || sa.includes("woman-owned")) setAside = "wosb";
+      else if (sa.includes("small business set-aside")) setAside = "sb";
+      else setAside = "none";
+    }
+
+    // Contract years from period
+    let contractYears = intel.contractYears;
+    let baseYrs = 1, optYrs = 2;
     if (period) {
-      const yrs = period.match(/(\d+)\s*year/i);
-      if (yrs) updates.contractYears = yrs[1];
-    }
-    if (pricingType) {
-      if (pricingType.toLowerCase().includes("lpta")) updates.evaluationModel = "lpta";
-      if (pricingType.toLowerCase().includes("fixed")) updates.contractType = "ffp";
-      if (pricingType.toLowerCase().includes("best value")) updates.contractType = "best_value";
+      const yrsMatch = period.match(/(\d+)\s*year/i);
+      const optMatch = period.match(/(\d+)\s*option/i);
+      baseYrs = parseInt(yrsMatch?.[1] || 1);
+      optYrs = parseInt(optMatch?.[1] || 2);
+      contractYears = baseYrs + " base + " + optYrs + " option" + (optYrs !== 1 ? "s" : "");
     }
 
-    // Extract incumbent from decomp OR wfState
-    const incumbentVal = incumbent || ex(brief, "Incumbent","Current Incumbent") || wfState.incumbent || "";
-    if (incumbentVal && !intel.incumbent) updates.incumbent = incumbentVal;
+    // Competitors from all sources
+    const competitorList = ["ICF","Hagerty","Witt O'Brien's","Dewberry","Guidehouse","Tetra Tech","LPA Group","Sikich","Burns & McDonnell","Accenture Federal","Deloitte","KPMG","Navigant","RSM","Baker Tilly","Cloudburst","IEM","CDM Smith","Atkins","WSP","Arcadis","Booz Allen","Leidos","ManTech","SAIC","Jacobs","AECOM","Black Bear","Caliber"];
+    const allText = decomp + " " + brief + " " + research;
+    const foundCompetitors = competitorList.filter(c => allText.toLowerCase().includes(c.toLowerCase()));
+    const competitorsVal = foundCompetitors.length > 0 ? foundCompetitors.join(", ") : intel.competitors;
 
-    // Extract competitors from research analysis — look for competitor mentions
-    if (research && intel.competitors === "ICF, Hagerty, Witt O'Brien's, Dewberry") {
-      const competitorPatterns = ["ICF","Hagerty","Witt","Dewberry","Guidehouse","Tetra Tech","LPA Group","Sikich","Burns & McDonnell","Accenture Federal","Deloitte","KPMG","Navigant","RSM","Baker Tilly","Cloudburst","IEM","Innovative Emergency Management","CDM Smith","Atkins","WSP","Arcadis"];
-      const foundCompetitors = competitorPatterns.filter(c => research.includes(c) || decomp.includes(c) || brief.includes(c));
-      if (foundCompetitors.length > 0) updates.competitors = foundCompetitors.join(", ");
+    // Price weight from eval criteria
+    let pricingWeight = intel.pricingWeight;
+    let priceWt = 0, techWt = 0, ppWt = 0, mgmtWt = 0;
+    decomp.split("\n").forEach(line => {
+      const wMatch = line.match(/(\d+)\s*%/);
+      if (!wMatch) return;
+      const w = parseInt(wMatch[1]);
+      const l = line.toLowerCase();
+      if (l.includes("price") || l.includes("cost")) { priceWt = w; pricingWeight = w; }
+      else if (l.includes("technical") && !l.includes("past")) techWt = w;
+      else if (l.includes("past performance") || l.includes("past perf")) ppWt = w;
+      else if (l.includes("management")) mgmtWt = w;
+    });
+
+    // Evaluation model
+    let evaluationModel = intel.evaluationModel;
+    if (dl.includes("lpta") || dl.includes("lowest price technically")) evaluationModel = "lpta";
+    else if (dl.includes("best value") || dl.includes("tradeoff")) evaluationModel = "best_value";
+
+    // Incumbent advantage from research
+    let incumbentAdvantage = intel.incumbentAdvantage;
+    if (force && research && incumbentVal) {
+      const rl = research.toLowerCase();
+      if (rl.includes("dissatisf") || rl.includes("poor performance") || rl.includes("complaint")) incumbentAdvantage = "weak";
+      else if (rl.includes("strong relationship") || rl.includes("entrenched") || rl.includes("recompete favorite")) incumbentAdvantage = "strong";
+      else if (incumbentVal && incumbentVal !== "Unknown") incumbentAdvantage = "moderate";
     }
 
-    // Extract pricing weight from decomposition evaluation criteria
-    const evalSection = decomp.split("\n").find(l => l.toLowerCase().includes("price") && l.toLowerCase().includes("%"));
-    if (evalSection) {
-      const weightMatch = evalSection.match(/(\d+)\s*%/);
-      if (weightMatch) updates.pricingWeight = parseInt(weightMatch[1]);
+    // Build intel updates
+    const intelUpdates = {};
+    if ((force || !intel.estimatedValue) && val) { intelUpdates.estimatedValue = val; populated++; }
+    if ((force || intel.geography === "Louisiana") && geo) { intelUpdates.geography = geo; populated++; }
+    if ((force || !intel.incumbent) && incumbentVal) { intelUpdates.incumbent = incumbentVal; populated++; }
+    if (force || intel.contractType === "best_value") { intelUpdates.contractType = contractType; populated++; }
+    if (force || intel.setAside === "none") { intelUpdates.setAside = setAside; populated++; }
+    if ((force || intel.contractYears === "3") && contractYears) { intelUpdates.contractYears = contractYears; populated++; }
+    if ((force || intel.competitors === "ICF, Hagerty, Witt O'Brien's, Dewberry") && competitorsVal) { intelUpdates.competitors = competitorsVal; populated++; }
+    if ((force || intel.pricingWeight === 30) && pricingWeight) { intelUpdates.pricingWeight = pricingWeight; populated++; }
+    if (force) { intelUpdates.evaluationModel = evaluationModel; intelUpdates.incumbentAdvantage = incumbentAdvantage; populated += 2; }
+    if (Object.keys(intelUpdates).length) saveIntel(intelUpdates);
+
+    // ── EVAL SCORE MODEL WEIGHTS ───────────────────────────────────────────
+    if (priceWt > 0 || techWt > 0 || ppWt > 0 || mgmtWt > 0) {
+      const newEval = {...evalModel};
+      if (priceWt > 0) { newEval.priceWeight = priceWt; populated++; }
+      if (techWt > 0) { newEval.techWeight = techWt; populated++; }
+      if (ppWt > 0) { newEval.pastPerfWeight = ppWt; populated++; }
+      if (mgmtWt > 0) { newEval.managementWeight = mgmtWt; populated++; }
+      setEvalModel(newEval);
+      store.set("evalModel", newEval);
     }
 
-    if (Object.keys(updates).length) saveIntel(updates);
+    // ── PERIOD PRICING — build periods from period of performance ──────────
+    if (force || periods.length === 3) {
+      const newPeriods = [{id:1, label:"Base Year", months:12, escalation:0}];
+      for (let i = 1; i <= optYrs; i++) {
+        newPeriods.push({id:i+1, label:"Option Year " + i, months:12, escalation:3});
+      }
+      savePeriods(newPeriods);
+      populated++;
+    }
+
+    // ── COST BUILDUP — labor rows from key personnel section ──────────────
+    if (force && decomp) {
+      const keypersSection = decomp.split("\n");
+      const keypersStart = keypersSection.findIndex(l => l.toLowerCase().includes("key personnel") || l.toLowerCase().includes("staffing"));
+      const roleKeywords = {
+        "Program Manager": {hours:2080, rawRate:110, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "Deputy PM": {hours:2080, rawRate:95, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "Senior Program Manager": {hours:2080, rawRate:120, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "Grant Manager": {hours:2080, rawRate:85, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "Senior Analyst": {hours:2080, rawRate:75, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "Analyst": {hours:2080, rawRate:60, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "Data Specialist": {hours:2080, rawRate:65, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "Field Inspector": {hours:2080, rawRate:55, fringe:0.28, overhead:0.15, ga:0.12, fee:0.09},
+        "Case Manager": {hours:2080, rawRate:55, fringe:0.28, overhead:0.15, ga:0.12, fee:0.09},
+        "Housing Specialist": {hours:2080, rawRate:65, fringe:0.28, overhead:0.15, ga:0.12, fee:0.09},
+        "Financial Analyst": {hours:2080, rawRate:75, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "Compliance Officer": {hours:2080, rawRate:80, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "IT Specialist": {hours:2080, rawRate:70, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "Administrative Support": {hours:2080, rawRate:38, fringe:0.28, overhead:0.15, ga:0.12, fee:0.08},
+        "Quality Assurance": {hours:2080, rawRate:72, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+        "Communications Specialist": {hours:2080, rawRate:65, fringe:0.28, overhead:0.15, ga:0.12, fee:0.09},
+        "Training Coordinator": {hours:2080, rawRate:60, fringe:0.28, overhead:0.15, ga:0.12, fee:0.09},
+        "GIS Specialist": {hours:2080, rawRate:68, fringe:0.28, overhead:0.15, ga:0.12, fee:0.09},
+      };
+
+      // Look for roles mentioned in key personnel section
+      const detectedRoles = [];
+      const searchText = keypersStart >= 0
+        ? keypersSection.slice(keypersStart, keypersStart + 20).join(" ")
+        : decomp;
+
+      Object.keys(roleKeywords).forEach(role => {
+        if (searchText.toLowerCase().includes(role.toLowerCase())) {
+          detectedRoles.push({id: Date.now() + Math.random(), cat: role, ...roleKeywords[role]});
+        }
+      });
+
+      // Always include PM if any roles detected, ensure we have at least 3 rows
+      if (detectedRoles.length > 0) {
+        if (!detectedRoles.find(r => r.cat === "Program Manager")) {
+          detectedRoles.unshift({id:1, cat:"Program Manager", ...roleKeywords["Program Manager"]});
+        }
+        if (!detectedRoles.find(r => r.cat === "Administrative Support")) {
+          detectedRoles.push({id:Date.now()+9, cat:"Administrative Support", ...roleKeywords["Administrative Support"]});
+        }
+        saveLR(detectedRoles);
+        populated++;
+      }
+
+      // ODCs — set travel based on geography and field work indicators
+      const hasFieldWork = dl.includes("field") || dl.includes("site visit") || dl.includes("inspection") || dl.includes("on-site");
+      const isLouisiana = geo.toLowerCase().includes("louisiana") || geo.toLowerCase().includes("la ");
+      const travelAmt = hasFieldWork ? 75000 : isLouisiana ? 35000 : 25000;
+      const subcontractAmt = dl.includes("subcont") || dl.includes("teaming") ? 150000 : 0;
+      const newODCs = [{id:1, desc:"Travel & Transportation", amount:travelAmt}, {id:2, desc:"Other Direct Costs (printing, supplies, equipment)", amount:15000}];
+      if (subcontractAmt > 0) newODCs.push({id:3, desc:"Subcontractor Support", amount:subcontractAmt});
+      saveODC(newODCs);
+      populated++;
+    }
+
+    return populated;
+  };
+
+  // Auto-populate on mount and whenever any system data changes
+  useEffect(() => {
+    autoPopulateFromSystem(false);
   }, [sharedCtx.decomposition, sharedCtx.execBrief, sharedCtx.research]);
 
   const calcRow = (r, feeAdj=0, laborAdj=0, hoursAdj=0) => {
@@ -1491,8 +1636,16 @@ function FinancialPricing({ sharedCtx={} }) {
       {activeTab === "intelligence" && (
         <div>
           <Card style={{marginBottom:16,border:`1px solid ${GOLD}44`}}>
-            <div style={{color:GOLD,fontWeight:700,fontSize:14,marginBottom:4}}>PRICE INTELLIGENCE ENGINE</div>
-            <div style={{color:TEXT_D,fontSize:12,marginBottom:16}}>Configure all pricing factors — the system analyzes competitors, evaluation scoring, market rates, and calculates your optimal win price</div>
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4,flexWrap:"wrap",gap:8}}>
+              <div>
+                <div style={{color:GOLD,fontWeight:700,fontSize:14,marginBottom:4}}>PRICE INTELLIGENCE ENGINE</div>
+                <div style={{color:TEXT_D,fontSize:12}}>All fields auto-populated from your RFP decomposition, executive brief, and research. Override any field manually.</div>
+              </div>
+              <Btn small onClick={()=>{const ct=autoPopulateFromSystem(true);alert("✓ Auto-populated " + ct + " fields from system data");}} variant="ghost">⟳ Re-populate from System Data</Btn>
+            </div>
+            <div style={{marginBottom:16,padding:"6px 10px",background:GREEN+"11",border:`1px solid ${GREEN}33`,borderRadius:4,fontSize:11,color:GREEN}}>
+              ✓ Auto-populated from: RFP Decomposition · Executive Brief · Research & Analysis · Workflow State
+            </div>
 
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
               <div>
@@ -1561,9 +1714,9 @@ function FinancialPricing({ sharedCtx={} }) {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
               <div>
                 <Label text="HGI TARGET PROFIT MARGIN (%)" />
-                <input type="range" min={5} max={25} value={intel.hgiMarginTarget} onChange={e=>saveIntel({hgiMarginTarget:parseInt(e.target.value)})} style={{width:"100%",accentColor:GOLD,marginBottom:4}} />
+                <input type="range" min={5} max={75} value={intel.hgiMarginTarget} onChange={e=>saveIntel({hgiMarginTarget:parseInt(e.target.value)})} style={{width:"100%",accentColor:GOLD,marginBottom:4}} />
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:TEXT_D}}>
-                  <span>5%</span><span style={{color:GOLD,fontWeight:700}}>{intel.hgiMarginTarget}% target</span><span>25%</span>
+                  <span>5%</span><span style={{color:GOLD,fontWeight:700}}>{intel.hgiMarginTarget}% target</span><span>75%</span>
                 </div>
               </div>
               <div>
