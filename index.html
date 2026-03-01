@@ -105,14 +105,62 @@ const OPIBadge = ({score}) => {
 };
 
 // ── FULL WORKFLOW ─────────────────────────────────────────────────────────────
-function FullWorkflow() {
+function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} }) {
   const [title, setTitle] = useState("");
   const [agency, setAgency] = useState("");
   const [rfpUrl, setRfpUrl] = useState("");
   const [incumbent, setIncumbent] = useState("");
   const [intel, setIntel] = useState("");
   const [rfpText, setRfpText] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [fileLoading, setFileLoading] = useState(false);
   const [step, setStep] = useState(0);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setFileName(file.name);
+    setFileLoading(true);
+    try {
+      if (file.type === "text/plain") {
+        const text = await file.text();
+        setRfpText(text);
+        setFileLoading(false);
+        return;
+      }
+      // For PDF and Word docs - read as base64 and send to Claude to extract
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const base64 = ev.target.result.split(",")[1];
+        const mediaType = file.type || "application/octet-stream";
+        try {
+          const body = {
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 4000,
+            system: "You are a document extraction assistant. Extract all text content from this document. Return only the extracted text, no commentary.",
+            messages: [{
+              role: "user",
+              content: [
+                { type: "document", source: { type: "base64", media_type: mediaType, data: base64 } },
+                { type: "text", text: "Extract all text from this document. Return the full text content only." }
+              ]
+            }]
+          };
+          const r = await fetch("/api/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          const d = await r.json();
+          const extracted = d.content ? d.content.filter(b => b.type === "text").map(b => b.text).join("") : "";
+          setRfpText(extracted || "Could not extract text from file. Please paste manually.");
+        } catch(err) {
+          setRfpText("Error extracting file. Please paste the RFP text manually.");
+        }
+        setFileLoading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch(err) {
+      setRfpText("Error reading file. Please paste the RFP text manually.");
+      setFileLoading(false);
+    }
+  };
   const [outA, setOutA] = useState("");
   const [outB, setOutB] = useState("");
   const [outC, setOutC] = useState("");
@@ -161,17 +209,21 @@ function FullWorkflow() {
     const sys = "You are an expert capture manager for HGI (Hammerman & Gainer). " + HGI_CONTEXT + " Extract solicitation requirements precisely. Mark missing info as Not Found in Provided Text.";
     const a = await callClaude(buildPromptA(rIn), sys);
     setOutA(a); setLoadingStep(0); setStep(2);
+    // Save to shared context for other modules
+    saveSharedCtx({ rfpText: rIn, decomposition: a, title, agency });
   };
 
   const runB = async () => {
     setStep(2); setLoadingStep(2);
-    const ctx = "Title: " + title + "\nAgency: " + agency + "\nIncumbent: " + (incumbent || "Unknown") + "\nIntel: " + intel + "\nURL: " + rfpUrl;
+    const researchBlock = sharedCtx.research ? "\n\nCOMPETITIVE RESEARCH:\n" + sharedCtx.research.slice(0, 1200) : "";
+    const ctx = "Title: " + title + "\nAgency: " + agency + "\nIncumbent: " + (incumbent || "Unknown") + "\nIntel: " + intel + "\nURL: " + rfpUrl + researchBlock;
     const sys = "You are a senior capture executive for HGI. Be analytical, decisive, specific. " + HGI_CONTEXT;
     const b = await callClaude(buildPromptB(outA, ctx), sys);
     setOutB(b);
     setDecision(extractDecision(b));
     setOpi(extractOPI(b));
     setLoadingStep(0); setStep(3);
+    saveSharedCtx({ execBrief: b });
   };
 
   const runC = async () => {
@@ -217,8 +269,22 @@ function FullWorkflow() {
             <div><Label text="RFP URL (optional)" /><Input value={rfpUrl} onChange={setRfpUrl} placeholder="https://..." /></div>
           </div>
           <div><Label text="RELATIONSHIP INTEL / CONTEXT" /><Textarea value={intel} onChange={setIntel} placeholder="Known relationships, budget intel, political context..." rows={2} /></div>
-          <div><Label text="RFP / SOLICITATION TEXT" /><Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text here..." rows={10} /></div>
-          <Btn onClick={runA} disabled={!rfpText.trim() && !title.trim()} style={{alignSelf:"flex-start"}}>Step 1: RFP Decomposition</Btn>
+          <div>
+            <Label text="RFP / SOLICITATION TEXT" />
+            <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:8}}>
+              <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"7px 14px",background:BG4,
+                border:`1px solid ${BORDER}`,borderRadius:4,cursor:"pointer",fontSize:12,color:TEXT_D}}>
+                <span>📎 Upload PDF / Word / TXT</span>
+                <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleFileUpload}
+                  style={{display:"none"}} />
+              </label>
+              {fileLoading && <span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>Extracting text from file...</span>}
+              {fileName && !fileLoading && <span style={{color:GREEN,fontSize:12}}>✓ {fileName}</span>}
+            </div>
+            <Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text here, or upload a file above..." rows={8} />
+          </div>
+          {loadingStep === 1 && <div style={{color:GOLD,padding:"10px 0",fontSize:13,animation:"pulse 1.2s infinite"}}>Generating RFP Decomposition...</div>}
+      {loadingStep !== 1 && <Btn onClick={runA} disabled={!rfpText.trim() && !title.trim()} style={{alignSelf:"flex-start"}}>Step 1: RFP Decomposition</Btn>}
         </div>
       )}
 
@@ -277,13 +343,24 @@ function FullWorkflow() {
                   <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>EXPAND INDIVIDUAL SECTIONS</div>
                   <p style={{color:TEXT_D,fontSize:12,marginBottom:12}}>Generate a full deep-dive for any section using the Proposal Engine module, or click below to expand directly:</p>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    {["Executive Summary","Technical Approach","Management Approach","Staffing Plan","Past Performance","Transition Plan","Pricing Narrative","Compliance Matrix"].map(sec => (
-                      <button key={sec} onClick={()=>{setActive&&setActive("proposal");}} style={{
+                    {[
+                      ["executive_summary","Executive Summary"],
+                      ["technical_approach","Technical Approach"],
+                      ["management_approach","Management Approach"],
+                      ["staffing_plan","Staffing Plan"],
+                      ["past_performance","Past Performance"],
+                      ["transition_plan","Transition Plan"],
+                      ["pricing_narrative","Pricing Narrative"],
+                      ["compliance_matrix","Compliance Matrix"],
+                      ["clarifying_questions","Clarifying Questions"],
+                      ["red_team","Red Team Critique"]
+                    ].map(([val,label]) => (
+                      <button key={val} onClick={()=>goToProposal(val)} style={{
                         padding:"6px 12px",borderRadius:4,fontSize:11,cursor:"pointer",fontFamily:"inherit",
-                        background:BG3,color:GOLD,border:`1px solid ${GOLD}44`}}>{sec}</button>
+                        background:BG3,color:GOLD,border:`1px solid ${GOLD}44`}}>{label} →</button>
                     ))}
                   </div>
-                  <p style={{color:TEXT_D,fontSize:11,marginTop:10}}>Tip: Go to Proposal Engine, paste the RFP context, select the section, and generate a full version.</p>
+                  <p style={{color:TEXT_D,fontSize:11,marginTop:10}}>Click any section to open Proposal Engine pre-loaded with your RFP context. Each section gets full depth.</p>
                 </Card>
               </div>
             ) :
@@ -612,7 +689,7 @@ function WinnabilityScoring() {
 }
 
 // ── RESEARCH ─────────────────────────────────────────────────────────────────
-function ResearchAnalysis() {
+function ResearchAnalysis({ sharedCtx={}, saveSharedCtx=()=>{} }) {
   const [agencyName, setAgencyName] = useState("");
   const [oppType, setOppType] = useState("");
   const [competitors, setCompetitors] = useState("");
@@ -623,12 +700,18 @@ function ResearchAnalysis() {
   const generate = async () => {
     setLoading(true);
     const txt = await callClaude("Deep research for HGI capture:\nAgency: " + agencyName + "\nOpportunity Type: " + oppType + "\nKnown Competitors: " + competitors + "\nContext: " + context + "\n\nProvide:\n1. Agency Profile\n2. Funding Landscape\n3. Competitive Intel\n4. Relationship Map\n5. Win Strategy — 5 specific recommendations\n6. Red Flags\n7. Intel Gaps");
-    setResult(txt); setLoading(false);
+    setResult(txt);
+    saveSharedCtx({ research: txt, researchAgency: agencyName });
+    setLoading(false);
   };
 
   return (
     <div>
-      <h2 style={{color:GOLD,margin:"0 0 20px",fontSize:20,fontWeight:800}}>Research & Analysis</h2>
+      <h2 style={{color:GOLD,margin:"0 0 8px",fontSize:20,fontWeight:800}}>Research & Analysis</h2>
+      <p style={{color:TEXT_D,margin:"0 0 12px",fontSize:12}}>Research feeds automatically into your Executive Brief and Proposal</p>
+      {sharedCtx.research && <div style={{marginBottom:16,padding:"8px 12px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
+        Research saved for <strong>{sharedCtx.researchAgency || "agency"}</strong> — will be used in your next Executive Brief automatically.
+      </div>}
       <Card style={{marginBottom:20}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
           <div><Label text="AGENCY / CLIENT" /><Input value={agencyName} onChange={setAgencyName} placeholder="e.g. Louisiana OCD, Harris County" /></div>
@@ -644,9 +727,20 @@ function ResearchAnalysis() {
 }
 
 // ── PROPOSAL ENGINE ───────────────────────────────────────────────────────────
-function ProposalEngine() {
+function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
   const [rfpText, setRfpText] = useState("");
-  const [section, setSection] = useState("executive_summary");
+  const [section, setSection] = useState(defaultSection);
+  const [autoLoaded, setAutoLoaded] = useState(false);
+
+  // Auto-load RFP context from shared context when navigated here
+  useEffect(() => {
+    if (!autoLoaded && sharedCtx.rfpText && !rfpText) {
+      setRfpText(sharedCtx.rfpText);
+      setContext((sharedCtx.title || "") + (sharedCtx.agency ? " — " + sharedCtx.agency : ""));
+      setAutoLoaded(true);
+    }
+    setSection(defaultSection);
+  }, [defaultSection, sharedCtx]);
   const [context, setContext] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
@@ -667,17 +761,50 @@ function ProposalEngine() {
   const generate = async () => {
     setLoading(true);
     const sLabel = SECTIONS.find(s => s.value === section)?.label || section;
-    const txt = await callClaude("Write a " + sLabel + " for HGI proposal.\nRFP Context: " + (rfpText||"General disaster recovery TPA services") + "\nAdditional Context: " + context + "\n\nWrite this section as a winning proposal. Use HGI past performance where relevant. Use [TBD: ...] for unknowns.");
+    const decomp = sharedCtx.decomposition ? "\n\nRFP DECOMPOSITION:\n" + sharedCtx.decomposition.slice(0, 1200) : "";
+    const research = sharedCtx.research ? "\n\nCOMPETITIVE RESEARCH:\n" + sharedCtx.research.slice(0, 800) : "";
+    const brief = sharedCtx.execBrief ? "\n\nEXECUTIVE BRIEF SUMMARY:\n" + sharedCtx.execBrief.slice(0, 800) : "";
+    const sys = "You are a proposal writer for HGI. Write a complete, submission-ready " + sLabel + " section. Be specific, detailed, and evaluator-aligned. Use HGI past performance heavily. Use [TBD:...] for unknowns. Write at least 600 words for this section. " + HGI_CONTEXT;
+    const txt = await callClaude(
+      "Write a complete, detailed " + sLabel + " section for HGI proposal.\nRFP Context: " + (rfpText||"General disaster recovery TPA services") + "\nAdditional Context: " + context + decomp + brief + research + "\n\nWrite the full section. Be thorough. At least 600 words. Use specific HGI past performance examples. Evaluation-criteria aligned. Incorporate competitive intelligence where relevant.",
+      sys
+    );
     setResult(txt); setLoading(false);
   };
 
   return (
     <div>
       <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:20,fontWeight:800}}>Proposal Engine</h2>
-      <p style={{color:TEXT_D,margin:"0 0 20px",fontSize:12}}>Generate individual sections or use Full Workflow for complete package</p>
+      <p style={{color:TEXT_D,margin:"0 0 8px",fontSize:12}}>Generate individual sections — each gets full depth</p>
+      {sharedCtx.rfpText && <div style={{marginBottom:16,padding:"8px 12px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
+        RFP context loaded from Full Workflow: <strong>{sharedCtx.title || "Untitled"}</strong> — {sharedCtx.agency || "Agency TBD"} · Select a section below and generate.
+      </div>}
       <Card style={{marginBottom:20}}>
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <div><Label text="RFP CONTEXT / SCOPE" /><Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text, scope of work, or key requirements..." rows={5} /></div>
+          <div>
+            <Label text="RFP CONTEXT / SCOPE" />
+            {sharedCtx.rfpText && !rfpText && <div style={{marginBottom:6,fontSize:11,color:GOLD}}>Context auto-loaded from Full Workflow — or upload/paste to override</div>}
+            <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:6}}>
+              <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",background:BG4,
+                border:`1px solid ${BORDER}`,borderRadius:4,cursor:"pointer",fontSize:11,color:TEXT_D}}>
+                <span>📎 Upload File</span>
+                <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={async(e)=>{
+                  const file=e.target.files[0]; if(!file) return;
+                  if(file.type==="text/plain"){setRfpText(await file.text());return;}
+                  const reader=new FileReader();
+                  reader.onload=async(ev)=>{
+                    const base64=ev.target.result.split(",")[1];
+                    const body={model:"claude-sonnet-4-20250514",max_tokens:4000,system:"Extract all text from this document. Return only the text.",messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:file.type||"application/pdf",data:base64}},{type:"text",text:"Extract all text content."}]}]};
+                    const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+                    const d=await r.json();
+                    setRfpText(d.content?d.content.filter(b=>b.type==="text").map(b=>b.text).join(""):"Error extracting.");
+                  };
+                  reader.readAsDataURL(file);
+                }} style={{display:"none"}} />
+              </label>
+            </div>
+            <Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text, scope of work, or key requirements..." rows={5} />
+          </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             <div><Label text="SECTION TO GENERATE" /><Sel value={section} onChange={setSection} options={SECTIONS} style={{width:"100%"}} /></div>
             <div><Label text="ADDITIONAL CONTEXT" /><Input value={context} onChange={setContext} placeholder="Agency, value, key win themes..." /></div>
@@ -828,15 +955,28 @@ const MODULES = [
 function App() {
   const [active, setActive] = useState("workflow");
   const [sideOpen, setSideOpen] = useState(true);
+  const [sharedCtx, setSharedCtx] = useState(() => store.get("sharedCtx") || {rfpText:"", decomposition:"", execBrief:"", title:"", agency:""});
+  const [proposalSection, setProposalSection] = useState("executive_summary");
+
+  const saveSharedCtx = (ctx) => {
+    const merged = {...sharedCtx, ...ctx};
+    setSharedCtx(merged);
+    store.set("sharedCtx", merged);
+  };
+
+  const goToProposal = (section) => {
+    setProposalSection(section);
+    setActive("proposal");
+  };
 
   const components = {
-    workflow: <FullWorkflow />,
+    workflow: <FullWorkflow sharedCtx={sharedCtx} saveSharedCtx={saveSharedCtx} goToProposal={goToProposal} />,
     scanner: <PipelineScanner />,
-    tracker: <PipelineTracker />,
+    tracker: <PipelineTracker goToWorkflow={(opp) => { setActive("workflow"); }} />,
     scoring: <WinnabilityScoring />,
-    research: <ResearchAnalysis />,
-    proposal: <ProposalEngine />,
-    recruiting: <RecruitingBench />,
+    research: <ResearchAnalysis sharedCtx={sharedCtx} saveSharedCtx={saveSharedCtx} />,
+    proposal: <ProposalEngine sharedCtx={sharedCtx} defaultSection={proposalSection} />,
+    recruiting: <RecruitingBench sharedCtx={sharedCtx} />,
     digest: <WeeklyDigest />,
   };
 
