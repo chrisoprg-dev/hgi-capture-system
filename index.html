@@ -229,7 +229,7 @@ function FullWorkflow(){
   const [opi,setOpi]=useState(null);
   const [tab,setTab]=useState("decomp");
 
-  const getDecision=(t)=>{const m=t.match(/Decision(?:\s+Recommendation)?:\s*(GO|CONDITIONAL GO|NO-BID|WATCHLIST)/i);return m?m[1].toUpperCase():"";};
+  const getDecision=(t)=>{const patterns=["GO","CONDITIONAL GO","NO-BID","WATCHLIST"];for(const p of patterns){if(t.includes("Decision") && t.toUpperCase().includes(p)) return p;} return "";};
   const getOPI=(t)=>{const m=t.match(/OPI Score[^:]*:\s*(\d+)/i);return m?parseInt(m[1]):null;};
 
   const runA=async()=>{
@@ -283,26 +283,37 @@ function FullWorkflow(){
       </div>
       <div><Label text="RELATIONSHIP INTEL / CONTEXT"/><Textarea value={intel} onChange={setIntel} placeholder="Known relationships, budget intel, political context, past HGI work with this agency..." rows={2}/></div>
       <div><Label text="RFP / SOLICITATION TEXT — paste full text or key sections"/><Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text here. More complete = better output. Can paste scope, eval factors, or key requirements..." rows={10}/></div>
-      <Btn onClick={runA} disabled={!rfpText.trim()&&!title.trim()} style={{alignSelf:"flex-start"}}>▶ Step 1: Run RFP Decomposition</Btn>
+      <Btn onClick={runA} disabled={!rfpText.trim()&&!title.trim()} style={{alignSelf:"flex-start"}}>▶ Step 1: RFP Decomposition</Btn>
     </div>}
 
     {(step===15||step===2||step===25||step===3)&&<Card style={{marginBottom:20,border:`1px solid ${GOLD}44`}}>
       <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>Workflow Progress</div>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
         <div style={{width:20,height:20,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>✓</div>
-        <span style={{color:GREEN,fontSize:12}}>RFP Decomposition — Complete</span>
+        <span style={{color:GREEN,fontSize:12}}>Step 1: RFP Decomposition — Complete</span>
       </div>
-      {step===15&&<div style={{marginTop:12}}><AIOut content={outA} label="RFP DECOMPOSITION — Prompt A"/><div style={{marginTop:12}}><Btn onClick={runB}>▶ Step 2: Generate Executive Brief + OPI</Btn></div></div>}
-      {(step===2)&&<div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}><div style={{width:20,height:20,borderRadius:"50%",background:GOLD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>2</div><span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>Generating Executive Brief...</span></div>}
+      {step===15&&<div style={{marginTop:12}}>
+        <AIOut content={outA} label="RFP DECOMPOSITION"/>
+        <div style={{marginTop:12}}><Btn onClick={runB}>▶ Step 2: Executive Brief + OPI</Btn></div>
+      </div>}
+      {step===2&&<div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
+        <span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>⟳ Generating Executive Brief...</span>
+      </div>}
       {step===25&&<div>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}><div style={{width:20,height:20,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>✓</div><span style={{color:GREEN,fontSize:12}}>Executive Brief — Complete · Decision: <strong style={{color:decision==="GO"?GREEN:decision==="CONDITIONAL GO"?GOLD:RED}}>{decision}</strong></span></div>
-        <AIOut content={outB} label="EXECUTIVE DECISION BRIEF — Prompt B"/>
-        <div style={{marginTop:12,display:"flex",gap:8}}>
-          {(decision==="GO"||decision==="CONDITIONAL GO")&&<Btn onClick={runC}>▶ Step 3: Generate Proposal Package</Btn>}
-          <Btn variant="secondary" onClick={saveNoProposal}>Save & Finish Without Proposal</Btn>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <div style={{width:20,height:20,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>✓</div>
+          <span style={{color:GREEN,fontSize:12}}>Step 2: Executive Brief — Complete</span>
+          <span style={{color:decision==="GO"?GREEN:decision==="CONDITIONAL GO"?GOLD:RED,fontWeight:700,marginLeft:8}}>{decision||"(extracting...)"}</span>
+        </div>
+        <AIOut content={outB} label="EXECUTIVE DECISION BRIEF"/>
+        <div style={{marginTop:12,display:"flex",gap:8,flexWrap:"wrap"}}>
+          <Btn onClick={runC}>▶ Step 3: Generate Proposal Package</Btn>
+          <Btn variant="secondary" onClick={saveNoProposal}>Save Without Proposal</Btn>
         </div>
       </div>}
-      {step===3&&<div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}><div style={{width:20,height:20,borderRadius:"50%",background:GOLD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>3</div><span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>Generating Proposal Package...</span></div>}
+      {step===3&&<div style={{marginTop:8}}>
+        <span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>⟳ Generating Proposal Package...</span>
+      </div>}
     </Card>}
 
     {step===4&&<div>
