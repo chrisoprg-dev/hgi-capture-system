@@ -15,12 +15,13 @@
     textarea::placeholder, input::placeholder { color: #555048; }
     select option { background: #191919; }
     @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+    @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 const GOLD="#C9A84C",GOLD_D="#8B6E2E",BG="#0A0A0A",BG2="#111111",BG3="#191919",BG4="#222222";
 const TEXT="#E8E0D0",TEXT_D="#888070",BORDER="#2A2520",RED="#C0392B",GREEN="#27AE60",BLUE="#2980B9",ORANGE="#E67E22";
 
@@ -32,20 +33,30 @@ const store = {
 };
 
 async function callClaude(prompt, system, maxTokens=3000) {
-  const body = {
-    model: "claude-sonnet-4-20250514",
-    max_tokens: maxTokens,
-    system: system || "You are an expert government contracting capture manager for HGI. " + HGI_CONTEXT,
-    messages: [{ role: "user", content: prompt }]
-  };
-  const r = await fetch("/api/claude", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  const d = await r.json();
-  if (!d.content) return "API error.";
-  return d.content.filter(b => b.type === "text").map(b => b.text).join("") || "No response.";
+  try {
+    const body = {
+      model: "claude-sonnet-4-20250514",
+      max_tokens: maxTokens,
+      system: system || "You are an expert government contracting capture manager for HGI. " + HGI_CONTEXT,
+      messages: [{ role: "user", content: prompt }]
+    };
+    const r = await fetch("/api/claude", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) {
+      const errText = await r.text();
+      console.error("API error:", r.status, errText);
+      return "API error " + r.status + ": " + errText;
+    }
+    const d = await r.json();
+    if (!d.content) return "No content returned: " + JSON.stringify(d);
+    return d.content.filter(b => b.type === "text").map(b => b.text).join("") || "No response.";
+  } catch(err) {
+    console.error("callClaude error:", err);
+    return "Error: " + err.message;
+  }
 }
 
 const Badge = ({children, color=GOLD}) => (
@@ -86,8 +97,8 @@ const Sel = ({value, onChange, options, style}) => (
 );
 const Label = ({text}) => <label style={{display:"block",fontSize:11,color:TEXT_D,marginBottom:4,letterSpacing:"0.06em"}}>{text}</label>;
 const AIOut = ({content, loading, label="AI ANALYSIS"}) => {
-  if (loading) return <div style={{color:GOLD,fontSize:13,padding:12,background:BG3,borderRadius:4,border:`1px solid ${GOLD}33`}}>
-    <span style={{animation:"pulse 1.2s infinite"}}>generating {label}...</span></div>;
+  if (loading) return <div style={{color:GOLD,fontSize:13,padding:12,background:BG3,borderRadius:4,border:`1px solid ${GOLD}33`,animation:"pulse 1.2s infinite"}}>
+    ⟳ generating {label}...</div>;
   if (!content) return null;
   return <div style={{background:BG3,border:`1px solid ${GOLD}33`,borderRadius:4,padding:14,fontSize:13,lineHeight:1.75,color:TEXT,whiteSpace:"pre-wrap"}}>
     <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>{label}</div>
@@ -116,10 +127,32 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
   const [fileName, setFileName] = useState(wfStore.fileName || "");
   const [fileLoading, setFileLoading] = useState(false);
   const [step, setStep] = useState(wfStore.step || 0);
+  const [outA, setOutA] = useState(wfStore.outA || "");
+  const [outB, setOutB] = useState(wfStore.outB || "");
+  const [decision, setDecision] = useState(wfStore.decision || "");
+  const [opi, setOpi] = useState(wfStore.opi || null);
+  const [tab, setTab] = useState("a");
+  const [loadingA, setLoadingA] = useState(false);
+  const [loadingB, setLoadingB] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const timerRef = useRef(null);
+  const [researchStatus, setResearchStatus] = useState("");
+  const [error, setError] = useState("");
 
   const persistWF = (updates) => {
     store.set("wfState", {...(store.get("wfState")||{}), ...updates});
   };
+
+  const startTimer = () => {
+    setElapsed(0);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+  };
+  const stopTimer = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  };
+
+  useEffect(() => { return () => stopTimer(); }, []);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -133,7 +166,6 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
         setFileLoading(false);
         return;
       }
-      // For PDF and Word docs - read as base64 and send to Claude to extract
       const reader = new FileReader();
       reader.onload = async (ev) => {
         const base64 = ev.target.result.split(",")[1];
@@ -166,13 +198,6 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
       setFileLoading(false);
     }
   };
-  const [outA, setOutA] = useState(wfStore.outA || "");
-  const [outB, setOutB] = useState(wfStore.outB || "");
-  const [outC, setOutC] = useState("");
-  const [decision, setDecision] = useState(wfStore.decision || "");
-  const [opi, setOpi] = useState(wfStore.opi || null);
-  const [tab, setTab] = useState("a");
-  const [loadingStep, setLoadingStep] = useState(0);
 
   const extractDecision = (text) => {
     const t = text.toUpperCase();
@@ -200,41 +225,6 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
       "DECOMPOSITION:\n" + decomp + "\n\nCONTEXT:\n" + ctx;
   };
 
-  const buildPromptC = (decomp, brief) => {
-    return "Generate a first-pass proposal package for HGI. Use [TBD:...] for unknowns. Do not fabricate staff names.\n\n" +
-      "Produce:\nSECTION 1 - EXECUTIVE SUMMARY\nSECTION 2 - TECHNICAL APPROACH\nSECTION 3 - MANAGEMENT APPROACH\nSECTION 4 - STAFFING PLAN\nSECTION 5 - PAST PERFORMANCE MATRIX (Road Home, BP GCCF, PBGC, TPCIGA, Restore LA)\nSECTION 6 - TRANSITION / MOBILIZATION PLAN\nSECTION 7 - PRICING NARRATIVE\nSECTION 8 - COMPLIANCE MATRIX\nSECTION 9 - CLARIFYING QUESTIONS\nSECTION 10 - RED TEAM CRITIQUE (internal)\n\n" +
-      "DECOMPOSITION:\n" + decomp + "\n\nEXECUTIVE BRIEF:\n" + brief;
-  };
-
-  const runA = async () => {
-    if (!rfpText.trim() && !title.trim()) return;
-    setStep(1); setLoadingStep(1);
-    setOutA(""); setOutB(""); setOutC(""); setDecision(""); setOpi(null);
-    const rIn = rfpText || "Title: " + title + "\nAgency: " + agency + "\nContext: " + intel;
-    const sys = "You are an expert capture manager for HGI (Hammerman & Gainer). " + HGI_CONTEXT + " Extract solicitation requirements precisely. Mark missing info as Not Found in Provided Text.";
-    const a = await callClaude(buildPromptA(rIn), sys);
-    stopTimer(t1); setElapsed(0);
-    setOutA(a); setLoadingStep(0); setStep(2);
-    persistWF({ outA: a, step: 2, title, agency, rfpText: rIn, rfpUrl, incumbent, intel });
-    saveSharedCtx({ rfpText: rIn, decomposition: a, title, agency });
-    autoResearch(a, title, agency);
-    autoWinnability(a, title, agency);
-    autoBenchPull(a);
-  };
-
-  const [researchStatus, setResearchStatus] = useState("");
-  const [winStatus, setWinStatus] = useState("");
-  const [elapsed, setElapsed] = useState(0);
-  const [timerRef, setTimerRef] = useState(null);
-
-  const startTimer = () => {
-    setElapsed(0);
-    const ref = setInterval(() => setElapsed(e => e + 1), 1000);
-    setTimerRef(ref);
-    return ref;
-  };
-  const stopTimer = (ref) => { if(ref) clearInterval(ref); };
-
   const autoResearch = async (decomp, oppTitle, oppAgency) => {
     const agencyLine = decomp.split("\n").find(l => l.match(/^Agency:/i));
     const detectedAgency = oppAgency || (agencyLine ? agencyLine.replace(/^Agency:\s*/i,"").trim() : "");
@@ -255,48 +245,60 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
     }
   };
 
-  // 2. AUTO-WINNABILITY: fires after Step 1, feeds into Step 2
-  const autoWinnability = async (decomp, oppTitle, oppAgency) => {
-    setWinStatus("Scoring winnability...");
+  const runA = async () => {
+    if (!rfpText.trim() && !title.trim()) return;
+    setError("");
+    setLoadingA(true);
+    setOutA(""); setOutB(""); setDecision(""); setOpi(null);
+    startTimer();
     try {
-      const prompt = "Score this opportunity for HGI on a 0-100 OPI scale.\n\nRFP DECOMPOSITION:\n" + decomp.slice(0,1500) + "\n\nReturn ONLY this format:\nOPI Score: [number]\nPwin: [number]%\nTop 3 Win Factors: [bullets]\nTop 3 Risk Factors: [bullets]\nCompetitive Position: [1 sentence]";
-      const r = await callClaude(prompt, "You are a capture scoring expert for HGI. Score objectively based on HGI past performance and capabilities. " + HGI_CONTEXT, 800);
-      saveSharedCtx({ winnabilityScore: r });
-      setWinStatus("Winnability scored");
-    } catch(e) {
-      setWinStatus("");
-    }
-  };
-
-  // 3. AUTO-BENCH PULL: extracts staffing requirements and saves for Recruiting module
-  const autoBenchPull = (decomp) => {
-    const lines = decomp.split("\n");
-    const staffStart = lines.findIndex(l => l.match(/staffing|key personnel|labor categor/i));
-    if (staffStart > -1) {
-      const staffSection = lines.slice(staffStart, staffStart + 20).join("\n");
-      saveSharedCtx({ staffingRequirements: staffSection });
+      const rIn = rfpText || "Title: " + title + "\nAgency: " + agency + "\nContext: " + intel;
+      const sys = "You are an expert capture manager for HGI (Hammerman & Gainer). " + HGI_CONTEXT + " Extract solicitation requirements precisely. Mark missing info as Not Found in Provided Text.";
+      const a = await callClaude(buildPromptA(rIn), sys, 4000);
+      stopTimer();
+      setElapsed(0);
+      setOutA(a);
+      setLoadingA(false);
+      setTab("a");
+      persistWF({ outA: a, step: 2, title, agency, rfpText: rIn, rfpUrl, incumbent, intel });
+      saveSharedCtx({ rfpText: rIn, decomposition: a, title, agency });
+      // Fire background tasks — don't await
+      autoResearch(a, title, agency);
+    } catch(err) {
+      stopTimer();
+      setError("Step 1 failed: " + err.message);
+      setLoadingA(false);
     }
   };
 
   const runB = async () => {
-    setStep(2); setLoadingStep(2);
-    const t2 = startTimer();
-    const researchBlock = sharedCtx.research ? "\n\nCOMPETITIVE RESEARCH:\n" + sharedCtx.research.slice(0, 1200) : "";
-    const ctx = "Title: " + title + "\nAgency: " + agency + "\nIncumbent: " + (incumbent || "Unknown") + "\nIntel: " + intel + "\nURL: " + rfpUrl + researchBlock;
-    const sys = "You are a senior capture executive for HGI. Be analytical, decisive, specific. " + HGI_CONTEXT;
-    const b = await callClaude(buildPromptB(outA, ctx), sys);
-    setOutB(b);
-    const dec = extractDecision(b);
-    const opiVal = extractOPI(b);
-    setDecision(dec);
-    setOpi(opiVal);
-    stopTimer(t2); setElapsed(0);
-    setLoadingStep(0); setStep(3);
-    persistWF({ outB: b, step: 3, decision: dec, opi: opiVal });
-    saveSharedCtx({ execBrief: b });
+    setLoadingB(true);
+    setError("");
+    startTimer();
+    try {
+      const researchBlock = sharedCtx.research ? "\n\nCOMPETITIVE RESEARCH:\n" + sharedCtx.research.slice(0, 1200) : "";
+      const ctx = "Title: " + title + "\nAgency: " + agency + "\nIncumbent: " + (incumbent || "Unknown") + "\nIntel: " + intel + "\nURL: " + rfpUrl + researchBlock;
+      const sys = "You are a senior capture executive for HGI. Be analytical, decisive, specific. " + HGI_CONTEXT;
+      const b = await callClaude(buildPromptB(outA, ctx), sys, 4000);
+      stopTimer();
+      setElapsed(0);
+      const dec = extractDecision(b);
+      const opiVal = extractOPI(b);
+      setOutB(b);
+      setDecision(dec);
+      setOpi(opiVal);
+      setLoadingB(false);
+      setTab("b");
+      persistWF({ outB: b, step: 3, decision: dec, opi: opiVal });
+      saveSharedCtx({ execBrief: b });
+    } catch(err) {
+      stopTimer();
+      setError("Step 2 failed: " + err.message);
+      setLoadingB(false);
+    }
   };
 
-  const saveToTracker = (proposal) => {
+  const saveToTracker = () => {
     const tracker = store.get("tracker") || [];
     const extractField = (text, ...fields) => {
       for (const field of fields) {
@@ -310,44 +312,36 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
       }
       return "";
     };
-    const extractedTitle = extractField(outA, "RFP Title", "Title", "Opportunity Title", "Solicitation Title") || title || "Untitled";
-    const extractedAgency = extractField(outA, "Agency", "Client Agency", "Issuing Agency", "Contracting Agency") || agency || "";
-    const extractedValue = extractField(outA, "Estimated Value", "Contract Value", "Value", "Budget", "Award Amount") || "";
-    const extractedDeadline = extractField(outA, "Proposal Due Date", "Submission Deadline", "Due Date", "Key Dates", "Deadline") || "";
-    const extractedType = extractField(outA, "Service Archetype", "Contract Type", "Opportunity Type", "Buyer Type", "Program Type") || "";
-    const extractedGeo = extractField(outA, "Geography", "Place of Performance", "Location", "State") || "";
+    const extractedTitle = extractField(outA, "RFP Title", "Title") || title || "Untitled";
+    const extractedAgency = extractField(outA, "Agency") || agency || "";
+    const extractedValue = extractField(outA, "Estimated Value", "Contract Value", "Value") || "";
+    const extractedDeadline = extractField(outA, "Proposal Due Date", "Key Dates", "Deadline") || "";
+    const extractedType = extractField(outA, "Service Archetype", "Contract Type") || "";
+    const extractedGeo = extractField(outA, "Geography", "Place of Performance") || "";
     const opiMatch = outB ? outB.split("\n").find(l => l.match(/OPI/i) && l.match(/\d+/)) : null;
     const extractedOPI = opiMatch ? parseInt(opiMatch.match(/\d+/)[0]) : opi;
     store.set("tracker", [{
       id: "wf-" + Date.now(),
-      title: extractedTitle,
-      agency: extractedAgency,
-      value: extractedValue,
-      deadline: extractedDeadline,
-      type: extractedType,
-      geography: extractedGeo,
+      title: extractedTitle, agency: extractedAgency, value: extractedValue,
+      deadline: extractedDeadline, type: extractedType, geography: extractedGeo,
       stage: decision === "GO" ? "pursuing" : decision === "CONDITIONAL GO" ? "qualifying" : "identified",
       decision, opiScore: extractedOPI,
-      decomposition: outA, execBrief: outB, proposal: proposal || "",
+      decomposition: outA, execBrief: outB,
       addedDate: new Date().toISOString(),
       notes: "Full workflow " + new Date().toLocaleDateString()
     }, ...tracker]);
   };
 
   const runC = () => {
-    // Save to tracker with all workflow artifacts
-    saveToTracker("");
-    // Navigate to Proposal Engine with full context loaded
+    saveToTracker();
     saveSharedCtx({ rfpText: rfpText || sharedCtx.rfpText, decomposition: outA, execBrief: outB, title, agency });
-    setStep(4);
     goToProposal("executive_summary");
   };
 
-  const saveNoProposal = () => {
-    saveToTracker("");
-    setStep(4);
-  };
+  const saveNoProposal = () => { saveToTracker(); };
   const decColor = decision === "GO" ? GREEN : decision === "CONDITIONAL GO" ? GOLD : decision === "NO-BID" ? RED : TEXT_D;
+  const hasResult = outA || outB;
+  const isStep2Done = !!outB;
 
   return (
     <div>
@@ -356,7 +350,10 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
         <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>RFP Decomposition → Executive Brief + OPI → Proposal Package</p>
       </div>
 
-      {step === 0 && (
+      {error && <div style={{marginBottom:16,padding:"10px 14px",background:RED+"15",border:`1px solid ${RED}44`,borderRadius:4,color:RED,fontSize:13}}>{error}</div>}
+
+      {/* Input form — always show if no results yet */}
+      {!hasResult && !loadingA && (
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             <div><Label text="OPPORTUNITY TITLE" /><Input value={title} onChange={setTitle} placeholder="e.g. FEMA PA TPA — Jefferson Parish" /></div>
@@ -371,46 +368,52 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
               <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"7px 14px",background:BG4,
                 border:`1px solid ${BORDER}`,borderRadius:4,cursor:"pointer",fontSize:12,color:TEXT_D}}>
                 <span>📎 Upload PDF / Word / TXT</span>
-                <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleFileUpload}
-                  style={{display:"none"}} />
+                <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleFileUpload} style={{display:"none"}} />
               </label>
               {fileLoading && <span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>Extracting text from file...</span>}
               {fileName && !fileLoading && <span style={{color:GREEN,fontSize:12}}>✓ {fileName}</span>}
             </div>
             <Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text here, or upload a file above..." rows={8} />
           </div>
-          {loadingStep === 1 && <div style={{color:GOLD,padding:"10px 0",fontSize:13,animation:"pulse 1.2s infinite"}}>Generating RFP Decomposition...</div>}
-      {loadingStep !== 1 && <Btn onClick={runA} disabled={!rfpText.trim() && !title.trim()} style={{alignSelf:"flex-start"}}>Step 1: RFP Decomposition</Btn>}
+          <Btn onClick={runA} disabled={!rfpText.trim() && !title.trim()} style={{alignSelf:"flex-start"}}>
+            Step 1: Analyze RFP
+          </Btn>
         </div>
       )}
 
-      {step === 1 && (
+      {/* Loading state for Step 1 */}
+      {loadingA && (
         <Card style={{border:`1px solid ${GOLD}44`,padding:32,textAlign:"center"}}>
           <div style={{color:GOLD,fontSize:18,fontWeight:700,marginBottom:12,animation:"pulse 1.2s infinite"}}>⟳ Analyzing RFP...</div>
           <div style={{color:TEXT_D,fontSize:13,marginBottom:8}}>Extracting scope, evaluation criteria, compliance, staffing, and risks</div>
           <div style={{color:GOLD,fontSize:28,fontWeight:800,margin:"10px 0"}}>{elapsed}s</div>
-          <div style={{color:TEXT_D,fontSize:11}}>Typical: 20–40 seconds</div>
+          <div style={{color:TEXT_D,fontSize:11}}>Typical: 30–90 seconds for large RFPs</div>
         </Card>
       )}
 
-      {step >= 2 && (
+      {/* Results */}
+      {hasResult && !loadingA && (
         <div>
           <Card style={{marginBottom:16}}>
             <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
-              <span style={{color:GREEN,fontSize:13}}>✓ Step 1 Complete</span>
-              {step >= 3 && <span style={{color:GREEN,fontSize:13}}>✓ Step 2 Complete</span>}
-              {step >= 4 && <span style={{color:GREEN,fontSize:13}}>✓ Step 3 Complete</span>}
+              {outA && <span style={{color:GREEN,fontSize:13}}>✓ Step 1 Complete</span>}
+              {outB && <span style={{color:GREEN,fontSize:13}}>✓ Step 2 Complete</span>}
               {decision && <span style={{color:decColor,fontWeight:700,fontSize:14}}>{decision}</span>}
               {opi !== null && <OPIBadge score={opi} />}
-              <Btn small variant="secondary" style={{marginLeft:"auto"}} onClick={()=>{setStep(0);setRfpText("");setTitle("");setAgency("");}}>New Workflow</Btn>
+              <Btn small variant="secondary" style={{marginLeft:"auto"}} onClick={()=>{setOutA("");setOutB("");setDecision("");setOpi(null);setRfpText("");setTitle("");setAgency("");setError("");}}>New Workflow</Btn>
             </div>
           </Card>
 
-          {loadingStep === 2 && <div style={{color:GOLD,padding:12,animation:"pulse 1.2s infinite"}}>⟳ Generating Executive Brief... {elapsed}s</div>}
-          {loadingStep === 3 && <div style={{color:GOLD,padding:12,animation:"pulse 1.2s infinite"}}>Generating Proposal Package...</div>}
+          {loadingB && (
+            <Card style={{border:`1px solid ${GOLD}44`,padding:32,textAlign:"center",marginBottom:16}}>
+              <div style={{color:GOLD,fontSize:18,fontWeight:700,marginBottom:12,animation:"pulse 1.2s infinite"}}>⟳ Generating Executive Brief...</div>
+              <div style={{color:GOLD,fontSize:28,fontWeight:800,margin:"10px 0"}}>{elapsed}s</div>
+              <div style={{color:TEXT_D,fontSize:11}}>Typical: 30–60 seconds</div>
+            </Card>
+          )}
 
           <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-            {[["a","Decomposition"],["b","Executive Brief"],["c","Proposal"]].map(([id,label]) => (
+            {[["a","Decomposition"],["b","Executive Brief"]].map(([id,label]) => (
               <button key={id} onClick={()=>setTab(id)} style={{
                 padding:"6px 14px",borderRadius:4,fontSize:12,cursor:"pointer",fontFamily:"inherit",
                 background:tab===id?GOLD:BG3,color:tab===id?"#000":TEXT_D,
@@ -422,7 +425,7 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
           {tab === "a" && (
             <div>
               <AIOut content={outA} label="RFP DECOMPOSITION" />
-              {step === 2 && loadingStep === 0 && (
+              {outA && !outB && !loadingB && (
                 <div style={{marginTop:12}}>
                   {researchStatus && (
                     <div style={{marginBottom:10,padding:"7px 12px",borderRadius:4,fontSize:12,
@@ -430,21 +433,18 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
                       border:`1px solid ${researchStatus.includes("complete")?GREEN:GOLD}44`,
                       color:researchStatus.includes("complete")?GREEN:GOLD}}>
                       {researchStatus.includes("complete") ? "✓ " : "⟳ "}{researchStatus}
-                      {researchStatus.includes("complete") && " — included in Executive Brief automatically"}
                     </div>
                   )}
                   <Btn onClick={runB}>Step 2: Executive Brief + OPI</Btn>
-                  {researchStatus && !researchStatus.includes("complete") && !researchStatus.includes("failed") && (
-                    <div style={{marginTop:6,fontSize:11,color:TEXT_D}}>You can run Step 2 now — research will be added when ready</div>
-                  )}
                 </div>
               )}
             </div>
           )}
+
           {tab === "b" && (
             <div>
               <AIOut content={outB} label="EXECUTIVE DECISION BRIEF" />
-              {step === 3 && loadingStep === 0 && (
+              {outB && !loadingB && (
                 <div style={{marginTop:16}}>
                   <div style={{marginBottom:10,padding:"10px 14px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
                     ✓ Workflow complete — ready to build your full proposal section by section
@@ -456,39 +456,6 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
                 </div>
               )}
             </div>
-          )}
-          {tab === "c" && (
-            outC ? (
-              <div>
-                <AIOut content={outC} label="PROPOSAL PACKAGE — First Pass" />
-                <Card style={{marginTop:20,border:`1px solid ${GOLD}33`}}>
-                  <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>EXPAND INDIVIDUAL SECTIONS</div>
-                  <p style={{color:TEXT_D,fontSize:12,marginBottom:12}}>Generate a full deep-dive for any section using the Proposal Engine module, or click below to expand directly:</p>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    {[
-                      ["executive_summary","Executive Summary"],
-                      ["technical_approach","Technical Approach"],
-                      ["management_approach","Management Approach"],
-                      ["staffing_plan","Staffing Plan"],
-                      ["past_performance","Past Performance"],
-                      ["transition_plan","Transition Plan"],
-                      ["pricing_narrative","Pricing Narrative"],
-                      ["compliance_matrix","Compliance Matrix"],
-                      ["clarifying_questions","Clarifying Questions"],
-                      ["red_team","Red Team Critique"]
-                    ].map(([val,label]) => (
-                      <button key={val} onClick={()=>goToProposal(val)} style={{
-                        padding:"6px 12px",borderRadius:4,fontSize:11,cursor:"pointer",fontFamily:"inherit",
-                        background:BG3,color:GOLD,border:`1px solid ${GOLD}44`}}>{label} →</button>
-                    ))}
-                  </div>
-                  <p style={{color:TEXT_D,fontSize:11,marginTop:10}}>Click any section to open Proposal Engine pre-loaded with your RFP context. Each section gets full depth.</p>
-                </Card>
-              </div>
-            ) :
-            <Card style={{textAlign:"center",padding:32,color:TEXT_D}}>
-              {step < 3 ? "Complete Step 2 first." : "Proposal not generated — decision was " + (decision || "not GO")}
-            </Card>
           )}
         </div>
       )}
@@ -567,15 +534,9 @@ function PipelineScanner() {
     const ex = store.get("tracker") || [];
     if (ex.find(o => o.id === opp.id)) { alert("Already in tracker."); return; }
     store.set("tracker", [{
-      ...opp,
-      title: opp.title || "Untitled",
-      agency: opp.agency || "",
-      value: opp.value || "",
-      deadline: opp.deadline || "",
-      type: opp.cat || "",
-      stage: "identified",
-      notes: opp.description || "",
-      addedDate: new Date().toISOString()
+      ...opp, title: opp.title || "Untitled", agency: opp.agency || "",
+      value: opp.value || "", deadline: opp.deadline || "", type: opp.cat || "",
+      stage: "identified", notes: opp.description || "", addedDate: new Date().toISOString()
     }, ...ex]);
     alert("Added to Pipeline Tracker!");
   };
@@ -591,7 +552,7 @@ function PipelineScanner() {
         <Btn onClick={scan} disabled={scanning} style={{marginLeft:"auto"}}>{scanning ? "Scanning..." : "Run Live Scan"}</Btn>
       </div>
       {scanning && <Card style={{marginBottom:16,border:`1px solid ${GOLD}44`}}>
-        <div style={{color:GOLD,fontWeight:700,marginBottom:6}}>Scanning procurement portals...</div>
+        <div style={{color:GOLD,fontWeight:700,marginBottom:6,animation:"pulse 1.2s infinite"}}>Scanning procurement portals...</div>
         <div style={{color:TEXT_D,fontSize:12}}>{progress}</div>
       </Card>}
       {error && <Card style={{marginBottom:16,border:`1px solid ${RED}44`}}><div style={{color:RED,fontSize:13}}>{error}</div></Card>}
@@ -658,7 +619,6 @@ function PipelineTracker({ goToWorkflow }) {
   const [form, setForm] = useState({title:"",agency:"",type:"",value:"",deadline:"",notes:"",stage:"identified",opiScore:""});
   const [aiNotes, setAiNotes] = useState({});
   const [aiLoading, setAiLoading] = useState({});
-  const [expanded, setExpanded] = useState({});
   const [filterStage, setFilterStage] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
   const setF = (k,v) => setForm(f => ({...f, [k]:v}));
@@ -690,7 +650,6 @@ function PipelineTracker({ goToWorkflow }) {
 
   return (
     <div>
-      {/* Header */}
       <div style={{display:"flex",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
         <div>
           <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Pipeline Tracker</h2>
@@ -698,8 +657,6 @@ function PipelineTracker({ goToWorkflow }) {
         </div>
         <Btn style={{marginLeft:"auto"}} onClick={()=>{setShowAdd(!showAdd);setEditItem(null);}}>+ Add Opportunity</Btn>
       </div>
-
-      {/* Stage filter pills */}
       <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
         <button onClick={()=>setFilterStage("all")} style={{padding:"4px 12px",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:"inherit",border:"none",background:filterStage==="all"?GOLD:BG3,color:filterStage==="all"?"#000":TEXT_D,fontWeight:filterStage==="all"?700:400}}>All ({items.length})</button>
         {STAGES.map(s => {
@@ -708,8 +665,6 @@ function PipelineTracker({ goToWorkflow }) {
           return <button key={s.id} onClick={()=>setFilterStage(s.id)} style={{padding:"4px 12px",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${s.color}44`,background:filterStage===s.id?s.color+"33":"transparent",color:filterStage===s.id?s.color:TEXT_D,fontWeight:filterStage===s.id?700:400}}>{s.label} ({ct})</button>;
         })}
       </div>
-
-      {/* Add/Edit form */}
       {showAdd && (
         <Card style={{marginBottom:16,border:`1px solid ${GOLD}44`}}>
           <h3 style={{color:GOLD,margin:"0 0 12px",fontSize:14}}>{editItem?"Edit Opportunity":"New Opportunity"}</h3>
@@ -729,8 +684,6 @@ function PipelineTracker({ goToWorkflow }) {
           </div>
         </Card>
       )}
-
-      {/* Empty state */}
       {!filtered.length && (
         <Card style={{textAlign:"center",padding:48,border:`1px dashed ${BORDER}`}}>
           <div style={{fontSize:32,marginBottom:12}}>◈</div>
@@ -738,8 +691,6 @@ function PipelineTracker({ goToWorkflow }) {
           {filterStage==="all" && <Btn onClick={()=>setShowAdd(true)}>+ Add First Opportunity</Btn>}
         </Card>
       )}
-
-      {/* Opportunity list */}
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {filtered.map(item => {
           const stage = STAGES.find(s=>s.id===item.stage) || STAGES[0];
@@ -747,12 +698,11 @@ function PipelineTracker({ goToWorkflow }) {
           const decColor = item.decision==="GO"?GREEN:item.decision==="CONDITIONAL GO"?GOLD:item.decision==="NO-BID"?RED:TEXT_D;
           return (
             <div key={item.id} style={{background:BG2,border:`1px solid ${isOpen?GOLD:BORDER}`,borderRadius:6,overflow:"hidden"}}>
-              {/* Row summary - always visible */}
               <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",cursor:"pointer"}} onClick={()=>openItem(item)}>
                 <div style={{width:10,height:10,borderRadius:"50%",background:stage.color,flexShrink:0}} />
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontWeight:700,color:TEXT,fontSize:13,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.title}</div>
-                  <div style={{fontSize:11,color:TEXT_D}}>{item.agency}{item.type?" · "+item.type:""}{item.geography?" · "+item.geography:""}</div>
+                  <div style={{fontSize:11,color:TEXT_D}}>{item.agency}{item.type?" · "+item.type:""}</div>
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
                   {item.value && <span style={{color:GREEN,fontSize:12,fontWeight:700}}>{item.value}</span>}
@@ -763,14 +713,12 @@ function PipelineTracker({ goToWorkflow }) {
                   <span style={{color:TEXT_D,fontSize:14}}>{isOpen?"▲":"▼"}</span>
                 </div>
               </div>
-
-              {/* Expanded detail panel */}
               {isOpen && (
                 <div style={{borderTop:`1px solid ${BORDER}`,padding:16,background:BG3}}>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
                     <div>
                       <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>OPPORTUNITY DETAILS</div>
-                      {[["Agency",item.agency],["Type",item.type],["Value",item.value],["Deadline",item.deadline],["Geography",item.geography],["Decision",item.decision],["OPI Score",item.opiScore],["Added",item.addedDate?new Date(item.addedDate).toLocaleDateString():""]].map(([k,v])=>v?(
+                      {[["Agency",item.agency],["Type",item.type],["Value",item.value],["Deadline",item.deadline],["Decision",item.decision],["OPI Score",item.opiScore],["Added",item.addedDate?new Date(item.addedDate).toLocaleDateString():""]].map(([k,v])=>v?(
                         <div key={k} style={{display:"flex",gap:8,marginBottom:4,fontSize:12}}>
                           <span style={{color:TEXT_D,minWidth:80}}>{k}:</span>
                           <span style={{color:TEXT}}>{v}</span>
@@ -778,33 +726,27 @@ function PipelineTracker({ goToWorkflow }) {
                       ):null)}
                     </div>
                     <div>
-                      <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>STAGE & NOTES</div>
+                      <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>STAGE</div>
                       <Label text="MOVE TO STAGE" />
                       <Sel value={item.stage} onChange={v=>save(items.map(i=>i.id===item.id?{...i,stage:v}:i))}
                         options={STAGES.map(s=>({value:s.id,label:s.label}))} style={{width:"100%",marginBottom:10}} />
                       {item.notes && <div style={{fontSize:12,color:TEXT_D,fontStyle:"italic",marginTop:4}}>{item.notes}</div>}
                     </div>
                   </div>
-
-                  {/* Artifacts */}
-                  {(item.decomposition||item.execBrief||item.proposal) && (
+                  {(item.decomposition||item.execBrief) && (
                     <div style={{marginBottom:12,padding:"8px 12px",background:BG2,borderRadius:4,border:`1px solid ${BORDER}`}}>
                       <div style={{color:GOLD,fontSize:11,fontWeight:700,marginBottom:6}}>STORED ARTIFACTS</div>
                       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                         {item.decomposition && <Badge color={GOLD}>RFP Decomposition</Badge>}
                         {item.execBrief && <Badge color={GOLD}>Executive Brief</Badge>}
-                        {item.proposal && <Badge color={GREEN}>Proposal Package</Badge>}
                       </div>
                     </div>
                   )}
-
-                  {/* Actions */}
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     <Btn small onClick={()=>getStrategy(item)} disabled={aiLoading[item.id]}>{aiLoading[item.id]?"Getting Strategy...":"Get Capture Strategy"}</Btn>
                     <Btn small variant="secondary" onClick={()=>editBtn(item)}>Edit</Btn>
                     <Btn small variant="danger" onClick={()=>{save(items.filter(i=>i.id!==item.id));setSelectedItem(null);}}>Delete</Btn>
                   </div>
-
                   {(aiLoading[item.id]||aiNotes[item.id]) && (
                     <div style={{marginTop:12}}><AIOut content={aiNotes[item.id]} loading={aiLoading[item.id]} label="CAPTURE STRATEGY" /></div>
                   )}
@@ -926,16 +868,17 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
   const [currentlyGenerating, setCurrentlyGenerating] = useState("");
   const [proposalDraft, setProposalDraft] = useState(() => store.get("proposalDraft") || {});
   const [activeView, setActiveView] = useState("generate");
+  const [context, setContext] = useState("");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const saveSection = (sec, text) => {
     const updated = {...proposalDraft, [sec]: text};
     setProposalDraft(updated);
     store.set("proposalDraft", updated);
   };
-
   const clearDraft = () => { setProposalDraft({}); store.set("proposalDraft", {}); };
 
-  // Auto-load RFP context from shared context when navigated here
   useEffect(() => {
     if (!autoLoaded && sharedCtx.rfpText && !rfpText) {
       setRfpText(sharedCtx.rfpText);
@@ -944,9 +887,6 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     }
     setSection(defaultSection);
   }, [defaultSection, sharedCtx]);
-  const [context, setContext] = useState("");
-  const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const SECTIONS = [
     {value:"executive_summary",label:"Executive Summary"},
@@ -971,8 +911,8 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     const brief = sharedCtx.execBrief ? "\n\nEXECUTIVE BRIEF SUMMARY:\n" + sharedCtx.execBrief.slice(0, 800) : "";
     const sys = "You are a proposal writer for HGI. Write a complete, submission-ready " + sLabel + " section. Be specific, detailed, and evaluator-aligned. Use HGI past performance heavily. Use [TBD:...] for unknowns. Write at least 600 words for this section. " + HGI_CONTEXT;
     const txt = await callClaude(
-      "Write a complete, detailed " + sLabel + " section for HGI proposal.\nRFP Context: " + (activeRfp||"General disaster recovery TPA services") + "\nAdditional Context: " + context + decomp + brief + research + "\n\nWrite the full section. Be thorough. At least 600 words. Use specific HGI past performance examples. Evaluation-criteria aligned. Incorporate competitive intelligence where relevant.",
-      sys
+      "Write a complete, detailed " + sLabel + " section for HGI proposal.\nRFP Context: " + (activeRfp||"General disaster recovery TPA services") + "\nAdditional Context: " + context + decomp + brief + research + "\n\nWrite the full section. Be thorough. At least 600 words.",
+      sys, 4000
     );
     setResult(txt);
     saveSection(section, txt);
@@ -987,10 +927,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     setProposalDraft(nd);
     store.set("proposalDraft", nd);
   };
-  const goGenerate = (val) => {
-    setSection(val);
-    setActiveView("generate");
-  };
+  const goGenerate = (val) => { setSection(val); setActiveView("generate"); };
 
   return (
     <div>
@@ -1002,17 +939,16 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
         </Btn>}
         {completedSections > 0 && <Btn small variant="danger" onClick={clearDraft}>Clear Draft</Btn>}
       </div>
-      <p style={{color:TEXT_D,margin:"0 0 12px",fontSize:12}}>Generate sections one at a time — each saves automatically to your proposal draft</p>
+      <p style={{color:TEXT_D,margin:"0 0 12px",fontSize:12}}>Generate sections one at a time — each saves automatically</p>
 
       {sharedCtx.rfpText ? (
         <div style={{marginBottom:12,padding:"8px 12px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
-          ✓ RFP loaded: <strong>{sharedCtx.title || "Untitled"}</strong>{sharedCtx.agency ? " — " + sharedCtx.agency : ""} · {sharedCtx.decomposition ? "Decomposition ready" : "Run Step 1 first for best results"} · {sharedCtx.research ? "Research ready" : ""}
+          ✓ RFP loaded: <strong>{sharedCtx.title || "Untitled"}</strong>{sharedCtx.agency ? " — " + sharedCtx.agency : ""}
         </div>
       ) : (
         <div style={{marginBottom:16,padding:"12px 16px",background:ORANGE+"15",border:`1px solid ${ORANGE}44`,borderRadius:4}}>
           <div style={{color:ORANGE,fontWeight:700,fontSize:13,marginBottom:4}}>⚠ Recommended: Complete Full Workflow First</div>
-          <div style={{color:TEXT_D,fontSize:12}}>For best results: Full Workflow → Steps 1, 2, 3 → then come here to expand sections. The proposal engine uses your RFP decomposition and executive brief to write stronger sections.</div>
-          <div style={{color:TEXT_D,fontSize:12,marginTop:6}}>You can still generate sections by pasting RFP text below, but quality will be lower without workflow context.</div>
+          <div style={{color:TEXT_D,fontSize:12}}>For best results run Full Workflow first, then come here to expand sections.</div>
         </div>
       )}
 
@@ -1021,48 +957,18 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
           <Card style={{marginBottom:16}}>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               <div>
-                <Label text="RFP CONTEXT / SCOPE" />
-                <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:6}}>
-                  <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",background:BG4,
-                    border:`1px solid ${BORDER}`,borderRadius:4,cursor:"pointer",fontSize:11,color:TEXT_D}}>
-                    <span>📎 Upload File</span>
-                    <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={async(e)=>{
-                      const file=e.target.files[0]; if(!file) return;
-                      if(file.type==="text/plain"){setRfpText(await file.text());return;}
-                      const reader=new FileReader();
-                      reader.onload=async(ev)=>{
-                        const base64=ev.target.result.split(",")[1];
-                        const body={model:"claude-sonnet-4-20250514",max_tokens:4000,system:"Extract all text from this document. Return only the text.",messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:file.type||"application/pdf",data:base64}},{type:"text",text:"Extract all text content."}]}]};
-                        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-                        const d=await r.json();
-                        setRfpText(d.content?d.content.filter(b=>b.type==="text").map(b=>b.text).join(""):"Error extracting.");
-                      };
-                      reader.readAsDataURL(file);
-                    }} style={{display:"none"}} />
-                  </label>
-                </div>
+                <Label text="RFP CONTEXT (optional — paste if not loaded from workflow)" />
                 <Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text or upload above..." rows={4} />
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                 <div><Label text="SECTION TO GENERATE" /><Sel value={section} onChange={setSection} options={SECTIONS} style={{width:"100%"}} /></div>
                 <div><Label text="ADDITIONAL CONTEXT" /><Input value={context} onChange={setContext} placeholder="Agency, value, key win themes..." /></div>
               </div>
-              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                {!rfpText && !sharedCtx.rfpText ? (
-                  <div style={{padding:"9px 14px",background:RED+"15",border:`1px solid ${RED}44`,borderRadius:4,fontSize:12,color:RED}}>
-                    ⚠ No RFP loaded — run Full Workflow first or paste RFP text above
-                  </div>
-                ) : (
-                  <Btn onClick={generate} disabled={loading} style={{alignSelf:"flex-start"}}>
-                    {loading ? "Writing " + currentlyGenerating + "..." : "Generate: " + (SECTIONS.find(s=>s.value===section)?.label||"Section")}
-                  </Btn>
-                )}
-                {loading && <span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>⟳ Writing {currentlyGenerating}...</span>}
-                {!loading && proposalDraft[section] && <span style={{color:GREEN,fontSize:12}}>✓ Already drafted — generating will overwrite</span>}
-              </div>
+              <Btn onClick={generate} disabled={loading} style={{alignSelf:"flex-start"}}>
+                {loading ? "Writing " + currentlyGenerating + "..." : "Generate: " + (SECTIONS.find(s=>s.value===section)?.label||"Section")}
+              </Btn>
             </div>
           </Card>
-
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
             {SECTIONS.map(s => (
               <button key={s.value} onClick={()=>setSection(s.value)} style={{
@@ -1076,7 +982,6 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
               </button>
             ))}
           </div>
-
           {(loading || result) && <AIOut content={result} loading={loading} label={"GENERATING: " + currentlyGenerating.toUpperCase()} />}
         </div>
       )}
@@ -1085,7 +990,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
         <div>
           <Card style={{marginBottom:16,border:`1px solid ${GOLD}44`}}>
             <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:4}}>PROPOSAL DRAFT WORKSPACE</div>
-            <div style={{color:TEXT_D,fontSize:12}}>All generated sections saved here. Click any section to edit. Download when complete.</div>
+            <div style={{color:TEXT_D,fontSize:12}}>All generated sections saved here. Click any section to edit.</div>
           </Card>
           {SECTIONS.map(s => (
             proposalDraft[s.value] ? (
@@ -1202,7 +1107,7 @@ function WeeklyDigest() {
       "Generate HGI Weekly Capture Intelligence Digest for week of " + dateStr + ".\n\n" +
       (focus ? "SPECIAL FOCUS: " + focus + "\n\n" : "") +
       "ACTIVE PIPELINE:\n" + pipeline + "\n\n" +
-      "Include:\n## EXECUTIVE SUMMARY\n## HOT OPPORTUNITIES (3-5 specific with value, HGI advantage, competition)\n## RECOMPETE WATCHLIST\n## INTELLIGENCE UPDATES\n## COMPETITIVE INTEL\n## THIS WEEK CAPTURE PRIORITIES (5 actions)\n## UPCOMING DEADLINES\n## MARKET TRENDS"
+      "Include:\n## EXECUTIVE SUMMARY\n## HOT OPPORTUNITIES\n## RECOMPETE WATCHLIST\n## INTELLIGENCE UPDATES\n## COMPETITIVE INTEL\n## THIS WEEK CAPTURE PRIORITIES\n## UPCOMING DEADLINES\n## MARKET TRENDS"
     );
     setResult(txt);
     const newDigests = [{date:dateStr, content:txt}, ...digests].slice(0,10);
@@ -1219,7 +1124,7 @@ function WeeklyDigest() {
         <Input value={focus} onChange={setFocus} placeholder="e.g. FEMA PA recompetes, Texas TPA, Florida recovery..." />
         <Btn onClick={generate} disabled={loading} style={{marginTop:12}}>{loading?"Generating...":"Generate This Week Digest"}</Btn>
       </Card>
-      <AIOut content={result} loading={loading} label="AI ANALYSIS" />
+      <AIOut content={result} loading={loading} label="WEEKLY DIGEST" />
       {digests.length > 0 && (
         <div style={{marginTop:24}}>
           <div style={{color:GOLD_D,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:10}}>ARCHIVED DIGESTS</div>
@@ -1232,123 +1137,6 @@ function WeeklyDigest() {
     </div>
   );
 }
-
-
-// ── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ setActive }) {
-  const tracker = store.get("tracker") || [];
-  const sharedCtx = store.get("sharedCtx") || {};
-  const t1 = tracker.filter(o => o.opiScore && parseInt(o.opiScore) >= 70);
-  const pursuing = tracker.filter(o => o.stage === "pursuing");
-  const proposal = tracker.filter(o => o.stage === "proposal");
-  const submitted = tracker.filter(o => o.stage === "submitted");
-  const recentOpps = tracker.slice(0,5);
-
-  const statBox = (label, value, color, module) => (
-    <div onClick={()=>setActive(module)} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:20,cursor:"pointer",flex:1,minWidth:140}}>
-      <div style={{fontSize:28,fontWeight:800,color:color||GOLD,marginBottom:4}}>{value}</div>
-      <div style={{fontSize:11,color:TEXT_D,letterSpacing:"0.08em"}}>{label}</div>
-    </div>
-  );
-
-  return (
-    <div>
-      <div style={{marginBottom:24}}>
-        <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:22,fontWeight:800}}>HGI Capture Dashboard</h2>
-        <p style={{color:TEXT_D,margin:0,fontSize:13}}>Hammerman & Gainer LLC · {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</p>
-      </div>
-
-      {/* Stats row */}
-      <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
-        {statBox("TOTAL TRACKED", tracker.length, GOLD, "tracker")}
-        {statBox("TIER 1 (OPI 70+)", t1.length, GREEN, "tracker")}
-        {statBox("PURSUING", pursuing.length, GOLD, "tracker")}
-        {statBox("IN PROPOSAL", proposal.length, ORANGE, "tracker")}
-        {statBox("SUBMITTED", submitted.length, BLUE, "tracker")}
-      </div>
-
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
-        {/* Recent pipeline */}
-        <Card>
-          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>RECENT PIPELINE</div>
-          {recentOpps.length ? recentOpps.map(o => {
-            const stage = STAGES.find(s=>s.id===o.stage);
-            return (
-              <div key={o.id} onClick={()=>setActive("tracker")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${BORDER}`,cursor:"pointer"}}>
-                <div style={{width:8,height:8,borderRadius:"50%",background:stage?stage.color:TEXT_D,flexShrink:0}} />
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12,color:TEXT,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{o.title}</div>
-                  <div style={{fontSize:11,color:TEXT_D}}>{o.agency}</div>
-                </div>
-                {o.opiScore && <OPIBadge score={o.opiScore} />}
-              </div>
-            );
-          }) : <div style={{color:TEXT_D,fontSize:13,padding:"20px 0",textAlign:"center"}}>No opportunities yet</div>}
-          <div style={{marginTop:12}}><Btn small variant="ghost" onClick={()=>setActive("tracker")}>View All →</Btn></div>
-        </Card>
-
-        {/* Quick actions */}
-        <Card>
-          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>QUICK ACTIONS</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <div onClick={()=>setActive("workflow")} style={{display:"flex",alignItems:"center",gap:12,padding:12,background:BG3,borderRadius:4,cursor:"pointer",border:`1px solid ${BORDER}`}}>
-              <span style={{fontSize:18}}>⚡</span>
-              <div>
-                <div style={{color:TEXT,fontWeight:600,fontSize:13}}>Run Full Workflow</div>
-                <div style={{color:TEXT_D,fontSize:11}}>Upload RFP → Decompose → Score → Propose</div>
-              </div>
-            </div>
-            <div onClick={()=>setActive("scanner")} style={{display:"flex",alignItems:"center",gap:12,padding:12,background:BG3,borderRadius:4,cursor:"pointer",border:`1px solid ${BORDER}`}}>
-              <span style={{fontSize:18}}>◎</span>
-              <div>
-                <div style={{color:TEXT,fontWeight:600,fontSize:13}}>Scan for New RFPs</div>
-                <div style={{color:TEXT_D,fontSize:11}}>Search SAM.gov, LaPAC, Gulf Coast portals</div>
-              </div>
-            </div>
-            <div onClick={()=>setActive("scoring")} style={{display:"flex",alignItems:"center",gap:12,padding:12,background:BG3,borderRadius:4,cursor:"pointer",border:`1px solid ${BORDER}`}}>
-              <span style={{fontSize:18}}>◆</span>
-              <div>
-                <div style={{color:TEXT,fontWeight:600,fontSize:13}}>Score an Opportunity</div>
-                <div style={{color:TEXT_D,fontSize:11}}>Quick Pwin + OPI before committing resources</div>
-              </div>
-            </div>
-            <div onClick={()=>setActive("digest")} style={{display:"flex",alignItems:"center",gap:12,padding:12,background:BG3,borderRadius:4,cursor:"pointer",border:`1px solid ${BORDER}`}}>
-              <span style={{fontSize:18}}>◇</span>
-              <div>
-                <div style={{color:TEXT,fontWeight:600,fontSize:13}}>Generate Weekly Digest</div>
-                <div style={{color:TEXT_D,fontSize:11}}>AI capture intelligence brief for leadership</div>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Workflow guide */}
-      <Card style={{border:`1px solid ${GOLD}22`}}>
-        <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>RECOMMENDED WORKFLOW</div>
-        <div style={{display:"flex",gap:0,flexWrap:"wrap"}}>
-          {[
-            ["1","Find RFP","Scanner or upload"],
-            ["2","Run Full Workflow","Decompose → Score → Proposal skeleton"],
-            ["3","Expand Sections","Proposal Engine — one section at a time"],
-            ["4","Track & Manage","Pipeline Tracker — move through stages"],
-            ["5","Weekly Review","Digest — leadership intelligence brief"]
-          ].map(([num,title,sub],i,arr)=>(
-            <div key={num} style={{display:"flex",alignItems:"center"}}>
-              <div style={{textAlign:"center",padding:"0 16px"}}>
-                <div style={{width:32,height:32,borderRadius:"50%",background:GOLD,color:"#000",fontWeight:800,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 6px"}}>{num}</div>
-                <div style={{color:TEXT,fontSize:12,fontWeight:600,marginBottom:2}}>{title}</div>
-                <div style={{color:TEXT_D,fontSize:11}}>{sub}</div>
-              </div>
-              {i < arr.length-1 && <div style={{color:GOLD,fontSize:18,opacity:0.4}}>→</div>}
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
 
 // ── FINANCIAL ANALYSIS & PRICING ─────────────────────────────────────────────
 function FinancialPricing({ sharedCtx={} }) {
@@ -1385,16 +1173,12 @@ function FinancialPricing({ sharedCtx={} }) {
   const totalLabor = (feeAdj=0, laborAdj=0, hoursAdj=0) =>
     laborRows.reduce((sum, r) => sum + calcRow(r, feeAdj, laborAdj, hoursAdj).total, 0);
   const totalODC = () => odcs.reduce((sum, o) => sum + parseFloat(o.amount||0), 0);
-  const baseTotal = () => totalLabor() + totalODC();
   const fmt = (n) => "$" + Math.round(n).toLocaleString();
-  const pct = (n) => (parseFloat(n)*100).toFixed(1) + "%";
-
   const periodTotal = (p, idx) => {
     const esc = Math.pow(1 + (parseFloat(p.escalation||0)/100), idx);
     return (totalLabor() * esc + totalODC()) * (parseFloat(p.months||12)/12);
   };
   const contractTotal = () => periods.reduce((sum, p, i) => sum + periodTotal(p, i), 0);
-
   const profitMargin = () => {
     const t = totalLabor();
     const cost = laborRows.reduce((sum, r) => sum + calcRow(r).cost * calcRow(r).hours, 0);
@@ -1403,17 +1187,12 @@ function FinancialPricing({ sharedCtx={} }) {
 
   const generateNarrative = async () => {
     setNarrativeLoading(true);
-    const rfpCtx = sharedCtx.rfpText ? "RFP Context: " + sharedCtx.rfpText.slice(0,500) : "";
-    const prompt = "Write a professional Cost Proposal Narrative for HGI.\n" + rfpCtx + "\n\nTotal Contract Value: " + fmt(contractTotal()) + "\nBase Year: " + fmt(periodTotal(periods[0],0)) + "\nLabor Cost Breakdown: " + laborRows.map(r => r.cat + " — " + fmt(calcRow(r).total)).join(", ") + "\nODCs: " + fmt(totalODC()) + "\nProfit Margin: " + profitMargin() + "%\n\nWrite a complete cost narrative that: explains the pricing methodology, justifies labor categories and rates, addresses value for money, explains ODCs, and demonstrates cost realism. Professional government proposal tone.";
-    const txt = await callClaude(prompt, "You are a cost proposal specialist for HGI. Write persuasively and compliantly.", 2000);
+    const txt = await callClaude("Write a professional Cost Proposal Narrative for HGI.\nTotal Contract Value: " + fmt(contractTotal()) + "\nBase Year: " + fmt(periodTotal(periods[0],0)) + "\nLabor: " + laborRows.map(r => r.cat + " — " + fmt(calcRow(r).total)).join(", ") + "\nODCs: " + fmt(totalODC()) + "\nProfit Margin: " + profitMargin() + "%\n\nWrite a complete cost narrative: pricing methodology, labor rate justification, ODC explanation, cost realism. Professional government proposal tone.", "You are a cost proposal specialist for HGI.", 2000);
     setCostNarrative(txt);
     setNarrativeLoading(false);
   };
 
-  const addLaborRow = () => {
-    const newRow = {id:Date.now(), cat:"Analyst", hours:2080, rawRate:60, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10};
-    saveLR([...laborRows, newRow]);
-  };
+  const addLaborRow = () => saveLR([...laborRows, {id:Date.now(), cat:"Analyst", hours:2080, rawRate:60, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10}]);
   const updateLR = (id, field, val) => saveLR(laborRows.map(r => r.id===id ? {...r,[field]:val} : r));
   const removeLR = (id) => saveLR(laborRows.filter(r => r.id!==id));
 
@@ -1423,95 +1202,82 @@ function FinancialPricing({ sharedCtx={} }) {
     <div>
       <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
       <p style={{color:TEXT_D,margin:"0 0 16px",fontSize:12}}>Cost buildup · Period pricing · Price-to-win · Scenario modeling · Cost narrative</p>
-
-      {/* Summary bar */}
       <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
-        {[["Base Year Total",fmt(periodTotal(periods[0],0)),GOLD],["Contract Total",fmt(contractTotal()),GREEN],["Profit Margin",profitMargin()+"%",profitMargin()>10?GREEN:ORANGE],["Labor",fmt(totalLabor()),TEXT_D],["ODCs",fmt(totalODC()),TEXT_D]].map(([l,v,c])=>(
+        {[["Base Year",fmt(periodTotal(periods[0],0)),GOLD],["Contract Total",fmt(contractTotal()),GREEN],["Profit Margin",profitMargin()+"%",profitMargin()>10?GREEN:ORANGE],["Labor",fmt(totalLabor()),TEXT_D],["ODCs",fmt(totalODC()),TEXT_D]].map(([l,v,c])=>(
           <div key={l} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:"12px 16px",flex:1,minWidth:120}}>
             <div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div>
             <div style={{fontSize:11,color:TEXT_D}}>{l}</div>
           </div>
         ))}
       </div>
-
-      {/* Tab bar */}
       <div style={{display:"flex",gap:4,marginBottom:16,borderBottom:`1px solid ${BORDER}`,paddingBottom:8}}>
         {TABS.map(t=>(
           <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{padding:"6px 14px",borderRadius:4,fontSize:12,cursor:"pointer",fontFamily:"inherit",border:"none",background:activeTab===t.id?GOLD:BG3,color:activeTab===t.id?"#000":TEXT_D,fontWeight:activeTab===t.id?700:400}}>{t.label}</button>
         ))}
       </div>
 
-      {/* COST BUILDUP TAB */}
       {activeTab === "buildup" && (
-        <div>
-          <Card>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{color:GOLD,fontWeight:700,fontSize:13}}>LABOR CATEGORIES</div>
-              <Btn small onClick={addLaborRow}>+ Add Row</Btn>
-            </div>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
-                <thead>
-                  <tr style={{color:TEXT_D,textAlign:"left"}}>
-                    {["Labor Category","Hours","Raw Rate","Fringe","OH","G&A","Fee","Loaded Rate","Total"].map(h=>(
-                      <th key={h} style={{padding:"4px 8px",borderBottom:`1px solid ${BORDER}`,whiteSpace:"nowrap"}}>{h}</th>
-                    ))}
-                    <th style={{padding:"4px 8px",borderBottom:`1px solid ${BORDER}`}}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {laborRows.map(r => {
-                    const c = calcRow(r);
-                    return (
-                      <tr key={r.id} style={{borderBottom:`1px solid ${BORDER}22`}}>
-                        <td style={{padding:"4px 8px"}}>
-                          <select value={r.cat} onChange={e=>updateLR(r.id,"cat",e.target.value)} style={{background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,fontFamily:"inherit",padding:"2px 4px"}}>
-                            {LABOR_CATS.map(c=><option key={c} value={c}>{c}</option>)}
-                          </select>
-                        </td>
-                        <td style={{padding:"4px 8px"}}><input type="number" value={r.hours} onChange={e=>updateLR(r.id,"hours",e.target.value)} style={{width:60,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
-                        <td style={{padding:"4px 8px"}}><input type="number" value={r.rawRate} onChange={e=>updateLR(r.id,"rawRate",e.target.value)} style={{width:60,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
-                        <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.fringe} onChange={e=>updateLR(r.id,"fringe",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
-                        <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.overhead} onChange={e=>updateLR(r.id,"overhead",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
-                        <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.ga} onChange={e=>updateLR(r.id,"ga",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
-                        <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.fee} onChange={e=>updateLR(r.id,"fee",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
-                        <td style={{padding:"4px 8px",color:GREEN,fontWeight:700}}>{fmt(c.loaded)}/hr</td>
-                        <td style={{padding:"4px 8px",color:GOLD,fontWeight:700}}>{fmt(c.total)}</td>
-                        <td style={{padding:"4px 8px"}}><button onClick={()=>removeLR(r.id)} style={{background:"none",border:"none",color:RED,cursor:"pointer",fontSize:14}}>×</button></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr style={{fontWeight:700}}>
-                    <td colSpan={8} style={{padding:"8px 8px",color:TEXT_D,fontSize:11}}>LABOR SUBTOTAL</td>
-                    <td style={{padding:"8px 8px",color:GOLD,fontSize:13}}>{fmt(totalLabor())}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-            <div style={{marginTop:16,borderTop:`1px solid ${BORDER}`,paddingTop:12}}>
-              <div style={{color:GOLD,fontWeight:700,fontSize:12,marginBottom:8}}>OTHER DIRECT COSTS (ODCs)</div>
-              {odcs.map(o=>(
-                <div key={o.id} style={{display:"flex",gap:8,marginBottom:6,alignItems:"center"}}>
-                  <input value={o.desc} onChange={e=>saveODC(odcs.map(x=>x.id===o.id?{...x,desc:e.target.value}:x))} placeholder="Description" style={{flex:1,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"4px 8px"}} />
-                  <input type="number" value={o.amount} onChange={e=>saveODC(odcs.map(x=>x.id===o.id?{...x,amount:e.target.value}:x))} placeholder="Amount" style={{width:100,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"4px 8px"}} />
-                  <span style={{color:GREEN,fontSize:11,minWidth:80}}>{fmt(parseFloat(o.amount||0))}</span>
-                  <button onClick={()=>saveODC(odcs.filter(x=>x.id!==o.id))} style={{background:"none",border:"none",color:RED,cursor:"pointer"}}>×</button>
-                </div>
-              ))}
-              <Btn small variant="ghost" onClick={()=>saveODC([...odcs,{id:Date.now(),desc:"",amount:0}])}>+ Add ODC</Btn>
-              <div style={{marginTop:8,display:"flex",justifyContent:"flex-end",gap:20,fontSize:12}}>
-                <span style={{color:TEXT_D}}>ODC Total: <strong style={{color:GREEN}}>{fmt(totalODC())}</strong></span>
-                <span style={{color:TEXT_D}}>Contract Base: <strong style={{color:GOLD}}>{fmt(baseTotal())}</strong></span>
+        <Card>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{color:GOLD,fontWeight:700,fontSize:13}}>LABOR CATEGORIES</div>
+            <Btn small onClick={addLaborRow}>+ Add Row</Btn>
+          </div>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <thead>
+                <tr style={{color:TEXT_D,textAlign:"left"}}>
+                  {["Labor Category","Hours","Raw Rate","Fringe","OH","G&A","Fee","Loaded Rate","Total",""].map(h=>(
+                    <th key={h} style={{padding:"4px 8px",borderBottom:`1px solid ${BORDER}`,whiteSpace:"nowrap"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {laborRows.map(r => {
+                  const c = calcRow(r);
+                  return (
+                    <tr key={r.id} style={{borderBottom:`1px solid ${BORDER}22`}}>
+                      <td style={{padding:"4px 8px"}}>
+                        <select value={r.cat} onChange={e=>updateLR(r.id,"cat",e.target.value)} style={{background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,fontFamily:"inherit",padding:"2px 4px"}}>
+                          {LABOR_CATS.map(c=><option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </td>
+                      <td style={{padding:"4px 8px"}}><input type="number" value={r.hours} onChange={e=>updateLR(r.id,"hours",e.target.value)} style={{width:60,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                      <td style={{padding:"4px 8px"}}><input type="number" value={r.rawRate} onChange={e=>updateLR(r.id,"rawRate",e.target.value)} style={{width:60,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                      <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.fringe} onChange={e=>updateLR(r.id,"fringe",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                      <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.overhead} onChange={e=>updateLR(r.id,"overhead",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                      <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.ga} onChange={e=>updateLR(r.id,"ga",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                      <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.fee} onChange={e=>updateLR(r.id,"fee",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                      <td style={{padding:"4px 8px",color:GREEN,fontWeight:700}}>{fmt(c.loaded)}/hr</td>
+                      <td style={{padding:"4px 8px",color:GOLD,fontWeight:700}}>{fmt(c.total)}</td>
+                      <td style={{padding:"4px 8px"}}><button onClick={()=>removeLR(r.id)} style={{background:"none",border:"none",color:RED,cursor:"pointer",fontSize:14}}>×</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr><td colSpan={8} style={{padding:"8px 8px",color:TEXT_D,fontSize:11,fontWeight:700}}>LABOR SUBTOTAL</td><td style={{padding:"8px 8px",color:GOLD,fontSize:13,fontWeight:700}}>{fmt(totalLabor())}</td><td></td></tr>
+              </tfoot>
+            </table>
+          </div>
+          <div style={{marginTop:16,borderTop:`1px solid ${BORDER}`,paddingTop:12}}>
+            <div style={{color:GOLD,fontWeight:700,fontSize:12,marginBottom:8}}>OTHER DIRECT COSTS (ODCs)</div>
+            {odcs.map(o=>(
+              <div key={o.id} style={{display:"flex",gap:8,marginBottom:6,alignItems:"center"}}>
+                <input value={o.desc} onChange={e=>saveODC(odcs.map(x=>x.id===o.id?{...x,desc:e.target.value}:x))} placeholder="Description" style={{flex:1,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"4px 8px"}} />
+                <input type="number" value={o.amount} onChange={e=>saveODC(odcs.map(x=>x.id===o.id?{...x,amount:e.target.value}:x))} style={{width:100,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"4px 8px"}} />
+                <span style={{color:GREEN,fontSize:11,minWidth:80}}>{fmt(parseFloat(o.amount||0))}</span>
+                <button onClick={()=>saveODC(odcs.filter(x=>x.id!==o.id))} style={{background:"none",border:"none",color:RED,cursor:"pointer"}}>×</button>
               </div>
+            ))}
+            <Btn small variant="ghost" onClick={()=>saveODC([...odcs,{id:Date.now(),desc:"",amount:0}])}>+ Add ODC</Btn>
+            <div style={{marginTop:8,display:"flex",justifyContent:"flex-end",gap:20,fontSize:12}}>
+              <span style={{color:TEXT_D}}>ODC Total: <strong style={{color:GREEN}}>{fmt(totalODC())}</strong></span>
+              <span style={{color:TEXT_D}}>Base Total: <strong style={{color:GOLD}}>{fmt(totalLabor()+totalODC())}</strong></span>
             </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
       )}
 
-      {/* PERIOD PRICING TAB */}
       {activeTab === "periods" && (
         <Card>
           <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>PERIOD OF PERFORMANCE PRICING</div>
@@ -1533,7 +1299,6 @@ function FinancialPricing({ sharedCtx={} }) {
         </Card>
       )}
 
-      {/* PRICE TO WIN TAB */}
       {activeTab === "ptw" && (
         <Card>
           <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>PRICE-TO-WIN ANALYSIS</div>
@@ -1561,42 +1326,34 @@ function FinancialPricing({ sharedCtx={} }) {
                   {ptw.strategy===label.toLowerCase() && <Badge color={color}>SELECTED</Badge>}
                 </div>
               ))}
-              <div style={{marginTop:8,fontSize:12,color:TEXT_D}}>HGI Base Cost: {fmt(contractTotal())} · Margin vs recommended: {ptw.strategy==="value"?((((parseFloat(ptw.low||0)+parseFloat(ptw.mid||0))/2*0.99)-contractTotal())/((parseFloat(ptw.low||0)+parseFloat(ptw.mid||0))/2*0.99)*100).toFixed(1):"-"}%</div>
             </div>
           )}
         </Card>
       )}
 
-      {/* SCENARIO MODELING TAB */}
       {activeTab === "scenario" && (
         <Card>
           <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>SCENARIO MODELING</div>
-          <p style={{color:TEXT_D,fontSize:12,marginBottom:16}}>Adjust sliders to model different scenarios and see impact on total price and margin.</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:20}}>
-            {[
-              ["Fee Adjustment (%)", "feeAdj", -5, 5],
-              ["Labor Rate Adjustment (%)", "laborAdj", -20, 20],
-              ["Hours Adjustment (%)", "hoursAdj", -30, 30],
-            ].map(([label, key, min, max])=>(
+            {[["Fee Adjustment (%)", "feeAdj", -5, 5],["Labor Rate Adjustment (%)", "laborAdj", -20, 20],["Hours Adjustment (%)", "hoursAdj", -30, 30]].map(([label, key, min, max])=>(
               <div key={key}>
                 <Label text={label.toUpperCase()} />
                 <input type="range" min={min} max={max} value={scenario[key]} onChange={e=>setScenario(s=>({...s,[key]:parseInt(e.target.value)}))} style={{width:"100%",marginBottom:4}} />
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:TEXT_D}}>
-                  <span>{min}%</span><span style={{color:GOLD,fontWeight:700}}>{scenario[key] > 0 ? "+" : ""}{scenario[key]}%</span><span>{max}%</span>
+                  <span>{min}%</span><span style={{color:GOLD,fontWeight:700}}>{scenario[key]>0?"+":""}{scenario[key]}%</span><span>{max}%</span>
                 </div>
               </div>
             ))}
           </div>
           <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-            {[
-              ["Base Scenario",fmt(totalLabor()+totalODC()),BORDER,0,0,0],
-              ["Adjusted Scenario",fmt(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)+totalODC()),GOLD,scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj],
-            ].map(([label,val,color])=>(
-              <div key={label} style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${color}44`}}>
-                <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>{label}</div>
-                <div style={{color:color===BORDER?TEXT:GOLD,fontSize:22,fontWeight:800}}>{val}</div>
-              </div>
-            ))}
+            <div style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${BORDER}`}}>
+              <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>Base Scenario</div>
+              <div style={{color:TEXT,fontSize:22,fontWeight:800}}>{fmt(totalLabor()+totalODC())}</div>
+            </div>
+            <div style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${GOLD}44`}}>
+              <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>Adjusted Scenario</div>
+              <div style={{color:GOLD,fontSize:22,fontWeight:800}}>{fmt(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)+totalODC())}</div>
+            </div>
             <div style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${GREEN}44`}}>
               <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>Delta</div>
               <div style={{fontSize:22,fontWeight:800,color:(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor())>=0?GOLD:GREEN}}>
@@ -1608,18 +1365,101 @@ function FinancialPricing({ sharedCtx={} }) {
         </Card>
       )}
 
-      {/* COST NARRATIVE TAB */}
       {activeTab === "narrative" && (
         <div>
           <Card style={{marginBottom:16}}>
             <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:8}}>COST PROPOSAL NARRATIVE GENERATOR</div>
-            <p style={{color:TEXT_D,fontSize:12,marginBottom:12}}>Generates a complete cost narrative using your actual cost buildup data. {sharedCtx.rfpText ? "RFP context loaded." : "Load an RFP in Full Workflow for better results."}</p>
             <Btn onClick={generateNarrative} disabled={narrativeLoading}>{narrativeLoading?"Generating...":"Generate Cost Narrative"}</Btn>
           </Card>
-          {narrativeLoading && <Card style={{textAlign:"center",padding:32}}><div style={{color:GOLD,fontSize:16,animation:"pulse 1.2s infinite"}}>⟳ Writing Cost Narrative...</div></Card>}
-          {costNarrative && <AIOut content={costNarrative} label="COST PROPOSAL NARRATIVE" />}
+          {(narrativeLoading||costNarrative) && <AIOut content={costNarrative} loading={narrativeLoading} label="COST PROPOSAL NARRATIVE" />}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+function Dashboard({ setActive }) {
+  const tracker = store.get("tracker") || [];
+  const t1 = tracker.filter(o => o.opiScore && parseInt(o.opiScore) >= 70);
+  const pursuing = tracker.filter(o => o.stage === "pursuing");
+  const proposal = tracker.filter(o => o.stage === "proposal");
+  const submitted = tracker.filter(o => o.stage === "submitted");
+  const recentOpps = tracker.slice(0,5);
+
+  const statBox = (label, value, color, module) => (
+    <div onClick={()=>setActive(module)} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:20,cursor:"pointer",flex:1,minWidth:140}}>
+      <div style={{fontSize:28,fontWeight:800,color:color||GOLD,marginBottom:4}}>{value}</div>
+      <div style={{fontSize:11,color:TEXT_D,letterSpacing:"0.08em"}}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{marginBottom:24}}>
+        <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:22,fontWeight:800}}>HGI Capture Dashboard</h2>
+        <p style={{color:TEXT_D,margin:0,fontSize:13}}>Hammerman & Gainer LLC · {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</p>
+      </div>
+      <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
+        {statBox("TOTAL TRACKED", tracker.length, GOLD, "tracker")}
+        {statBox("TIER 1 (OPI 70+)", t1.length, GREEN, "tracker")}
+        {statBox("PURSUING", pursuing.length, GOLD, "tracker")}
+        {statBox("IN PROPOSAL", proposal.length, ORANGE, "tracker")}
+        {statBox("SUBMITTED", submitted.length, BLUE, "tracker")}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+        <Card>
+          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>RECENT PIPELINE</div>
+          {recentOpps.length ? recentOpps.map(o => {
+            const stage = STAGES.find(s=>s.id===o.stage);
+            return (
+              <div key={o.id} onClick={()=>setActive("tracker")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${BORDER}`,cursor:"pointer"}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:stage?stage.color:TEXT_D,flexShrink:0}} />
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,color:TEXT,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{o.title}</div>
+                  <div style={{fontSize:11,color:TEXT_D}}>{o.agency}</div>
+                </div>
+                {o.opiScore && <OPIBadge score={o.opiScore} />}
+              </div>
+            );
+          }) : <div style={{color:TEXT_D,fontSize:13,padding:"20px 0",textAlign:"center"}}>No opportunities yet</div>}
+          <div style={{marginTop:12}}><Btn small variant="ghost" onClick={()=>setActive("tracker")}>View All →</Btn></div>
+        </Card>
+        <Card>
+          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>QUICK ACTIONS</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {[
+              ["workflow","⚡","Run Full Workflow","Upload RFP → Decompose → Score → Propose"],
+              ["scanner","◎","Scan for New RFPs","Search SAM.gov, LaPAC, Gulf Coast portals"],
+              ["scoring","◆","Score an Opportunity","Quick Pwin + OPI before committing resources"],
+              ["digest","◇","Generate Weekly Digest","AI capture intelligence brief for leadership"],
+            ].map(([mod,icon,title,sub])=>(
+              <div key={mod} onClick={()=>setActive(mod)} style={{display:"flex",alignItems:"center",gap:12,padding:12,background:BG3,borderRadius:4,cursor:"pointer",border:`1px solid ${BORDER}`}}>
+                <span style={{fontSize:18}}>{icon}</span>
+                <div>
+                  <div style={{color:TEXT,fontWeight:600,fontSize:13}}>{title}</div>
+                  <div style={{color:TEXT_D,fontSize:11}}>{sub}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+      <Card style={{border:`1px solid ${GOLD}22`}}>
+        <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>RECOMMENDED WORKFLOW</div>
+        <div style={{display:"flex",gap:0,flexWrap:"wrap"}}>
+          {[["1","Find RFP","Scanner or upload"],["2","Full Workflow","Decompose → Score → Brief"],["3","Expand Sections","Proposal Engine"],["4","Track & Manage","Pipeline Tracker"],["5","Weekly Review","Leadership Digest"]].map(([num,title,sub],i,arr)=>(
+            <div key={num} style={{display:"flex",alignItems:"center"}}>
+              <div style={{textAlign:"center",padding:"0 16px"}}>
+                <div style={{width:32,height:32,borderRadius:"50%",background:GOLD,color:"#000",fontWeight:800,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 6px"}}>{num}</div>
+                <div style={{color:TEXT,fontSize:12,fontWeight:600,marginBottom:2}}>{title}</div>
+                <div style={{color:TEXT_D,fontSize:11}}>{sub}</div>
+              </div>
+              {i < arr.length-1 && <div style={{color:GOLD,fontSize:18,opacity:0.4}}>→</div>}
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }
@@ -1627,7 +1467,7 @@ function FinancialPricing({ sharedCtx={} }) {
 // ── APP ───────────────────────────────────────────────────────────────────────
 const MODULES = [
   {id:"dashboard", label:"Dashboard", icon:"⌂"},
-  {id:"workflow", label:"Full Workflow", icon:"⚡", badge:"NEW"},
+  {id:"workflow", label:"Full Workflow", icon:"⚡", badge:"START HERE"},
   {id:"scanner", label:"Live Pipeline Scanner", icon:"◎"},
   {id:"tracker", label:"Pipeline Tracker", icon:"◈"},
   {id:"scoring", label:"Winnability Scoring", icon:"◆"},
@@ -1655,11 +1495,14 @@ function App() {
     setActive("proposal");
   };
 
+  const tracker = store.get("tracker") || [];
+  const t1 = tracker.filter(o => o.opiScore && parseInt(o.opiScore) >= 70).length;
+
   const components = {
     dashboard: <Dashboard setActive={setActive} />,
     workflow: <FullWorkflow sharedCtx={sharedCtx} saveSharedCtx={saveSharedCtx} goToProposal={goToProposal} />,
     scanner: <PipelineScanner />,
-    tracker: <PipelineTracker goToWorkflow={(opp) => { setActive("workflow"); }} />,
+    tracker: <PipelineTracker goToWorkflow={() => setActive("workflow")} />,
     scoring: <WinnabilityScoring />,
     research: <ResearchAnalysis sharedCtx={sharedCtx} saveSharedCtx={saveSharedCtx} />,
     proposal: <ProposalEngine sharedCtx={sharedCtx} defaultSection={proposalSection} />,
@@ -1667,9 +1510,6 @@ function App() {
     recruiting: <RecruitingBench sharedCtx={sharedCtx} />,
     digest: <WeeklyDigest />,
   };
-
-  const tracker = store.get("tracker") || [];
-  const t1 = tracker.filter(o => o.opiScore && parseInt(o.opiScore) >= 70).length;
 
   return (
     <div style={{display:"flex",height:"100vh",overflow:"hidden"}}>
@@ -1697,9 +1537,7 @@ function App() {
                   borderLeft:isActive?`3px solid ${GOLD}`:"3px solid transparent",
                   color:isActive?GOLD:TEXT_D,fontSize:13,textAlign:"left"}}>
                 <span style={{fontSize:16,flexShrink:0}}>{m.icon}</span>
-                {sideOpen && (
-                  <span style={{fontWeight:isActive?700:400,flex:1}}>{m.label}</span>
-                )}
+                {sideOpen && <span style={{fontWeight:isActive?700:400,flex:1}}>{m.label}</span>}
                 {sideOpen && m.badge && <Badge color={GREEN}>{m.badge}</Badge>}
               </button>
             );
