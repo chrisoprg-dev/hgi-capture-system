@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HGI AI Capture System v1.1</title>
+  <title>HGI AI Capture System v1.1.2</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -920,7 +920,19 @@ function App(){
   </div>;
 }
 
-ReactDOM.render(<App/>, document.getElementById("root"));
+class ErrorBoundary extends React.Component {
+  constructor(props){super(props);this.state={error:null};}
+  static getDerivedStateFromError(e){return {error:e.toString()};}
+  render(){
+    if(this.state.error) return React.createElement('div',
+      {style:{padding:40,color:"#C9A84C",fontFamily:"monospace",background:"#0A0A0A",minHeight:"100vh"}},
+      React.createElement('h2',null,"HGI System Error"),
+      React.createElement('pre',{style:{color:"#E8E0D0",fontSize:12,marginTop:16,whiteSpace:"pre-wrap"}},this.state.error)
+    );
+    return this.props.children;
+  }
+}
+ReactDOM.render(React.createElement(ErrorBoundary,null,React.createElement(App)), document.getElementById("root"));
 </script>
 </body>
 </html>
