@@ -388,7 +388,8 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
         <Card style={{border:`1px solid ${GOLD}44`,padding:32,textAlign:"center"}}>
           <div style={{color:GOLD,fontSize:18,fontWeight:700,marginBottom:12,animation:"pulse 1.2s infinite"}}>⟳ Analyzing RFP...</div>
           <div style={{color:TEXT_D,fontSize:13,marginBottom:8}}>Extracting scope, evaluation criteria, compliance, staffing, and risks</div>
-          <div style={{color:TEXT_D,fontSize:11}}>This takes 20–40 seconds</div>
+          <div style={{color:GOLD,fontSize:28,fontWeight:800,margin:"10px 0"}}>{elapsed}s</div>
+          <div style={{color:TEXT_D,fontSize:11}}>Typical: 20–40 seconds</div>
         </Card>
       )}
 
@@ -405,7 +406,7 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
             </div>
           </Card>
 
-          {loadingStep === 2 && <div style={{color:GOLD,padding:12,animation:"pulse 1.2s infinite"}}>Generating Executive Brief...</div>}
+          {loadingStep === 2 && <div style={{color:GOLD,padding:12,animation:"pulse 1.2s infinite"}}>⟳ Generating Executive Brief... {elapsed}s</div>}
           {loadingStep === 3 && <div style={{color:GOLD,padding:12,animation:"pulse 1.2s infinite"}}>Generating Proposal Package...</div>}
 
           <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
@@ -1348,6 +1349,281 @@ function Dashboard({ setActive }) {
   );
 }
 
+
+// ── FINANCIAL ANALYSIS & PRICING ─────────────────────────────────────────────
+function FinancialPricing({ sharedCtx={} }) {
+  const LABOR_CATS = ["Program Manager","Deputy PM","Senior Analyst","Analyst","Associate Analyst","Data Specialist","Field Inspector","Administrative Support","IT Specialist","Financial Analyst"];
+  const [activeTab, setActiveTab] = useState("buildup");
+  const [laborRows, setLaborRows] = useState(() => store.get("laborRows") || [
+    {id:1, cat:"Program Manager", hours:2080, rawRate:95, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+    {id:2, cat:"Senior Analyst", hours:2080, rawRate:65, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
+  ]);
+  const [odcs, setOdcs] = useState(() => store.get("odcs") || [{id:1,desc:"Travel",amount:25000},{id:2,desc:"Other Direct Costs",amount:10000}]);
+  const [periods, setPeriods] = useState(() => store.get("pricePeriods") || [{id:1,label:"Base Year",months:12,escalation:0},{id:2,label:"Option Year 1",months:12,escalation:3},{id:3,label:"Option Year 2",months:12,escalation:3}]);
+  const [ptw, setPtw] = useState(() => store.get("ptw") || {low:"",mid:"",high:"",strategy:"value"});
+  const [costNarrative, setCostNarrative] = useState("");
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
+  const [scenario, setScenario] = useState({feeAdj:0, laborAdj:0, hoursAdj:0});
+
+  const saveLR = (rows) => { setLaborRows(rows); store.set("laborRows", rows); };
+  const saveODC = (rows) => { setOdcs(rows); store.set("odcs", rows); };
+  const savePeriods = (rows) => { setPeriods(rows); store.set("pricePeriods", rows); };
+  const savePTW = (p) => { setPtw(p); store.set("ptw", p); };
+
+  const calcRow = (r, feeAdj=0, laborAdj=0, hoursAdj=0) => {
+    const raw = parseFloat(r.rawRate||0) * (1 + laborAdj/100);
+    const fringe = raw * parseFloat(r.fringe||0);
+    const overhead = (raw + fringe) * parseFloat(r.overhead||0);
+    const ga = (raw + fringe + overhead) * parseFloat(r.ga||0);
+    const cost = raw + fringe + overhead + ga;
+    const feeRate = parseFloat(r.fee||0) + feeAdj/100;
+    const loaded = cost * (1 + feeRate);
+    const hours = parseFloat(r.hours||0) * (1 + hoursAdj/100);
+    return { raw, fringe, overhead, ga, cost, loaded, hours, total: loaded * hours };
+  };
+
+  const totalLabor = (feeAdj=0, laborAdj=0, hoursAdj=0) =>
+    laborRows.reduce((sum, r) => sum + calcRow(r, feeAdj, laborAdj, hoursAdj).total, 0);
+  const totalODC = () => odcs.reduce((sum, o) => sum + parseFloat(o.amount||0), 0);
+  const baseTotal = () => totalLabor() + totalODC();
+  const fmt = (n) => "$" + Math.round(n).toLocaleString();
+  const pct = (n) => (parseFloat(n)*100).toFixed(1) + "%";
+
+  const periodTotal = (p, idx) => {
+    const esc = Math.pow(1 + (parseFloat(p.escalation||0)/100), idx);
+    return (totalLabor() * esc + totalODC()) * (parseFloat(p.months||12)/12);
+  };
+  const contractTotal = () => periods.reduce((sum, p, i) => sum + periodTotal(p, i), 0);
+
+  const profitMargin = () => {
+    const t = totalLabor();
+    const cost = laborRows.reduce((sum, r) => sum + calcRow(r).cost * calcRow(r).hours, 0);
+    return t > 0 ? ((t - cost) / t * 100).toFixed(1) : 0;
+  };
+
+  const generateNarrative = async () => {
+    setNarrativeLoading(true);
+    const rfpCtx = sharedCtx.rfpText ? "RFP Context: " + sharedCtx.rfpText.slice(0,500) : "";
+    const prompt = "Write a professional Cost Proposal Narrative for HGI.\n" + rfpCtx + "\n\nTotal Contract Value: " + fmt(contractTotal()) + "\nBase Year: " + fmt(periodTotal(periods[0],0)) + "\nLabor Cost Breakdown: " + laborRows.map(r => r.cat + " — " + fmt(calcRow(r).total)).join(", ") + "\nODCs: " + fmt(totalODC()) + "\nProfit Margin: " + profitMargin() + "%\n\nWrite a complete cost narrative that: explains the pricing methodology, justifies labor categories and rates, addresses value for money, explains ODCs, and demonstrates cost realism. Professional government proposal tone.";
+    const txt = await callClaude(prompt, "You are a cost proposal specialist for HGI. Write persuasively and compliantly.", 2000);
+    setCostNarrative(txt);
+    setNarrativeLoading(false);
+  };
+
+  const addLaborRow = () => {
+    const newRow = {id:Date.now(), cat:"Analyst", hours:2080, rawRate:60, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10};
+    saveLR([...laborRows, newRow]);
+  };
+  const updateLR = (id, field, val) => saveLR(laborRows.map(r => r.id===id ? {...r,[field]:val} : r));
+  const removeLR = (id) => saveLR(laborRows.filter(r => r.id!==id));
+
+  const TABS = [{id:"buildup",label:"Cost Buildup"},{id:"periods",label:"Period Pricing"},{id:"ptw",label:"Price to Win"},{id:"scenario",label:"Scenario Modeling"},{id:"narrative",label:"Cost Narrative"}];
+
+  return (
+    <div>
+      <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
+      <p style={{color:TEXT_D,margin:"0 0 16px",fontSize:12}}>Cost buildup · Period pricing · Price-to-win · Scenario modeling · Cost narrative</p>
+
+      {/* Summary bar */}
+      <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+        {[["Base Year Total",fmt(periodTotal(periods[0],0)),GOLD],["Contract Total",fmt(contractTotal()),GREEN],["Profit Margin",profitMargin()+"%",profitMargin()>10?GREEN:ORANGE],["Labor",fmt(totalLabor()),TEXT_D],["ODCs",fmt(totalODC()),TEXT_D]].map(([l,v,c])=>(
+          <div key={l} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:"12px 16px",flex:1,minWidth:120}}>
+            <div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div>
+            <div style={{fontSize:11,color:TEXT_D}}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tab bar */}
+      <div style={{display:"flex",gap:4,marginBottom:16,borderBottom:`1px solid ${BORDER}`,paddingBottom:8}}>
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{padding:"6px 14px",borderRadius:4,fontSize:12,cursor:"pointer",fontFamily:"inherit",border:"none",background:activeTab===t.id?GOLD:BG3,color:activeTab===t.id?"#000":TEXT_D,fontWeight:activeTab===t.id?700:400}}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* COST BUILDUP TAB */}
+      {activeTab === "buildup" && (
+        <div>
+          <Card>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{color:GOLD,fontWeight:700,fontSize:13}}>LABOR CATEGORIES</div>
+              <Btn small onClick={addLaborRow}>+ Add Row</Btn>
+            </div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                <thead>
+                  <tr style={{color:TEXT_D,textAlign:"left"}}>
+                    {["Labor Category","Hours","Raw Rate","Fringe","OH","G&A","Fee","Loaded Rate","Total"].map(h=>(
+                      <th key={h} style={{padding:"4px 8px",borderBottom:`1px solid ${BORDER}`,whiteSpace:"nowrap"}}>{h}</th>
+                    ))}
+                    <th style={{padding:"4px 8px",borderBottom:`1px solid ${BORDER}`}}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {laborRows.map(r => {
+                    const c = calcRow(r);
+                    return (
+                      <tr key={r.id} style={{borderBottom:`1px solid ${BORDER}22`}}>
+                        <td style={{padding:"4px 8px"}}>
+                          <select value={r.cat} onChange={e=>updateLR(r.id,"cat",e.target.value)} style={{background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,fontFamily:"inherit",padding:"2px 4px"}}>
+                            {LABOR_CATS.map(c=><option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </td>
+                        <td style={{padding:"4px 8px"}}><input type="number" value={r.hours} onChange={e=>updateLR(r.id,"hours",e.target.value)} style={{width:60,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                        <td style={{padding:"4px 8px"}}><input type="number" value={r.rawRate} onChange={e=>updateLR(r.id,"rawRate",e.target.value)} style={{width:60,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                        <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.fringe} onChange={e=>updateLR(r.id,"fringe",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                        <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.overhead} onChange={e=>updateLR(r.id,"overhead",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                        <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.ga} onChange={e=>updateLR(r.id,"ga",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                        <td style={{padding:"4px 8px"}}><input type="number" step="0.01" value={r.fee} onChange={e=>updateLR(r.id,"fee",e.target.value)} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"2px 4px"}} /></td>
+                        <td style={{padding:"4px 8px",color:GREEN,fontWeight:700}}>{fmt(c.loaded)}/hr</td>
+                        <td style={{padding:"4px 8px",color:GOLD,fontWeight:700}}>{fmt(c.total)}</td>
+                        <td style={{padding:"4px 8px"}}><button onClick={()=>removeLR(r.id)} style={{background:"none",border:"none",color:RED,cursor:"pointer",fontSize:14}}>×</button></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{fontWeight:700}}>
+                    <td colSpan={8} style={{padding:"8px 8px",color:TEXT_D,fontSize:11}}>LABOR SUBTOTAL</td>
+                    <td style={{padding:"8px 8px",color:GOLD,fontSize:13}}>{fmt(totalLabor())}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div style={{marginTop:16,borderTop:`1px solid ${BORDER}`,paddingTop:12}}>
+              <div style={{color:GOLD,fontWeight:700,fontSize:12,marginBottom:8}}>OTHER DIRECT COSTS (ODCs)</div>
+              {odcs.map(o=>(
+                <div key={o.id} style={{display:"flex",gap:8,marginBottom:6,alignItems:"center"}}>
+                  <input value={o.desc} onChange={e=>saveODC(odcs.map(x=>x.id===o.id?{...x,desc:e.target.value}:x))} placeholder="Description" style={{flex:1,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"4px 8px"}} />
+                  <input type="number" value={o.amount} onChange={e=>saveODC(odcs.map(x=>x.id===o.id?{...x,amount:e.target.value}:x))} placeholder="Amount" style={{width:100,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"4px 8px"}} />
+                  <span style={{color:GREEN,fontSize:11,minWidth:80}}>{fmt(parseFloat(o.amount||0))}</span>
+                  <button onClick={()=>saveODC(odcs.filter(x=>x.id!==o.id))} style={{background:"none",border:"none",color:RED,cursor:"pointer"}}>×</button>
+                </div>
+              ))}
+              <Btn small variant="ghost" onClick={()=>saveODC([...odcs,{id:Date.now(),desc:"",amount:0}])}>+ Add ODC</Btn>
+              <div style={{marginTop:8,display:"flex",justifyContent:"flex-end",gap:20,fontSize:12}}>
+                <span style={{color:TEXT_D}}>ODC Total: <strong style={{color:GREEN}}>{fmt(totalODC())}</strong></span>
+                <span style={{color:TEXT_D}}>Contract Base: <strong style={{color:GOLD}}>{fmt(baseTotal())}</strong></span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* PERIOD PRICING TAB */}
+      {activeTab === "periods" && (
+        <Card>
+          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>PERIOD OF PERFORMANCE PRICING</div>
+          {periods.map((p,i)=>(
+            <div key={p.id} style={{display:"flex",gap:10,marginBottom:8,alignItems:"center",padding:"10px 12px",background:BG3,borderRadius:4}}>
+              <input value={p.label} onChange={e=>savePeriods(periods.map(x=>x.id===p.id?{...x,label:e.target.value}:x))} style={{flex:1,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:12,padding:"4px 8px"}} />
+              <div style={{fontSize:11,color:TEXT_D}}>Months:</div>
+              <input type="number" value={p.months} onChange={e=>savePeriods(periods.map(x=>x.id===p.id?{...x,months:e.target.value}:x))} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:12,padding:"4px 8px"}} />
+              <div style={{fontSize:11,color:TEXT_D}}>Escalation %:</div>
+              <input type="number" value={p.escalation} onChange={e=>savePeriods(periods.map(x=>x.id===p.id?{...x,escalation:e.target.value}:x))} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:12,padding:"4px 8px"}} />
+              <span style={{color:GOLD,fontWeight:700,minWidth:100,textAlign:"right"}}>{fmt(periodTotal(p,i))}</span>
+              <button onClick={()=>savePeriods(periods.filter(x=>x.id!==p.id))} style={{background:"none",border:"none",color:RED,cursor:"pointer"}}>×</button>
+            </div>
+          ))}
+          <div style={{display:"flex",gap:8,marginTop:8,alignItems:"center"}}>
+            <Btn small variant="ghost" onClick={()=>savePeriods([...periods,{id:Date.now(),label:"Option Year "+periods.length,months:12,escalation:3}])}>+ Add Period</Btn>
+            <span style={{marginLeft:"auto",color:GREEN,fontWeight:700,fontSize:14}}>Total Contract Value: {fmt(contractTotal())}</span>
+          </div>
+        </Card>
+      )}
+
+      {/* PRICE TO WIN TAB */}
+      {activeTab === "ptw" && (
+        <Card>
+          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>PRICE-TO-WIN ANALYSIS</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+            <div><Label text="COMPETITOR LOW ($)" /><Input value={ptw.low} onChange={v=>savePTW({...ptw,low:v})} placeholder="e.g. 4500000" /></div>
+            <div><Label text="COMPETITOR MID ($)" /><Input value={ptw.mid} onChange={v=>savePTW({...ptw,mid:v})} placeholder="e.g. 5200000" /></div>
+            <div><Label text="COMPETITOR HIGH ($)" /><Input value={ptw.high} onChange={v=>savePTW({...ptw,high:v})} placeholder="e.g. 6100000" /></div>
+          </div>
+          <div style={{marginBottom:16}}>
+            <Label text="PRICING STRATEGY" />
+            <Sel value={ptw.strategy} onChange={v=>savePTW({...ptw,strategy:v})} options={[{value:"aggressive",label:"Aggressive — come in low to win"},{value:"value",label:"Value — competitive with strong narrative"},{value:"premium",label:"Premium — highest quality justified"}]} style={{width:"100%"}} />
+          </div>
+          {ptw.mid && (
+            <div style={{padding:16,background:BG3,borderRadius:4,border:`1px solid ${GOLD}44`}}>
+              <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:8}}>HGI RECOMMENDED PRICE</div>
+              {[
+                ["Aggressive",fmt(parseFloat(ptw.low||0)*0.97),RED,"Risk: may be below cost"],
+                ["Value",fmt((parseFloat(ptw.low||0)+parseFloat(ptw.mid||0))/2*0.99),GOLD,"Best balance of win probability and margin"],
+                ["Premium",fmt(parseFloat(ptw.mid||0)*1.02),GREEN,"Justified if past performance is strong"],
+              ].map(([label,val,color,note])=>(
+                <div key={label} style={{display:"flex",gap:12,alignItems:"center",marginBottom:8,padding:"8px 12px",background:ptw.strategy===label.toLowerCase()?color+"22":"transparent",borderRadius:4,border:`1px solid ${ptw.strategy===label.toLowerCase()?color:BORDER}`}}>
+                  <span style={{color,fontWeight:700,minWidth:80}}>{label}</span>
+                  <span style={{color:TEXT,fontWeight:700,fontSize:16}}>{val}</span>
+                  <span style={{color:TEXT_D,fontSize:11}}>{note}</span>
+                  {ptw.strategy===label.toLowerCase() && <Badge color={color}>SELECTED</Badge>}
+                </div>
+              ))}
+              <div style={{marginTop:8,fontSize:12,color:TEXT_D}}>HGI Base Cost: {fmt(contractTotal())} · Margin vs recommended: {ptw.strategy==="value"?((((parseFloat(ptw.low||0)+parseFloat(ptw.mid||0))/2*0.99)-contractTotal())/((parseFloat(ptw.low||0)+parseFloat(ptw.mid||0))/2*0.99)*100).toFixed(1):"-"}%</div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* SCENARIO MODELING TAB */}
+      {activeTab === "scenario" && (
+        <Card>
+          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>SCENARIO MODELING</div>
+          <p style={{color:TEXT_D,fontSize:12,marginBottom:16}}>Adjust sliders to model different scenarios and see impact on total price and margin.</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:20}}>
+            {[
+              ["Fee Adjustment (%)", "feeAdj", -5, 5],
+              ["Labor Rate Adjustment (%)", "laborAdj", -20, 20],
+              ["Hours Adjustment (%)", "hoursAdj", -30, 30],
+            ].map(([label, key, min, max])=>(
+              <div key={key}>
+                <Label text={label.toUpperCase()} />
+                <input type="range" min={min} max={max} value={scenario[key]} onChange={e=>setScenario(s=>({...s,[key]:parseInt(e.target.value)}))} style={{width:"100%",marginBottom:4}} />
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:TEXT_D}}>
+                  <span>{min}%</span><span style={{color:GOLD,fontWeight:700}}>{scenario[key] > 0 ? "+" : ""}{scenario[key]}%</span><span>{max}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+            {[
+              ["Base Scenario",fmt(totalLabor()+totalODC()),BORDER,0,0,0],
+              ["Adjusted Scenario",fmt(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)+totalODC()),GOLD,scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj],
+            ].map(([label,val,color])=>(
+              <div key={label} style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${color}44`}}>
+                <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>{label}</div>
+                <div style={{color:color===BORDER?TEXT:GOLD,fontSize:22,fontWeight:800}}>{val}</div>
+              </div>
+            ))}
+            <div style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${GREEN}44`}}>
+              <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>Delta</div>
+              <div style={{fontSize:22,fontWeight:800,color:(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor())>=0?GOLD:GREEN}}>
+                {(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor())>=0?"+":""}{fmt(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor())}
+              </div>
+            </div>
+          </div>
+          <Btn small variant="ghost" onClick={()=>setScenario({feeAdj:0,laborAdj:0,hoursAdj:0})} style={{marginTop:12}}>Reset to Base</Btn>
+        </Card>
+      )}
+
+      {/* COST NARRATIVE TAB */}
+      {activeTab === "narrative" && (
+        <div>
+          <Card style={{marginBottom:16}}>
+            <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:8}}>COST PROPOSAL NARRATIVE GENERATOR</div>
+            <p style={{color:TEXT_D,fontSize:12,marginBottom:12}}>Generates a complete cost narrative using your actual cost buildup data. {sharedCtx.rfpText ? "RFP context loaded." : "Load an RFP in Full Workflow for better results."}</p>
+            <Btn onClick={generateNarrative} disabled={narrativeLoading}>{narrativeLoading?"Generating...":"Generate Cost Narrative"}</Btn>
+          </Card>
+          {narrativeLoading && <Card style={{textAlign:"center",padding:32}}><div style={{color:GOLD,fontSize:16,animation:"pulse 1.2s infinite"}}>⟳ Writing Cost Narrative...</div></Card>}
+          {costNarrative && <AIOut content={costNarrative} label="COST PROPOSAL NARRATIVE" />}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── APP ───────────────────────────────────────────────────────────────────────
 const MODULES = [
   {id:"dashboard", label:"Dashboard", icon:"⌂"},
@@ -1357,6 +1633,7 @@ const MODULES = [
   {id:"scoring", label:"Winnability Scoring", icon:"◆"},
   {id:"research", label:"Research & Analysis", icon:"◉"},
   {id:"proposal", label:"Proposal Engine", icon:"✦"},
+  {id:"financial", label:"Financial & Pricing", icon:"$"},
   {id:"recruiting", label:"Recruiting & Bench", icon:"◐"},
   {id:"digest", label:"Weekly Digest", icon:"◇"},
 ];
@@ -1386,6 +1663,7 @@ function App() {
     scoring: <WinnabilityScoring />,
     research: <ResearchAnalysis sharedCtx={sharedCtx} saveSharedCtx={saveSharedCtx} />,
     proposal: <ProposalEngine sharedCtx={sharedCtx} defaultSection={proposalSection} />,
+    financial: <FinancialPricing sharedCtx={sharedCtx} />,
     recruiting: <RecruitingBench sharedCtx={sharedCtx} />,
     digest: <WeeklyDigest />,
   };
