@@ -218,20 +218,17 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
   const [researchStatus, setResearchStatus] = useState("");
 
   const autoResearch = async (decomp, oppTitle, oppAgency) => {
-    // Extract agency name from decomposition if not provided
-    const agencyMatch = decomp.match(/Agency:\s*([^
-]+)/i);
-    const detectedAgency = oppAgency || (agencyMatch ? agencyMatch[1].trim() : "");
-    const typeMatch = decomp.match(/Service Archetype:\s*([^
-]+)/i);
-    const detectedType = typeMatch ? typeMatch[1].trim() : "disaster recovery program management";
-    if (!detectedAgency || detectedAgency === "Not Found in Provided Text") {
+    const agencyLine = decomp.split("\n").find(l => l.match(/^Agency:/i));
+    const detectedAgency = oppAgency || (agencyLine ? agencyLine.replace(/^Agency:\s*/i,"").trim() : "");
+    const typeLine = decomp.split("\n").find(l => l.match(/^Service Archetype:/i));
+    const detectedType = typeLine ? typeLine.replace(/^Service Archetype:\s*/i,"").trim() : "disaster recovery program management";
+    if (!detectedAgency || detectedAgency.includes("Not Found")) {
       setResearchStatus("(no agency detected — add agency name for auto-research)");
       return;
     }
     setResearchStatus("Researching " + detectedAgency + " in background...");
     try {
-      const researchPrompt = "Deep competitive research for HGI capture:\nAgency: " + detectedAgency + "\nOpportunity Type: " + detectedType + "\nOpportunity: " + (oppTitle || "TBD") + "\n\nProvide concise intel on:\n1. Agency Profile — mission, budget, decision makers, procurement history\n2. Funding Landscape — active FEMA/HUD/state allocations\n3. Competitive Intel — known competitors, their strengths vs HGI\n4. Relationship Map — key contacts HGI should know\n5. Win Strategy — 5 specific recommendations for HGI\n6. Red Flags — reasons to be cautious\n7. Intel Gaps — what we still need";
+      const researchPrompt = "Deep competitive research for HGI capture:\nAgency: " + detectedAgency + "\nOpportunity Type: " + detectedType + "\nOpportunity: " + (oppTitle || "TBD") + "\n\nProvide concise intel on:\n1. Agency Profile\n2. Funding Landscape\n3. Competitive Intel\n4. Relationship Map\n5. Win Strategy — 5 specific recommendations\n6. Red Flags\n7. Intel Gaps";
       const r = await callClaude(researchPrompt, "You are a capture intelligence analyst for HGI. Be specific and actionable. " + HGI_CONTEXT);
       saveSharedCtx({ research: r, researchAgency: detectedAgency });
       setResearchStatus("Research complete: " + detectedAgency);
@@ -881,6 +878,16 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
   };
 
   const completedSections = Object.keys(proposalDraft).length;
+  const removeSection = (val) => {
+    const nd = {...proposalDraft};
+    delete nd[val];
+    setProposalDraft(nd);
+    store.set("proposalDraft", nd);
+  };
+  const goGenerate = (val) => {
+    setSection(val);
+    setActiveView("generate");
+  };
 
   return (
     <div>
@@ -982,15 +989,15 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
               <div key={s.value} style={{marginBottom:16}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
                   <span style={{color:GREEN,fontWeight:700,fontSize:13}}>✓ {s.label}</span>
-                  <Btn small variant="ghost" onClick={()=>setSection(s.value)||setActiveView("generate")}>Regenerate</Btn>
-                  <Btn small variant="danger" onClick={()=>saveSection(s.value,null)||setProposalDraft(d=>{const n={...d};delete n[s.value];store.set("proposalDraft",n);return n;})}>Remove</Btn>
+                  <Btn small variant="ghost" onClick={()=>goGenerate(s.value)}>Regenerate</Btn>
+                  <Btn small variant="danger" onClick={()=>removeSection(s.value)}>Remove</Btn>
                 </div>
                 <Textarea value={proposalDraft[s.value]} onChange={v=>saveSection(s.value,v)} rows={12} />
               </div>
             ) : (
               <div key={s.value} style={{marginBottom:8,padding:"10px 14px",background:BG3,borderRadius:4,border:`1px dashed ${BORDER}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 <span style={{color:TEXT_D,fontSize:12}}>{s.label} — not yet generated</span>
-                <Btn small variant="ghost" onClick={()=>{setSection(s.value);setActiveView("generate");}}>Generate →</Btn>
+                <Btn small variant="ghost" onClick={()=>goGenerate(s.value)}>Generate →</Btn>
               </div>
             )
           ))}
