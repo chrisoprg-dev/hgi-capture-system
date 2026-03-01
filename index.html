@@ -67,9 +67,9 @@ async function callClaude(prompt, systemExtra = "", useSearch = false) {
     messages: [{ role: "user", content: prompt }]
   };
   if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+  const resp = await fetch("/api/claude", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": "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", "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
   const data = await resp.json();
