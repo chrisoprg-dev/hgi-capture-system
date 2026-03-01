@@ -260,10 +260,32 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
       setOutA(a);
       setLoadingA(false);
       setTab("a");
-      persistWF({ outA: a, step: 2, title, agency, rfpText: rIn, rfpUrl, incumbent, intel });
-      saveSharedCtx({ rfpText: rIn, decomposition: a, title, agency });
+      // Auto-extract title and agency from decomposition
+      const autoExtract = (text, ...fields) => {
+        for (const field of fields) {
+          const lines = text.split("\n");
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.toLowerCase().startsWith(field.toLowerCase() + ":")) {
+              const val = trimmed.slice(field.length + 1).trim();
+              if (val && !val.toLowerCase().includes("not found") && val.toLowerCase() !== "tbd" && val.length > 1) return val;
+            }
+          }
+        }
+        return "";
+      };
+      const autoTitle = autoExtract(a, "RFP Title", "Solicitation Title", "Title", "Opportunity Title") || title;
+      const autoAgency = autoExtract(a, "Agency", "Issuing Agency", "Contracting Agency") || agency;
+      const autoValue = autoExtract(a, "Estimated Value", "Contract Value", "Award Amount") || "";
+      const autoDeadline = autoExtract(a, "Proposal Due Date", "Submission Deadline", "Due Date") || "";
+      const autoType = autoExtract(a, "Service Archetype", "Contract Type") || "";
+      const autoGeo = autoExtract(a, "Geography", "Place of Performance") || "";
+      if (autoTitle && autoTitle !== title) setTitle(autoTitle);
+      if (autoAgency && autoAgency !== agency) setAgency(autoAgency);
+      persistWF({ outA: a, step: 2, title: autoTitle, agency: autoAgency, rfpText: rIn, rfpUrl, incumbent, intel });
+      saveSharedCtx({ rfpText: rIn, decomposition: a, title: autoTitle, agency: autoAgency, value: autoValue, deadline: autoDeadline, type: autoType, geography: autoGeo });
       // Fire background tasks — don't await
-      autoResearch(a, title, agency);
+      autoResearch(a, autoTitle, autoAgency);
     } catch(err) {
       stopTimer();
       setError("Step 1 failed: " + err.message);
@@ -298,47 +320,71 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
     }
   };
 
-  const saveToTracker = () => {
-    const tracker = store.get("tracker") || [];
-    const extractField = (text, ...fields) => {
-      for (const field of fields) {
-        const lines = text.split("\n");
-        for (const line of lines) {
-          if (line.toLowerCase().startsWith(field.toLowerCase() + ":")) {
-            const val = line.slice(field.length + 1).trim();
-            if (val && !val.toLowerCase().includes("not found") && val !== "TBD") return val;
-          }
+  const smartExtract = (text, ...fields) => {
+    if (!text) return "";
+    for (const field of fields) {
+      const lines = text.split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.toLowerCase().startsWith(field.toLowerCase() + ":")) {
+          const val = trimmed.slice(field.length + 1).trim();
+          if (val && !val.toLowerCase().includes("not found") && val.toLowerCase() !== "tbd" && val.length > 1) return val;
         }
       }
-      return "";
-    };
-    const extractedTitle = extractField(outA, "RFP Title", "Title") || title || "Untitled";
-    const extractedAgency = extractField(outA, "Agency") || agency || "";
-    const extractedValue = extractField(outA, "Estimated Value", "Contract Value", "Value") || "";
-    const extractedDeadline = extractField(outA, "Proposal Due Date", "Key Dates", "Deadline") || "";
-    const extractedType = extractField(outA, "Service Archetype", "Contract Type") || "";
-    const extractedGeo = extractField(outA, "Geography", "Place of Performance") || "";
-    const opiMatch = outB ? outB.split("\n").find(l => l.match(/OPI/i) && l.match(/\d+/)) : null;
+    }
+    return "";
+  };
+
+  const buildTrackerEntry = (proposalSections) => {
+    const extractedTitle = smartExtract(outA, "RFP Title", "Solicitation Title", "Title", "Opportunity Title") || title || sharedCtx.title || "Untitled";
+    const extractedAgency = smartExtract(outA, "Agency", "Issuing Agency", "Contracting Agency", "Client Agency") || agency || sharedCtx.agency || "";
+    const extractedValue = smartExtract(outA, "Estimated Value", "Contract Value", "Total Value", "Award Amount", "Budget") || "";
+    const extractedDeadline = smartExtract(outA, "Proposal Due Date", "Submission Deadline", "Due Date", "Proposal Deadline") || smartExtract(outA, "Key Dates") || "";
+    const extractedType = smartExtract(outA, "Service Archetype", "Contract Type", "Buyer Type", "Program Type") || "";
+    const extractedGeo = smartExtract(outA, "Geography", "Place of Performance", "Location", "State") || "";
+    const extractedPeriod = smartExtract(outA, "Period of Performance") || "";
+    const opiMatch = outB ? outB.split("\n").find(l => l.match(/OPI[^:]*:\s*\d+/i)) : null;
     const extractedOPI = opiMatch ? parseInt(opiMatch.match(/\d+/)[0]) : opi;
-    store.set("tracker", [{
+    const extractedDecision = decision || smartExtract(outB, "Decision Recommendation", "Recommendation") || "";
+    const sectionCount = proposalSections ? Object.keys(proposalSections).length : 0;
+    return {
       id: "wf-" + Date.now(),
-      title: extractedTitle, agency: extractedAgency, value: extractedValue,
-      deadline: extractedDeadline, type: extractedType, geography: extractedGeo,
-      stage: decision === "GO" ? "pursuing" : decision === "CONDITIONAL GO" ? "qualifying" : "identified",
-      decision, opiScore: extractedOPI,
-      decomposition: outA, execBrief: outB,
+      title: extractedTitle,
+      agency: extractedAgency,
+      value: extractedValue,
+      deadline: extractedDeadline,
+      type: extractedType,
+      geography: extractedGeo,
+      period: extractedPeriod,
+      stage: extractedDecision === "GO" ? "pursuing" : extractedDecision === "CONDITIONAL GO" ? "qualifying" : "proposal",
+      decision: extractedDecision,
+      opiScore: extractedOPI,
+      decomposition: outA,
+      execBrief: outB,
+      proposal: proposalSections ? Object.entries(proposalSections).map(([k,v]) => "=== " + k.toUpperCase().replace(/_/g," ") + " ===\n" + v).join("\n\n") : "",
       addedDate: new Date().toISOString(),
-      notes: "Full workflow " + new Date().toLocaleDateString()
-    }, ...tracker]);
+      notes: (sectionCount > 0 ? sectionCount + " proposal sections drafted · " : "") + "Full workflow · " + new Date().toLocaleDateString()
+    };
+  };
+
+  const saveToTracker = (proposalSections) => {
+    const tracker = store.get("tracker") || [];
+    const entry = buildTrackerEntry(proposalSections);
+    store.set("tracker", [entry, ...tracker]);
+    // Also update sharedCtx with extracted info so it flows through the system
+    saveSharedCtx({ title: entry.title, agency: entry.agency, value: entry.value, deadline: entry.deadline, type: entry.type });
   };
 
   const runC = () => {
     saveToTracker();
-    saveSharedCtx({ rfpText: rfpText || sharedCtx.rfpText, decomposition: outA, execBrief: outB, title, agency });
+    saveSharedCtx({ rfpText: rfpText || sharedCtx.rfpText, decomposition: outA, execBrief: outB, title: sharedCtx.title || title, agency: sharedCtx.agency || agency });
     goToProposal("executive_summary");
   };
 
-  const saveNoProposal = () => { saveToTracker(); alert("Saved to Pipeline Tracker!"); };
+  const saveNoProposal = () => {
+    saveToTracker();
+    alert("✓ Saved to Pipeline Tracker!");
+  };
   const decColor = decision === "GO" ? GREEN : decision === "CONDITIONAL GO" ? GOLD : decision === "NO-BID" ? RED : TEXT_D;
   const hasResult = outA || outB;
   const isStep2Done = !!outB;
@@ -934,23 +980,61 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
   const saveToTrackerFromProposal = () => {
     const wfState = store.get("wfState") || {};
     const tracker = store.get("tracker") || [];
-    const existing = tracker.find(o => o.id === "wf-proposal-draft");
-    const entry = {
-      id: existing ? existing.id : "wf-" + Date.now(),
-      title: sharedCtx.title || wfState.title || "Untitled Opportunity",
-      agency: sharedCtx.agency || wfState.agency || "",
-      stage: "proposal",
-      decomposition: sharedCtx.decomposition || wfState.outA || "",
-      execBrief: sharedCtx.execBrief || wfState.outB || "",
-      proposal: Object.entries(proposalDraft).map(([k,v]) => "=== " + k.toUpperCase().replace(/_/g," ") + " ===\n" + v).join("\n\n"),
-      decision: wfState.decision || "",
-      opiScore: wfState.opi || "",
-      addedDate: existing ? existing.addedDate : new Date().toISOString(),
-      notes: completedSections + " proposal sections drafted · " + new Date().toLocaleDateString()
+    const sectionCount = Object.keys(proposalDraft).length;
+
+    const smartEx = (text, ...fields) => {
+      if (!text) return "";
+      for (const field of fields) {
+        const lines = text.split("\n");
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.toLowerCase().startsWith(field.toLowerCase() + ":")) {
+            const val = trimmed.slice(field.length + 1).trim();
+            if (val && !val.toLowerCase().includes("not found") && val.toLowerCase() !== "tbd" && val.length > 1) return val;
+          }
+        }
+      }
+      return "";
     };
-    const updated = existing ? tracker.map(o => o.id === existing.id ? entry : o) : [entry, ...tracker];
+
+    const outA = wfState.outA || sharedCtx.decomposition || "";
+    const outB = wfState.outB || sharedCtx.execBrief || "";
+    const extractedTitle = smartEx(outA, "RFP Title", "Solicitation Title", "Title", "Opportunity Title") || sharedCtx.title || wfState.title || "Untitled";
+    const extractedAgency = smartEx(outA, "Agency", "Issuing Agency", "Contracting Agency") || sharedCtx.agency || wfState.agency || "";
+    const extractedValue = smartEx(outA, "Estimated Value", "Contract Value", "Total Value", "Award Amount") || "";
+    const extractedDeadline = smartEx(outA, "Proposal Due Date", "Submission Deadline", "Due Date") || "";
+    const extractedType = smartEx(outA, "Service Archetype", "Contract Type", "Buyer Type") || "";
+    const extractedGeo = smartEx(outA, "Geography", "Place of Performance") || "";
+    const opiMatch = outB ? outB.split("\n").find(l => l.match(/OPI[^:]*:\s*\d+/i)) : null;
+    const extractedOPI = opiMatch ? parseInt(opiMatch.match(/\d+/)[0]) : (wfState.opi || null);
+    const extractedDecision = wfState.decision || smartEx(outB, "Decision Recommendation") || "";
+
+    // Check if this opportunity already exists in tracker
+    const existingIdx = tracker.findIndex(o => o.decomposition && o.decomposition === outA);
+    const entry = {
+      id: existingIdx >= 0 ? tracker[existingIdx].id : "wf-" + Date.now(),
+      title: extractedTitle,
+      agency: extractedAgency,
+      value: extractedValue,
+      deadline: extractedDeadline,
+      type: extractedType,
+      geography: extractedGeo,
+      stage: "proposal",
+      decision: extractedDecision,
+      opiScore: extractedOPI,
+      decomposition: outA,
+      execBrief: outB,
+      proposal: Object.entries(proposalDraft).map(([k,v]) => "=== " + k.toUpperCase().replace(/_/g," ") + " ===\n" + v).join("\n\n"),
+      addedDate: existingIdx >= 0 ? tracker[existingIdx].addedDate : new Date().toISOString(),
+      notes: sectionCount + " proposal sections drafted · " + new Date().toLocaleDateString()
+    };
+
+    const updated = existingIdx >= 0
+      ? tracker.map((o, i) => i === existingIdx ? entry : o)
+      : [entry, ...tracker];
+
     store.set("tracker", updated);
-    alert("✓ Saved to Pipeline Tracker with " + completedSections + " proposal sections!");
+    alert("✓ Saved to Pipeline Tracker!\n\nTitle: " + extractedTitle + "\nAgency: " + extractedAgency + "\nSections: " + sectionCount);
   };
 
   return (
