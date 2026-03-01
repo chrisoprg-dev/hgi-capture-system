@@ -338,7 +338,7 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
     goToProposal("executive_summary");
   };
 
-  const saveNoProposal = () => { saveToTracker(); };
+  const saveNoProposal = () => { saveToTracker(); alert("Saved to Pipeline Tracker!"); };
   const decColor = decision === "GO" ? GREEN : decision === "CONDITIONAL GO" ? GOLD : decision === "NO-BID" ? RED : TEXT_D;
   const hasResult = outA || outB;
   const isStep2Done = !!outB;
@@ -449,9 +449,9 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
                   <div style={{marginBottom:10,padding:"10px 14px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
                     ✓ Workflow complete — ready to build your full proposal section by section
                   </div>
-                  <div style={{display:"flex",gap:8}}>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     <Btn onClick={runC}>Step 3: Build Proposal in Proposal Engine →</Btn>
-                    <Btn variant="secondary" onClick={saveNoProposal}>Save to Tracker Only</Btn>
+                    <Btn variant="secondary" onClick={saveNoProposal}>💾 Save to Tracker</Btn>
                   </div>
                 </div>
               )}
@@ -921,22 +921,47 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
   };
 
   const completedSections = Object.keys(proposalDraft).length;
+  const [viewingSection, setViewingSection] = useState(null);
+
   const removeSection = (val) => {
     const nd = {...proposalDraft};
     delete nd[val];
     setProposalDraft(nd);
     store.set("proposalDraft", nd);
   };
-  const goGenerate = (val) => { setSection(val); setActiveView("generate"); };
+  const goGenerate = (val) => { setSection(val); setActiveView("generate"); setViewingSection(null); };
+
+  const saveToTrackerFromProposal = () => {
+    const wfState = store.get("wfState") || {};
+    const tracker = store.get("tracker") || [];
+    const existing = tracker.find(o => o.id === "wf-proposal-draft");
+    const entry = {
+      id: existing ? existing.id : "wf-" + Date.now(),
+      title: sharedCtx.title || wfState.title || "Untitled Opportunity",
+      agency: sharedCtx.agency || wfState.agency || "",
+      stage: "proposal",
+      decomposition: sharedCtx.decomposition || wfState.outA || "",
+      execBrief: sharedCtx.execBrief || wfState.outB || "",
+      proposal: Object.entries(proposalDraft).map(([k,v]) => "=== " + k.toUpperCase().replace(/_/g," ") + " ===\n" + v).join("\n\n"),
+      decision: wfState.decision || "",
+      opiScore: wfState.opi || "",
+      addedDate: existing ? existing.addedDate : new Date().toISOString(),
+      notes: completedSections + " proposal sections drafted · " + new Date().toLocaleDateString()
+    };
+    const updated = existing ? tracker.map(o => o.id === existing.id ? entry : o) : [entry, ...tracker];
+    store.set("tracker", updated);
+    alert("✓ Saved to Pipeline Tracker with " + completedSections + " proposal sections!");
+  };
 
   return (
     <div>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:4}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:4,flexWrap:"wrap"}}>
         <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Proposal Engine</h2>
         {completedSections > 0 && <Badge color={GREEN}>{completedSections} section{completedSections>1?"s":""} drafted</Badge>}
-        {completedSections > 0 && <Btn small variant="ghost" onClick={()=>setActiveView(activeView==="generate"?"workspace":"generate")}>
+        {completedSections > 0 && <Btn small variant="ghost" onClick={()=>{setActiveView(activeView==="generate"?"workspace":"generate");setViewingSection(null);}}>
           {activeView==="generate"?"View Full Draft →":"← Back to Generator"}
         </Btn>}
+        {completedSections > 0 && <Btn small onClick={saveToTrackerFromProposal}>💾 Save to Tracker</Btn>}
         {completedSections > 0 && <Btn small variant="danger" onClick={clearDraft}>Clear Draft</Btn>}
       </div>
       <p style={{color:TEXT_D,margin:"0 0 12px",fontSize:12}}>Generate sections one at a time — each saves automatically</p>
@@ -971,7 +996,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
           </Card>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
             {SECTIONS.map(s => (
-              <button key={s.value} onClick={()=>setSection(s.value)} style={{
+              <button key={s.value} onClick={()=>{setSection(s.value);if(proposalDraft[s.value])setViewingSection(s.value===viewingSection?null:s.value);}} style={{
                 padding:"5px 10px",borderRadius:4,fontSize:11,cursor:"pointer",fontFamily:"inherit",
                 background:section===s.value?GOLD:proposalDraft[s.value]?GREEN+"22":BG3,
                 color:section===s.value?"#000":proposalDraft[s.value]?GREEN:TEXT_D,
@@ -982,7 +1007,19 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
               </button>
             ))}
           </div>
-          {(loading || result) && <AIOut content={result} loading={loading} label={"GENERATING: " + currentlyGenerating.toUpperCase()} />}
+
+          {viewingSection && proposalDraft[viewingSection] && (
+            <div style={{marginBottom:16}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                <span style={{color:GREEN,fontWeight:700,fontSize:13}}>✓ {SECTIONS.find(s=>s.value===viewingSection)?.label}</span>
+                <Btn small variant="ghost" onClick={()=>setViewingSection(null)}>Hide</Btn>
+                <Btn small variant="secondary" onClick={()=>{setViewingSection(null);generate();}}>Regenerate</Btn>
+              </div>
+              <Textarea value={proposalDraft[viewingSection]} onChange={v=>{const nd={...proposalDraft,[viewingSection]:v};setProposalDraft(nd);store.set("proposalDraft",nd);}} rows={16} />
+            </div>
+          )}
+
+          {!viewingSection && (loading || result) && <AIOut content={result} loading={loading} label={"GENERATING: " + currentlyGenerating.toUpperCase()} />}
         </div>
       )}
 
