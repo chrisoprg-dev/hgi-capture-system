@@ -232,30 +232,38 @@ function FullWorkflow(){
   const getDecision=(t)=>{const m=t.match(/Decision:\s*(GO|CONDITIONAL GO|NO-BID|WATCHLIST)/i);return m?m[1].toUpperCase():"";};
   const getOPI=(t)=>{const m=t.match(/OPI Score[^:]*:\s*(\d+)/i);return m?parseInt(m[1]):null;};
 
-  const run=async()=>{
+  const runA=async()=>{
     if(!rfpText.trim()&&!title.trim()) return;
     setStep(1);setOutA("");setOutB("");setOutC("");setDecision("");setOpi(null);
     const rIn=rfpText||`Title: ${title}\nAgency: ${agency}\nContext: ${intel}`;
     const a=await callClaude(PROMPT_A(rIn),`You are an expert capture manager and proposal architect.\n\n${HGI}\n\nExtract solicitation requirements precisely. Mark missing info as "Not Found in Provided Text".`);
-    setOutA(a);setStep(2);
+    setOutA(a);setStep(15);
+  };
+  const runB=async()=>{
+    setStep(2);
     const ctx=`Title: ${title}\nAgency: ${agency}\nIncumbent: ${incumbent||"Unknown"}\nIntel: ${intel}\nURL: ${rfpUrl}`;
-    const b=await callClaude(PROMPT_B(a,ctx),`You are a senior capture executive for HGI. Be analytical, decisive, specific.\n\n${HGI}`);
+    const b=await callClaude(PROMPT_B(outA,ctx),`You are a senior capture executive for HGI. Be analytical, decisive, specific.\n\n${HGI}`);
     setOutB(b);
-    const dec=getDecision(b);
-    const opiVal=getOPI(b);
-    setDecision(dec);setOpi(opiVal);
-    if(dec==="GO"||dec==="CONDITIONAL GO"){
-      setStep(3);
-      const c=await callClaude(PROMPT_C(a,b),`You are a proposal production engine for HGI. Write to win. Use [TBD:...] for unknowns. Do not fabricate staff names.\n\n${HGI}`);
-      setOutC(c);
-    }
+    const dec=getDecision(b);const opiVal=getOPI(b);
+    setDecision(dec);setOpi(opiVal);setStep(25);
+  };
+  const runC=async()=>{
+    setStep(3);
+    const c=await callClaude(PROMPT_C(outA,outB),`You are a proposal production engine for HGI. Write to win. Use [TBD:...] for unknowns. Do not fabricate staff names.\n\n${HGI}`);
+    setOutC(c);setStep(4);
+    const tracker=store.get("tracker")||[];
+    store.set("tracker",[{id:`wf-${Date.now()}`,title:title||"Untitled",agency,
+      stage:decision==="GO"?"pursuing":decision==="CONDITIONAL GO"?"qualifying":"identified",
+      decision,opiScore:opi,decomposition:outA,execBrief:outB,proposal:c,
+      addedDate:new Date().toISOString(),notes:`Full workflow ${new Date().toLocaleDateString()}`},...tracker]);
+  };
+  const saveNoProposal=()=>{
     setStep(4);
     const tracker=store.get("tracker")||[];
-    store.set("tracker",[{
-      id:`wf-${Date.now()}`,title:title||"Untitled",agency,stage:dec==="GO"?"pursuing":dec==="CONDITIONAL GO"?"qualifying":"identified",
-      decision:dec,opiScore:opiVal,decomposition:a,execBrief:b,proposal:outC,
-      addedDate:new Date().toISOString(),notes:`Full workflow ${new Date().toLocaleDateString()}`
-    },...tracker]);
+    store.set("tracker",[{id:`wf-${Date.now()}`,title:title||"Untitled",agency,
+      stage:decision==="GO"?"pursuing":decision==="CONDITIONAL GO"?"qualifying":"identified",
+      decision,opiScore:opi,decomposition:outA,execBrief:outB,proposal:"",
+      addedDate:new Date().toISOString(),notes:`Full workflow ${new Date().toLocaleDateString()}`},...tracker]);
   };
 
   const stepLabels=["RFP Decomposition","Executive Brief + OPI","Proposal Package"];
@@ -275,18 +283,26 @@ function FullWorkflow(){
       </div>
       <div><Label text="RELATIONSHIP INTEL / CONTEXT"/><Textarea value={intel} onChange={setIntel} placeholder="Known relationships, budget intel, political context, past HGI work with this agency..." rows={2}/></div>
       <div><Label text="RFP / SOLICITATION TEXT — paste full text or key sections"/><Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text here. More complete = better output. Can paste scope, eval factors, or key requirements..." rows={10}/></div>
-      <Btn onClick={run} disabled={!rfpText.trim()&&!title.trim()} style={{alignSelf:"flex-start"}}>▶ Run Full Workflow</Btn>
+      <Btn onClick={runA} disabled={!rfpText.trim()&&!title.trim()} style={{alignSelf:"flex-start"}}>▶ Step 1: Run RFP Decomposition</Btn>
     </div>}
 
-    {step>0&&step<4&&<Card style={{marginBottom:20,border:`1px solid ${GOLD}44`}}>
-      <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>⟳ Running Workflow — Step {step} of 3</div>
-      {stepLabels.map((s,i)=><div key={s} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-        <div style={{width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
-          fontSize:11,fontWeight:700,background:step>i+1?GREEN:step===i+1?GOLD:BG4,color:step>i+1||step===i+1?"#000":TEXT_D}}>
-          {step>i+1?"✓":i+1}</div>
-        <span style={{color:step===i+1?GOLD:step>i+1?GREEN:TEXT_D,fontSize:12}}>{s}</span>
-        {step===i+1&&<span style={{color:TEXT_D,fontSize:11,animation:"pulse 1.2s infinite"}}>generating...</span>}
-      </div>)}
+    {(step===15||step===2||step===25||step===3)&&<Card style={{marginBottom:20,border:`1px solid ${GOLD}44`}}>
+      <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>Workflow Progress</div>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+        <div style={{width:20,height:20,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>✓</div>
+        <span style={{color:GREEN,fontSize:12}}>RFP Decomposition — Complete</span>
+      </div>
+      {step===15&&<div style={{marginTop:12}}><AIOut content={outA} label="RFP DECOMPOSITION — Prompt A"/><div style={{marginTop:12}}><Btn onClick={runB}>▶ Step 2: Generate Executive Brief + OPI</Btn></div></div>}
+      {(step===2)&&<div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}><div style={{width:20,height:20,borderRadius:"50%",background:GOLD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>2</div><span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>Generating Executive Brief...</span></div>}
+      {step===25&&<div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}><div style={{width:20,height:20,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>✓</div><span style={{color:GREEN,fontSize:12}}>Executive Brief — Complete · Decision: <strong style={{color:decision==="GO"?GREEN:decision==="CONDITIONAL GO"?GOLD:RED}}>{decision}</strong></span></div>
+        <AIOut content={outB} label="EXECUTIVE DECISION BRIEF — Prompt B"/>
+        <div style={{marginTop:12,display:"flex",gap:8}}>
+          {(decision==="GO"||decision==="CONDITIONAL GO")&&<Btn onClick={runC}>▶ Step 3: Generate Proposal Package</Btn>}
+          <Btn variant="secondary" onClick={saveNoProposal}>Save & Finish Without Proposal</Btn>
+        </div>
+      </div>}
+      {step===3&&<div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}><div style={{width:20,height:20,borderRadius:"50%",background:GOLD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>3</div><span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>Generating Proposal Package...</span></div>}
     </Card>}
 
     {step===4&&<div>
