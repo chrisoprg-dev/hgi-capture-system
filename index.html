@@ -3,20 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HGI AI Capture System v1.1.2</title>
+  <title>HGI AI Capture System v1.1</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body, #root { height: 100%; }
-    body { background: #0A0A0A; color: #E8E0D0; font-family: 'Georgia', 'Times New Roman', serif; }
+    body { background: #0A0A0A; color: #E8E0D0; font-family: Georgia, serif; margin: 0; }
+    * { box-sizing: border-box; }
     ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: #111; }
-    ::-webkit-scrollbar-thumb { background: #8B6E2E; border-radius: 3px; }
-    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+    ::-webkit-scrollbar-thumb { background: #8B6E2E; }
     textarea::placeholder, input::placeholder { color: #555048; }
     select option { background: #191919; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
   </style>
 </head>
 <body>
@@ -26,642 +24,618 @@ const { useState, useEffect } = React;
 const GOLD="#C9A84C",GOLD_D="#8B6E2E",BG="#0A0A0A",BG2="#111111",BG3="#191919",BG4="#222222";
 const TEXT="#E8E0D0",TEXT_D="#888070",BORDER="#2A2520",RED="#C0392B",GREEN="#27AE60",BLUE="#2980B9",ORANGE="#E67E22";
 
-const HGI = `Hammerman & Gainer LLC (HGI) — 95 years.
-COMPETENCIES: Disaster Recovery, CDBG-DR Administration, TPA/Claims, Housing Assistance, Construction Management, Benefits Administration.
-PAST PERFORMANCE:
-- Road Home: $12B CDBG-DR, 130,000+ applicants
-- Restore Louisiana: CDBG-DR housing recovery
-- BP GCCF: 1,000,000+ claims
-- PBGC: 34,000,000+ beneficiaries
-- TPCIGA: 20+ years Texas insurance guaranty
-- Terrebonne Parish post-Ida, Jefferson Parish FEMA PA, City of Baton Rouge, DFC Child Subsidy
-GEOGRAPHY: Louisiana, Gulf Coast, Texas, Southeast US`;
-
-const PROMPT_A = (rfp) => `You are an expert capture manager for HGI. Analyze this RFP and produce a structured decomposition.
-
-HEADER BLOCK (fill every field, use "Not Found" if missing):
-RFP Title:
-Agency:
-Buyer Type: (Federal/State/Parish/Municipality/Housing Authority/Insurance/Other)
-Service Archetype: (Disaster Recovery/Grants Admin/Program Mgmt/Construction Mgmt/TPA/Claims/Appeals/Other)
-Funding Tags: (FEMA PA/CDBG-DR/CDBG-MIT/HMGP/Other/Not Found)
-Procurement Type: (RFP/RFQ/RFI/ITB/Task Order/Other)
-Period of Performance:
-Key Dates:
-Page Limits:
-Pricing Type: (T&M/Fixed/Hybrid/Not Found)
-Key Personnel Required: (Yes/No)
-Estimated Value:
-Geography:
-Completeness Confidence: (High/Medium/Low)
-
-1) SCOPE SNAPSHOT — 5-8 bullet summary
-2) DELIVERABLES & REQUIREMENTS — Major outputs, SLAs, reporting
-3) EVALUATION CRITERIA — Factor, subfactors, weight, what evaluators want
-4) COMPLIANCE & PASS-FAIL — Mandatory certs, submission rules, disqualifiers
-5) KEY PERSONNEL — Role, min years, domain, certs, mobilization expectations
-6) PRICING REQUIREMENTS — Format, caps, competitive implications
-7) RISKS & GOTCHAS — Short turnaround, hidden requirements, red flags
-
-RFP TEXT:
-${rfp}`;
-
-const PROMPT_B = (decomp, ctx) => `You are HGI's senior capture executive. Produce a leadership decision brief.
-
-HEADER BLOCK:
-Opportunity:
-Decision: (GO / CONDITIONAL GO / NO-BID / WATCHLIST)
-Pwin (0-100):
-OPI Score (0-100): [Revenue Timing 25 + Pwin 20 + Staffing 20 + Pricing 15 + Effort Inverse 10 + Strategic 10]
-Priority Tier: (Tier 1 / Tier 2 / Tier 3 / Archive)
-Revenue Timing: (Immediate <90d / Near-term 90-180d / Medium 180-365d / Long-term 365d+)
-Staffing Status: (Green/Yellow/Red)
-Pricing Posture: (Aggressive/Balanced/Premium/Unknown)
-Effort Level: (Low/Medium/High)
-Executive Action: (Yes/No)
-Confidence: (High/Medium/Low)
-
-1) WHAT THIS IS — 5-8 bullets on what they're buying
-2) WHY HGI WINS — 6-8 bullets tied to eval criteria + HGI past performance
-3) WHY HGI LOSES — 6-8 bullets: incumbent, staffing, compliance, price gaps
-4) OPI + PWIN BREAKDOWN
-  OPI Sub-scores (total to OPI): Revenue Timing /25, Pwin /20, Staffing /20, Pricing /15, Effort /10, Strategic /10
-  Pwin Sub-scores (total to Pwin): Strategic Fit /20, Competitive Position /25, Staffing /20, Execution /20, Pricing /15
-5) PRICING STRATEGY — Type required, posture recommendation, margin risks, intel gaps
-6) STAFFING FEASIBILITY — Required roles, gaps, recruit vs team recommendation
-7) 48-HOUR ACTION PLAN — 8 actions with Owner: TBD
-8) DECISION LOGIC — One paragraph. If CONDITIONAL: exact conditions to flip to GO.
-
-DECOMPOSITION: ${decomp}
-CONTEXT: ${ctx || "None provided."}`;
-
-const PROMPT_C = (decomp, brief) => `You are HGI's proposal production engine. Generate a submission-ready first-pass proposal.
-
-HEADER BLOCK:
-Proposal Title:
-Client:
-Due Date:
-Pricing Type:
-Win Themes:
-Top 5 Differentiators:
-TBD Items:
-
-SECTION 1 — EXECUTIVE SUMMARY
-Mission alignment, problem, HGI solution, relevant past performance proof, outcomes, confident close.
-
-SECTION 2 — TECHNICAL APPROACH
-Organized by evaluation factors. Phases, workflows, controls, risk mitigation, QA.
-
-SECTION 3 — MANAGEMENT APPROACH
-Org structure, governance, reporting, escalation, stakeholder coordination.
-
-SECTION 4 — STAFFING PLAN
-Each required role: responsibilities, qualifications, HGI staffing approach. Surge plan included.
-
-SECTION 5 — PAST PERFORMANCE MATRIX
-5-7 entries: Project, Client, Scope relevance, Scale, Outcomes, Why it proves delivery.
-
-SECTION 6 — TRANSITION / MOBILIZATION (90 Days)
-Day 1 readiness, 30/60/90 milestones, knowledge transfer, risk mitigations.
-
-SECTION 7 — PRICING NARRATIVE
-Approach, posture, cost realism, assumptions, [TBD] for actual rates.
-
-SECTION 8 — COMPLIANCE MATRIX
-Requirement | Where Addressed | Owner (TBD) | Status (Draft)
-
-SECTION 9 — CLARIFYING QUESTIONS
-10-15 questions to improve HGI's position.
-
-SECTION 10 — RED TEAM CRITIQUE (INTERNAL ONLY)
-Top 10 weaknesses, what to fix, evidence needed, competitor advantages, revision priorities.
-
-SECTION 11 — VISUAL EXHIBIT DESCRIPTIONS
-For each exhibit: Title, Purpose, Data needed, Layout, Caption.
-Required: Mobilization Timeline, Process Flow, Org Chart + RACI, KPI Dashboard, Past Performance Tiles.
-
-DECOMPOSITION: ${decomp}
-EXECUTIVE BRIEF: ${brief}`;
+const HGI_CONTEXT = "Hammerman & Gainer LLC (HGI) — 95 years. Disaster Recovery, CDBG-DR, TPA/Claims, Housing, Construction Management. Past performance: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 20yrs Texas, Restore Louisiana, Terrebonne Parish, Jefferson Parish FEMA PA. Geography: Louisiana, Gulf Coast, Texas.";
 
 const store = {
   get(k){try{const v=localStorage.getItem('hgi_'+k);return v?JSON.parse(v):null}catch{return null}},
   set(k,v){try{localStorage.setItem('hgi_'+k,JSON.stringify(v))}catch{}}
 };
 
-async function callClaude(prompt, system, useSearch=false){
-  const sys = system || `You are an expert government contracting capture manager for HGI.\n\n${HGI}\n\nBe specific and data-driven.`;
-  const body={model:"claude-sonnet-4-20250514",max_tokens:800,system:sys,messages:[{role:"user",content:prompt}]};
-  if(useSearch) body.tools=[{type:"web_search_20250305",name:"web_search"}];
-  const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-  const d=await r.json();
-  if(!d.content) return "API error — check connection.";
-  return d.content.filter(b=>b.type==="text").map(b=>b.text).join("")||"No response.";
+async function callClaude(prompt, system) {
+  const body = {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1500,
+    system: system || "You are an expert government contracting capture manager for HGI. " + HGI_CONTEXT,
+    messages: [{ role: "user", content: prompt }]
+  };
+  const r = await fetch("/api/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const d = await r.json();
+  if (!d.content) return "API error.";
+  return d.content.filter(b => b.type === "text").map(b => b.text).join("") || "No response.";
 }
 
-// UI Components
-const Badge=({children,color=GOLD})=>(
+const Badge = ({children, color=GOLD}) => (
   <span style={{display:"inline-block",padding:"2px 8px",borderRadius:3,fontSize:10,fontWeight:700,
     letterSpacing:"0.08em",background:color+"22",color,border:`1px solid ${color}44`,textTransform:"uppercase"}}>
-    {children}</span>
+    {children}
+  </span>
 );
-const Card=({children,style})=>(<div style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:16,...style}}>{children}</div>);
-const Btn=({children,onClick,variant="primary",disabled,small,style})=>{
-  const base={cursor:disabled?"not-allowed":"pointer",border:"none",borderRadius:4,fontFamily:"inherit",
-    fontWeight:600,letterSpacing:"0.05em",transition:"all 0.15s",padding:small?"5px 12px":"9px 18px",
-    fontSize:small?12:13,opacity:disabled?0.5:1,...style};
-  const v={primary:{background:GOLD,color:BG},secondary:{background:BG4,color:TEXT,border:`1px solid ${BORDER}`},
-    danger:{background:RED+"22",color:RED,border:`1px solid ${RED}44`},ghost:{background:"transparent",color:GOLD,border:`1px solid ${GOLD}44`}};
+const Card = ({children, style}) => (
+  <div style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:16,...style}}>{children}</div>
+);
+const Btn = ({children, onClick, variant="primary", disabled, small, style}) => {
+  const base = {cursor:disabled?"not-allowed":"pointer",border:"none",borderRadius:4,fontFamily:"inherit",
+    fontWeight:600,letterSpacing:"0.05em",padding:small?"5px 12px":"9px 18px",fontSize:small?12:13,opacity:disabled?0.5:1,...style};
+  const v = {
+    primary:{background:GOLD,color:BG},
+    secondary:{background:BG4,color:TEXT,border:`1px solid ${BORDER}`},
+    danger:{background:RED+"22",color:RED,border:`1px solid ${RED}44`},
+    ghost:{background:"transparent",color:GOLD,border:`1px solid ${GOLD}44`}
+  };
   return <button style={{...base,...v[variant]}} onClick={disabled?undefined:onClick}>{children}</button>;
 };
-const Input=({value,onChange,placeholder,style})=>(
+const Input = ({value, onChange, placeholder, style}) => (
   <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
     style={{background:BG3,border:`1px solid ${BORDER}`,borderRadius:4,color:TEXT,fontFamily:"inherit",
-      fontSize:13,padding:"8px 10px",outline:"none",width:"100%",...style}}/>
+      fontSize:13,padding:"8px 10px",outline:"none",width:"100%",...style}} />
 );
-const Textarea=({value,onChange,placeholder,rows=4,style})=>(
+const Textarea = ({value, onChange, placeholder, rows=4, style}) => (
   <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
     style={{width:"100%",background:BG3,border:`1px solid ${BORDER}`,borderRadius:4,color:TEXT,
-      fontFamily:"inherit",fontSize:13,padding:10,resize:"vertical",outline:"none",lineHeight:1.6,...style}}/>
+      fontFamily:"inherit",fontSize:13,padding:10,resize:"vertical",outline:"none",lineHeight:1.6,...style}} />
 );
-const Sel=({value,onChange,options,style})=>(
+const Sel = ({value, onChange, options, style}) => (
   <select value={value} onChange={e=>onChange(e.target.value)}
-    style={{background:BG3,border:`1px solid ${BORDER}`,borderRadius:4,color:TEXT,fontFamily:"inherit",
-      fontSize:13,padding:"8px 10px",outline:"none",...style}}>
-    {options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+    style={{background:BG3,border:`1px solid ${BORDER}`,borderRadius:4,color:TEXT,fontFamily:"inherit",fontSize:13,padding:"8px 10px",outline:"none",...style}}>
+    {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
   </select>
 );
-const Label=({text})=><label style={{display:"block",fontSize:11,color:TEXT_D,marginBottom:4,letterSpacing:"0.06em"}}>{text}</label>;
-const AIOut=({content,loading,label="AI ANALYSIS"})=>{
-  if(loading) return <div style={{color:GOLD,fontSize:13,padding:12,background:BG3,borderRadius:4,border:`1px solid ${GOLD}33`}}>
-    <span style={{animation:"pulse 1.2s infinite"}}>⟳ Generating {label}...</span></div>;
-  if(!content) return null;
+const Label = ({text}) => <label style={{display:"block",fontSize:11,color:TEXT_D,marginBottom:4,letterSpacing:"0.06em"}}>{text}</label>;
+const AIOut = ({content, loading, label="AI ANALYSIS"}) => {
+  if (loading) return <div style={{color:GOLD,fontSize:13,padding:12,background:BG3,borderRadius:4,border:`1px solid ${GOLD}33`}}>
+    <span style={{animation:"pulse 1.2s infinite"}}>generating {label}...</span></div>;
+  if (!content) return null;
   return <div style={{background:BG3,border:`1px solid ${GOLD}33`,borderRadius:4,padding:14,fontSize:13,lineHeight:1.75,color:TEXT,whiteSpace:"pre-wrap"}}>
-    <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>◆ {label}</div>
-    {content}</div>;
-};
-const OPIBadge=({score})=>{
-  if(!score&&score!==0) return null;
-  const n=parseInt(score);
-  const color=n>=70?GREEN:n>=45?GOLD:RED;
-  const tier=n>=70?"Tier 1":n>=45?"Tier 2":n>=25?"Tier 3":"Archive";
-  return <div style={{display:"flex",gap:8,alignItems:"center"}}>
-    <div style={{background:color+"22",border:`1px solid ${color}44`,borderRadius:4,padding:"4px 10px"}}>
-      <span style={{color,fontWeight:800,fontSize:16}}>{n}</span>
-      <span style={{color:TEXT_D,fontSize:10,marginLeft:4}}>OPI</span>
-    </div>
-    <Badge color={color}>{tier}</Badge>
+    <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>{label}</div>
+    {content}
   </div>;
+};
+const OPIBadge = ({score}) => {
+  if (!score && score !== 0) return null;
+  const n = parseInt(score);
+  const color = n>=70?GREEN:n>=45?GOLD:RED;
+  const tier = n>=70?"Tier 1":n>=45?"Tier 2":n>=25?"Tier 3":"Archive";
+  return <span style={{background:color+"22",border:`1px solid ${color}44`,borderRadius:4,padding:"4px 10px",color,fontWeight:700}}>
+    OPI {n} — {tier}
+  </span>;
 };
 
 // ── FULL WORKFLOW ─────────────────────────────────────────────────────────────
-function FullWorkflow(){
-  const [title,setTitle]=useState("");
-  const [agency,setAgency]=useState("");
-  const [rfpUrl,setRfpUrl]=useState("");
-  const [incumbent,setIncumbent]=useState("");
-  const [intel,setIntel]=useState("");
-  const [rfpText,setRfpText]=useState("");
-  const [step,setStep]=useState(0);
-  const [outA,setOutA]=useState("");
-  const [outB,setOutB]=useState("");
-  const [outC,setOutC]=useState("");
-  const [decision,setDecision]=useState("");
-  const [opi,setOpi]=useState(null);
-  const [tab,setTab]=useState("decomp");
+function FullWorkflow() {
+  const [title, setTitle] = useState("");
+  const [agency, setAgency] = useState("");
+  const [rfpUrl, setRfpUrl] = useState("");
+  const [incumbent, setIncumbent] = useState("");
+  const [intel, setIntel] = useState("");
+  const [rfpText, setRfpText] = useState("");
+  const [step, setStep] = useState(0);
+  const [outA, setOutA] = useState("");
+  const [outB, setOutB] = useState("");
+  const [outC, setOutC] = useState("");
+  const [decision, setDecision] = useState("");
+  const [opi, setOpi] = useState(null);
+  const [tab, setTab] = useState("a");
+  const [loadingStep, setLoadingStep] = useState(0);
 
-  const getDecision=(t)=>{const patterns=["GO","CONDITIONAL GO","NO-BID","WATCHLIST"];for(const p of patterns){if(t.includes("Decision") && t.toUpperCase().includes(p)) return p;} return "";};
-  const getOPI=(t)=>{const m=t.match(/OPI Score[^:]*:\s*(\d+)/i);return m?parseInt(m[1]):null;};
-
-  const runA=async()=>{
-    if(!rfpText.trim()&&!title.trim()) return;
-    setStep(1);setOutA("");setOutB("");setOutC("");setDecision("");setOpi(null);
-    const rIn=rfpText||`Title: ${title}\nAgency: ${agency}\nContext: ${intel}`;
-    const a=await callClaude(PROMPT_A(rIn),`You are an expert capture manager and proposal architect.\n\n${HGI}\n\nExtract solicitation requirements precisely. Mark missing info as "Not Found in Provided Text".`);
-    setOutA(a);setStep(15);
+  const extractDecision = (text) => {
+    const t = text.toUpperCase();
+    if (t.includes("CONDITIONAL GO")) return "CONDITIONAL GO";
+    if (t.includes(": GO") || t.includes("RECOMMENDATION: GO")) return "GO";
+    if (t.includes("NO-BID") || t.includes("NO BID")) return "NO-BID";
+    if (t.includes("WATCHLIST")) return "WATCHLIST";
+    return "";
   };
-  const runB=async()=>{
-    setStep(2);
-    const ctx=`Title: ${title}\nAgency: ${agency}\nIncumbent: ${incumbent||"Unknown"}\nIntel: ${intel}\nURL: ${rfpUrl}`;
-    const b=await callClaude(PROMPT_B(outA,ctx),`You are a senior capture executive for HGI. Be analytical, decisive, specific.\n\n${HGI}`);
+  const extractOPI = (text) => {
+    const m = text.match(/OPI[^:]*:\s*(\d+)/i);
+    return m ? parseInt(m[1]) : null;
+  };
+
+  const buildPromptA = (rfp) => {
+    return "Analyze this RFP for HGI and produce a structured decomposition.\n\n" +
+      "HEADER BLOCK:\nRFP Title:\nAgency:\nBuyer Type:\nService Archetype:\nFunding Tags:\nPeriod of Performance:\nKey Dates:\nPricing Type:\nKey Personnel Required:\nEstimated Value:\nGeography:\n\n" +
+      "Then provide:\n1) SCOPE SNAPSHOT - 5-8 bullets\n2) DELIVERABLES & REQUIREMENTS\n3) EVALUATION CRITERIA - factor, weight, what evaluators want\n4) COMPLIANCE & PASS-FAIL requirements\n5) KEY PERSONNEL - roles, experience, certs\n6) PRICING REQUIREMENTS\n7) RISKS & GOTCHAS\n\nMark anything missing as: Not Found in Provided Text\n\nRFP TEXT:\n" + rfp;
+  };
+
+  const buildPromptB = (decomp, ctx) => {
+    return "Produce a leadership decision brief for HGI.\n\n" +
+      "HEADER BLOCK:\nOpportunity:\nDecision Recommendation: (GO / CONDITIONAL GO / NO-BID / WATCHLIST)\nPwin (0-100):\nOPI Score (0-100):\nPriority Tier: (Tier 1/2/3/Archive)\nRevenue Timing:\nStaffing Status: (Green/Yellow/Red)\nPricing Posture:\nEffort Level:\n\n" +
+      "Then provide:\n1) WHAT THIS IS - 5-8 bullets\n2) WHY HGI WINS - 6-8 bullets tied to eval criteria\n3) WHY HGI LOSES - 6-8 bullets on risks\n4) OPI + PWIN BREAKDOWN with sub-scores\n5) PRICING STRATEGY\n6) STAFFING FEASIBILITY\n7) 48-HOUR ACTION PLAN - 8 actions\n8) DECISION LOGIC - one paragraph\n\n" +
+      "DECOMPOSITION:\n" + decomp + "\n\nCONTEXT:\n" + ctx;
+  };
+
+  const buildPromptC = (decomp, brief) => {
+    return "Generate a first-pass proposal package for HGI. Use [TBD:...] for unknowns. Do not fabricate staff names.\n\n" +
+      "Produce:\nSECTION 1 - EXECUTIVE SUMMARY\nSECTION 2 - TECHNICAL APPROACH\nSECTION 3 - MANAGEMENT APPROACH\nSECTION 4 - STAFFING PLAN\nSECTION 5 - PAST PERFORMANCE MATRIX (Road Home, BP GCCF, PBGC, TPCIGA, Restore LA)\nSECTION 6 - TRANSITION / MOBILIZATION PLAN\nSECTION 7 - PRICING NARRATIVE\nSECTION 8 - COMPLIANCE MATRIX\nSECTION 9 - CLARIFYING QUESTIONS\nSECTION 10 - RED TEAM CRITIQUE (internal)\n\n" +
+      "DECOMPOSITION:\n" + decomp + "\n\nEXECUTIVE BRIEF:\n" + brief;
+  };
+
+  const runA = async () => {
+    if (!rfpText.trim() && !title.trim()) return;
+    setStep(1); setLoadingStep(1);
+    setOutA(""); setOutB(""); setOutC(""); setDecision(""); setOpi(null);
+    const rIn = rfpText || "Title: " + title + "\nAgency: " + agency + "\nContext: " + intel;
+    const sys = "You are an expert capture manager for HGI (Hammerman & Gainer). " + HGI_CONTEXT + " Extract solicitation requirements precisely. Mark missing info as Not Found in Provided Text.";
+    const a = await callClaude(buildPromptA(rIn), sys);
+    setOutA(a); setLoadingStep(0); setStep(2);
+  };
+
+  const runB = async () => {
+    setStep(2); setLoadingStep(2);
+    const ctx = "Title: " + title + "\nAgency: " + agency + "\nIncumbent: " + (incumbent || "Unknown") + "\nIntel: " + intel + "\nURL: " + rfpUrl;
+    const sys = "You are a senior capture executive for HGI. Be analytical, decisive, specific. " + HGI_CONTEXT;
+    const b = await callClaude(buildPromptB(outA, ctx), sys);
     setOutB(b);
-    const dec=getDecision(b);const opiVal=getOPI(b);
-    setDecision(dec);setOpi(opiVal);setStep(25);
+    setDecision(extractDecision(b));
+    setOpi(extractOPI(b));
+    setLoadingStep(0); setStep(3);
   };
-  const runC=async()=>{
-    setStep(3);
-    const c=await callClaude(PROMPT_C(outA,outB),`You are a proposal production engine for HGI. Write to win. Use [TBD:...] for unknowns. Do not fabricate staff names.\n\n${HGI}`);
-    setOutC(c);setStep(4);
-    const tracker=store.get("tracker")||[];
-    store.set("tracker",[{id:`wf-${Date.now()}`,title:title||"Untitled",agency,
-      stage:decision==="GO"?"pursuing":decision==="CONDITIONAL GO"?"qualifying":"identified",
-      decision,opiScore:opi,decomposition:outA,execBrief:outB,proposal:c,
-      addedDate:new Date().toISOString(),notes:`Full workflow ${new Date().toLocaleDateString()}`},...tracker]);
+
+  const runC = async () => {
+    setStep(3); setLoadingStep(3);
+    const sys = "You are a proposal production engine for HGI. Write to win. " + HGI_CONTEXT;
+    const c = await callClaude(buildPromptC(outA, outB), sys);
+    setOutC(c); setLoadingStep(0); setStep(4);
+    const tracker = store.get("tracker") || [];
+    store.set("tracker", [{
+      id: "wf-" + Date.now(), title: title || "Untitled", agency,
+      stage: decision === "GO" ? "pursuing" : decision === "CONDITIONAL GO" ? "qualifying" : "identified",
+      decision, opiScore: opi, decomposition: outA, execBrief: outB, proposal: c,
+      addedDate: new Date().toISOString(), notes: "Full workflow " + new Date().toLocaleDateString()
+    }, ...tracker]);
   };
-  const saveNoProposal=()=>{
+
+  const saveNoProposal = () => {
     setStep(4);
-    const tracker=store.get("tracker")||[];
-    store.set("tracker",[{id:`wf-${Date.now()}`,title:title||"Untitled",agency,
-      stage:decision==="GO"?"pursuing":decision==="CONDITIONAL GO"?"qualifying":"identified",
-      decision,opiScore:opi,decomposition:outA,execBrief:outB,proposal:"",
-      addedDate:new Date().toISOString(),notes:`Full workflow ${new Date().toLocaleDateString()}`},...tracker]);
+    const tracker = store.get("tracker") || [];
+    store.set("tracker", [{
+      id: "wf-" + Date.now(), title: title || "Untitled", agency,
+      stage: decision === "GO" ? "pursuing" : decision === "CONDITIONAL GO" ? "qualifying" : "identified",
+      decision, opiScore: opi, decomposition: outA, execBrief: outB, proposal: "",
+      addedDate: new Date().toISOString(), notes: "Full workflow " + new Date().toLocaleDateString()
+    }, ...tracker]);
   };
 
-  const stepLabels=["RFP Decomposition","Executive Brief + OPI","Proposal Package"];
-  const decColor=decision==="GO"?GREEN:decision==="CONDITIONAL GO"?GOLD:decision==="NO-BID"?RED:TEXT_D;
+  const decColor = decision === "GO" ? GREEN : decision === "CONDITIONAL GO" ? GOLD : decision === "NO-BID" ? RED : TEXT_D;
 
-  return <div>
-    <div style={{marginBottom:20}}>
-      <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>⚡ Run Full Workflow</h2>
-      <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>RFP Decomposition → Executive Brief + OPI → Proposal Package</p>
-    </div>
-    {step===0&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <div><Label text="OPPORTUNITY TITLE"/><Input value={title} onChange={setTitle} placeholder="e.g. FEMA PA TPA — Jefferson Parish"/></div>
-        <div><Label text="AGENCY"/><Input value={agency} onChange={setAgency} placeholder="e.g. Jefferson Parish OEM"/></div>
-        <div><Label text="KNOWN INCUMBENT"/><Input value={incumbent} onChange={setIncumbent} placeholder="e.g. ICF / None / Unknown"/></div>
-        <div><Label text="RFP URL (optional)"/><Input value={rfpUrl} onChange={setRfpUrl} placeholder="https://..."/></div>
+  return (
+    <div>
+      <div style={{marginBottom:20}}>
+        <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Full Workflow</h2>
+        <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>RFP Decomposition → Executive Brief + OPI → Proposal Package</p>
       </div>
-      <div><Label text="RELATIONSHIP INTEL / CONTEXT"/><Textarea value={intel} onChange={setIntel} placeholder="Known relationships, budget intel, political context, past HGI work with this agency..." rows={2}/></div>
-      <div><Label text="RFP / SOLICITATION TEXT — paste full text or key sections"/><Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text here. More complete = better output. Can paste scope, eval factors, or key requirements..." rows={10}/></div>
-      <Btn onClick={runA} disabled={!rfpText.trim()&&!title.trim()} style={{alignSelf:"flex-start"}}>▶ Step 1: RFP Decomposition</Btn>
-    </div>}
 
-    {(step===15||step===2||step===25||step===3)&&<Card style={{marginBottom:20,border:`1px solid ${GOLD}44`}}>
-      <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>Workflow Progress</div>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-        <div style={{width:20,height:20,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>✓</div>
-        <span style={{color:GREEN,fontSize:12}}>Step 1: RFP Decomposition — Complete</span>
-      </div>
-      {step===15&&<div style={{marginTop:12}}>
-        <AIOut content={outA} label="RFP DECOMPOSITION"/>
-        <div style={{marginTop:12}}><Btn onClick={runB}>▶ Step 2: Executive Brief + OPI</Btn></div>
-      </div>}
-      {step===2&&<div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
-        <span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>⟳ Generating Executive Brief...</span>
-      </div>}
-      {step===25&&<div>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-          <div style={{width:20,height:20,borderRadius:"50%",background:GREEN,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#000"}}>✓</div>
-          <span style={{color:GREEN,fontSize:12}}>Step 2: Executive Brief — Complete</span>
-          <span style={{color:decision==="GO"?GREEN:decision==="CONDITIONAL GO"?GOLD:RED,fontWeight:700,marginLeft:8}}>{decision||"(extracting...)"}</span>
-        </div>
-        <AIOut content={outB} label="EXECUTIVE DECISION BRIEF"/>
-        <div style={{marginTop:12,display:"flex",gap:8,flexWrap:"wrap"}}>
-          <Btn onClick={runC}>▶ Step 3: Generate Proposal Package</Btn>
-          <Btn variant="secondary" onClick={saveNoProposal}>Save Without Proposal</Btn>
-        </div>
-      </div>}
-      {step===3&&<div style={{marginTop:8}}>
-        <span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>⟳ Generating Proposal Package...</span>
-      </div>}
-    </Card>}
-
-    {step===4&&<div>
-      <Card style={{marginBottom:16,border:`1px solid ${decColor}44`,background:decColor+"08"}}>
-        <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
-          <div>
-            <div style={{fontSize:11,color:TEXT_D,letterSpacing:"0.08em",marginBottom:4}}>DECISION</div>
-            <div style={{color:decColor,fontWeight:800,fontSize:22}}>{decision||"WATCHLIST"}</div>
+      {step === 0 && (
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div><Label text="OPPORTUNITY TITLE" /><Input value={title} onChange={setTitle} placeholder="e.g. FEMA PA TPA — Jefferson Parish" /></div>
+            <div><Label text="AGENCY" /><Input value={agency} onChange={setAgency} placeholder="e.g. Jefferson Parish OEM" /></div>
+            <div><Label text="KNOWN INCUMBENT" /><Input value={incumbent} onChange={setIncumbent} placeholder="e.g. ICF / None / Unknown" /></div>
+            <div><Label text="RFP URL (optional)" /><Input value={rfpUrl} onChange={setRfpUrl} placeholder="https://..." /></div>
           </div>
-          {opi!==null&&<OPIBadge score={opi}/>}
-          <Badge color={GREEN}>✓ Saved to Pipeline Tracker</Badge>
-          <Btn small variant="secondary" style={{marginLeft:"auto"}} onClick={()=>{setStep(0);setRfpText("");setTitle("");setAgency("");}}>New Workflow</Btn>
+          <div><Label text="RELATIONSHIP INTEL / CONTEXT" /><Textarea value={intel} onChange={setIntel} placeholder="Known relationships, budget intel, political context..." rows={2} /></div>
+          <div><Label text="RFP / SOLICITATION TEXT" /><Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text here..." rows={10} /></div>
+          <Btn onClick={runA} disabled={!rfpText.trim() && !title.trim()} style={{alignSelf:"flex-start"}}>Step 1: RFP Decomposition</Btn>
         </div>
-      </Card>
-      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-        {[["decomp","RFP Decomposition"],["brief","Executive Brief"],["proposal","Proposal Package"]].map(([id,label])=>(
-          <button key={id} onClick={()=>setTab(id)} style={{padding:"6px 14px",borderRadius:4,fontSize:12,cursor:"pointer",
-            fontFamily:"inherit",background:tab===id?GOLD:BG3,color:tab===id?"#000":TEXT_D,
-            border:`1px solid ${tab===id?GOLD:BORDER}`,fontWeight:tab===id?700:400}}>{label}</button>
-        ))}
-      </div>
-      {tab==="decomp"&&<AIOut content={outA} label="RFP DECOMPOSITION — Prompt A"/>}
-      {tab==="brief"&&<AIOut content={outB} label="EXECUTIVE DECISION BRIEF — Prompt B"/>}
-      {tab==="proposal"&&(outC?<AIOut content={outC} label="PROPOSAL PACKAGE — Prompt C"/>:
-        <Card style={{textAlign:"center",padding:32,color:TEXT_D}}>
-          <div style={{fontSize:32,marginBottom:8}}>◇</div>
-          <div>Proposal not generated — decision was {decision||"NO-BID/WATCHLIST"}</div>
-        </Card>)}
-    </div>}
-  </div>;
+      )}
+
+      {step >= 2 && (
+        <div>
+          <Card style={{marginBottom:16}}>
+            <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+              <span style={{color:GREEN,fontSize:13}}>✓ Step 1 Complete</span>
+              {step >= 3 && <span style={{color:GREEN,fontSize:13}}>✓ Step 2 Complete</span>}
+              {step >= 4 && <span style={{color:GREEN,fontSize:13}}>✓ Step 3 Complete</span>}
+              {decision && <span style={{color:decColor,fontWeight:700,fontSize:14}}>{decision}</span>}
+              {opi !== null && <OPIBadge score={opi} />}
+              <Btn small variant="secondary" style={{marginLeft:"auto"}} onClick={()=>{setStep(0);setRfpText("");setTitle("");setAgency("");}}>New Workflow</Btn>
+            </div>
+          </Card>
+
+          {loadingStep === 2 && <div style={{color:GOLD,padding:12,animation:"pulse 1.2s infinite"}}>Generating Executive Brief...</div>}
+          {loadingStep === 3 && <div style={{color:GOLD,padding:12,animation:"pulse 1.2s infinite"}}>Generating Proposal Package...</div>}
+
+          <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+            {[["a","Decomposition"],["b","Executive Brief"],["c","Proposal"]].map(([id,label]) => (
+              <button key={id} onClick={()=>setTab(id)} style={{
+                padding:"6px 14px",borderRadius:4,fontSize:12,cursor:"pointer",fontFamily:"inherit",
+                background:tab===id?GOLD:BG3,color:tab===id?"#000":TEXT_D,
+                border:`1px solid ${tab===id?GOLD:BORDER}`,fontWeight:tab===id?700:400
+              }}>{label}</button>
+            ))}
+          </div>
+
+          {tab === "a" && (
+            <div>
+              <AIOut content={outA} label="RFP DECOMPOSITION" />
+              {step === 2 && loadingStep === 0 && (
+                <div style={{marginTop:12}}>
+                  <Btn onClick={runB}>Step 2: Executive Brief + OPI</Btn>
+                </div>
+              )}
+            </div>
+          )}
+          {tab === "b" && (
+            <div>
+              <AIOut content={outB} label="EXECUTIVE DECISION BRIEF" />
+              {step === 3 && loadingStep === 0 && (
+                <div style={{marginTop:12,display:"flex",gap:8}}>
+                  <Btn onClick={runC}>Step 3: Generate Proposal Package</Btn>
+                  <Btn variant="secondary" onClick={saveNoProposal}>Save Without Proposal</Btn>
+                </div>
+              )}
+            </div>
+          )}
+          {tab === "c" && (
+            outC ? <AIOut content={outC} label="PROPOSAL PACKAGE" /> :
+            <Card style={{textAlign:"center",padding:32,color:TEXT_D}}>
+              {step < 3 ? "Complete Step 2 first." : "Proposal not generated — decision was " + (decision || "not GO")}
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── PIPELINE SCANNER ──────────────────────────────────────────────────────────
-function PipelineScanner(){
-  const [opps,setOpps]=useState([]);
-  const [scanning,setScanning]=useState(false);
-  const [progress,setProgress]=useState("");
-  const [analysis,setAnalysis]=useState({});
-  const [analyzing,setAnalyzing]=useState({});
-  const [lastScanned,setLastScanned]=useState(null);
-  const [error,setError]=useState("");
+function PipelineScanner() {
+  const [opps, setOpps] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [analysis, setAnalysis] = useState({});
+  const [analyzing, setAnalyzing] = useState({});
+  const [lastScanned, setLastScanned] = useState(null);
+  const [error, setError] = useState("");
 
-  useEffect(()=>{const d=store.get("scanner");if(d){setOpps(d.opps||[]);setLastScanned(d.at);};},[]);
+  useEffect(() => {
+    const d = store.get("scanner");
+    if (d) { setOpps(d.opps || []); setLastScanned(d.at); }
+  }, []);
 
-  const QUERIES=[
-    {label:"FEMA PA Louisiana",q:"FEMA Public Assistance TPA program management RFP Louisiana 2026"},
-    {label:"CDBG-DR Gulf Coast",q:"CDBG-DR disaster recovery program manager RFP Louisiana Gulf Coast 2026"},
-    {label:"TPA Claims",q:"third party administrator TPA claims management RFP disaster recovery 2026"},
-    {label:"Housing Authority",q:"housing authority program administration RFP Louisiana 2026"},
-    {label:"SAM.gov Disaster",q:"SAM.gov NAICS 541611 disaster recovery program management Louisiana Texas 2026"},
-    {label:"Recompetes",q:"disaster recovery program management recompete RFP Louisiana Texas 2026"},
+  const QUERIES = [
+    {label:"FEMA PA Louisiana", q:"FEMA Public Assistance TPA program management RFP Louisiana 2026"},
+    {label:"CDBG-DR Gulf Coast", q:"CDBG-DR disaster recovery program manager RFP Louisiana Gulf Coast 2026"},
+    {label:"TPA Claims", q:"third party administrator TPA claims management RFP disaster recovery 2026"},
+    {label:"Housing Authority", q:"housing authority program administration RFP Louisiana 2026"},
+    {label:"SAM.gov Disaster", q:"SAM.gov NAICS 541611 disaster recovery program management Louisiana Texas 2026"},
+    {label:"Recompetes", q:"disaster recovery program management recompete RFP Louisiana Texas 2026"},
   ];
 
-  const scan=async()=>{
-    setScanning(true);setError("");setOpps([]);
-    const results=[];
-    for(let i=0;i<QUERIES.length;i++){
-      const sq=QUERIES[i];
-      setProgress(`Searching: ${sq.label} (${i+1}/${QUERIES.length})...`);
-      try{
-        const txt=await callClaude(`Find real open government RFPs matching: "${sq.q}". Today: ${new Date().toLocaleDateString()}. Return ONLY a JSON array. Each object: title, agency, value, deadline (YYYY-MM-DD or TBD), url, description (1 sentence). Only real verifiable opportunities. Return [] if none found.`,"Return ONLY valid JSON array, no markdown, no explanation.",true);
-        const clean=txt.replace(/```json|```/g,"").trim();
-        const s=clean.indexOf("["),e=clean.lastIndexOf("]");
-        if(s!==-1&&e!==-1) JSON.parse(clean.slice(s,e+1)).forEach(o=>{o.id=`sc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;o.cat=sq.label;results.push(o);});
-      }catch(ex){}
-      await new Promise(r=>setTimeout(r,300));
+  const scan = async () => {
+    setScanning(true); setError(""); setOpps([]);
+    const results = [];
+    for (let i = 0; i < QUERIES.length; i++) {
+      const sq = QUERIES[i];
+      setProgress("Searching: " + sq.label + " (" + (i+1) + "/" + QUERIES.length + ")...");
+      try {
+        const txt = await callClaude(
+          "Find real open government RFPs matching: " + sq.q + ". Today: " + new Date().toLocaleDateString() + ". Return ONLY a JSON array. Each object: title, agency, value, deadline (YYYY-MM-DD or TBD), url, description (1 sentence). Only real verifiable opportunities. Return [] if none found.",
+          "Return ONLY valid JSON array, no markdown, no explanation."
+        );
+        const clean = txt.replace(/```json|```/g, "").trim();
+        const s = clean.indexOf("["), e = clean.lastIndexOf("]");
+        if (s !== -1 && e !== -1) {
+          JSON.parse(clean.slice(s, e+1)).forEach(o => {
+            o.id = "sc-" + Date.now() + "-" + Math.random().toString(36).slice(2,7);
+            o.cat = sq.label;
+            results.push(o);
+          });
+        }
+      } catch(ex) {}
+      await new Promise(r => setTimeout(r, 300));
     }
-    const seen=new Set();
-    const deduped=results.filter(o=>{const k=(o.title||"").toLowerCase().slice(0,35);if(seen.has(k))return false;seen.add(k);return true;});
-    const at=new Date().toISOString();
-    setOpps(deduped);setLastScanned(at);
-    store.set("scanner",{opps:deduped,at});
-    if(!deduped.length) setError("No results returned. Try again or search portals manually.");
-    setProgress("");setScanning(false);
+    const seen = new Set();
+    const deduped = results.filter(o => {
+      const k = (o.title || "").toLowerCase().slice(0, 35);
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+    const at = new Date().toISOString();
+    setOpps(deduped); setLastScanned(at);
+    store.set("scanner", {opps: deduped, at});
+    if (!deduped.length) setError("No results returned. Try again or use manual portal links below.");
+    setProgress(""); setScanning(false);
   };
 
-  const analyze=async(opp)=>{
-    setAnalyzing(a=>({...a,[opp.id]:true}));
-    const txt=await callClaude(`Analyze for HGI:\nTitle: ${opp.title}\nAgency: ${opp.agency}\nValue: ${opp.value}\nDue: ${opp.deadline}\n\n1) HGI fit 1-10\n2) Win themes\n3) Key risks\n4) BID/NO-BID\n5) Next action`);
-    setAnalysis(a=>({...a,[opp.id]:txt}));setAnalyzing(a=>({...a,[opp.id]:false}));
+  const analyze = async (opp) => {
+    setAnalyzing(a => ({...a, [opp.id]: true}));
+    const txt = await callClaude("Analyze for HGI:\nTitle: " + opp.title + "\nAgency: " + opp.agency + "\nValue: " + opp.value + "\nDue: " + opp.deadline + "\n\n1) HGI fit 1-10\n2) Win themes\n3) Key risks\n4) BID/NO-BID\n5) Next action");
+    setAnalysis(a => ({...a, [opp.id]: txt}));
+    setAnalyzing(a => ({...a, [opp.id]: false}));
   };
 
-  const addTracker=(opp)=>{
-    const ex=store.get("tracker")||[];
-    if(ex.find(o=>o.id===opp.id)){alert("Already in tracker.");return;}
-    store.set("tracker",[{...opp,stage:"identified",notes:"",addedDate:new Date().toISOString()},...ex]);
+  const addTracker = (opp) => {
+    const ex = store.get("tracker") || [];
+    if (ex.find(o => o.id === opp.id)) { alert("Already in tracker."); return; }
+    store.set("tracker", [{...opp, stage:"identified", notes:"", addedDate:new Date().toISOString()}, ...ex]);
     alert("Added to Pipeline Tracker!");
   };
 
-  return <div>
-    <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:20,flexWrap:"wrap"}}>
-      <div>
-        <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Live Pipeline Scanner</h2>
-        <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>SAM.gov · LaPAC · Texas SmartBuy · Gulf Coast portals</p>
-        {lastScanned&&<p style={{color:TEXT_D,fontSize:11,margin:"2px 0 0"}}>Last scan: {new Date(lastScanned).toLocaleString()} · {opps.length} found</p>}
-      </div>
-      <Btn onClick={scan} disabled={scanning} style={{marginLeft:"auto"}}>{scanning?"⟳ Scanning...":"⟳ Run Live Scan"}</Btn>
-    </div>
-    {scanning&&<Card style={{marginBottom:16,border:`1px solid ${GOLD}44`}}>
-      <div style={{color:GOLD,fontWeight:700,marginBottom:6}}>🔍 Scanning procurement portals...</div>
-      <div style={{color:TEXT_D,fontSize:12}}>{progress}</div>
-    </Card>}
-    {error&&<Card style={{marginBottom:16,border:`1px solid ${RED}44`}}><div style={{color:RED,fontSize:13}}>⚠ {error}</div></Card>}
-    {!scanning&&!opps.length&&!error&&<Card style={{textAlign:"center",padding:48,border:`1px dashed ${BORDER}`}}>
-      <div style={{fontSize:40,marginBottom:12}}>◎</div>
-      <div style={{color:TEXT,fontWeight:700,marginBottom:8}}>No scan results yet</div>
-      <Btn onClick={scan}>▶ Run First Scan</Btn>
-    </Card>}
-    <div style={{display:"flex",flexDirection:"column",gap:12}}>
-      {opps.map(opp=><Card key={opp.id} style={{borderLeft:`3px solid ${GOLD}`}}>
-        <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
-          <div style={{flex:1}}>
-            <div style={{fontWeight:700,color:TEXT,fontSize:14,marginBottom:4}}>{opp.title}</div>
-            {opp.description&&<div style={{color:TEXT_D,fontSize:12,marginBottom:6}}>{opp.description}</div>}
-            <div style={{display:"flex",gap:16,fontSize:12,flexWrap:"wrap"}}>
-              {opp.agency&&<span><span style={{color:GOLD}}>Agency:</span> {opp.agency}</span>}
-              {opp.value&&<span><span style={{color:GOLD}}>Value:</span> <strong>{opp.value}</strong></span>}
-              {opp.deadline&&<span><span style={{color:GOLD}}>Due:</span> {opp.deadline}</span>}
-              {opp.url&&<a href={opp.url} target="_blank" rel="noopener noreferrer" style={{color:GOLD}}>→ View RFP</a>}
-            </div>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            <Btn small onClick={()=>analyze(opp)} disabled={analyzing[opp.id]}>{analyzing[opp.id]?"...":"Analyze"}</Btn>
-            <Btn small variant="secondary" onClick={()=>addTracker(opp)}>+ Track</Btn>
-          </div>
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:20,flexWrap:"wrap"}}>
+        <div>
+          <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Live Pipeline Scanner</h2>
+          <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>SAM.gov · LaPAC · Texas SmartBuy · Gulf Coast portals</p>
+          {lastScanned && <p style={{color:TEXT_D,fontSize:11,margin:"2px 0 0"}}>Last scan: {new Date(lastScanned).toLocaleString()} · {opps.length} found</p>}
         </div>
-        {(analyzing[opp.id]||analysis[opp.id])&&<div style={{marginTop:12}}><AIOut content={analysis[opp.id]} loading={analyzing[opp.id]}/></div>}
-      </Card>)}
-    </div>
-    <Card style={{marginTop:20,background:BG3}}>
-      <div style={{color:GOLD_D,fontSize:11,fontWeight:700,letterSpacing:"0.08em",marginBottom:10}}>MANUAL PORTALS</div>
-      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-        {[["SAM.gov","https://sam.gov/search/?index=opp&keywords=disaster+recovery+program+management"],
-          ["LaPAC","https://wwwcfprd.doa.louisiana.gov/lapac/bidSelect.cfm"],
-          ["Texas SmartBuy","https://www.txsmartbuy.gov/sp"],
-          ["FEMA Procurement","https://www.fema.gov/about/procurement"],
-          ["HUD CDBG-DR","https://www.hud.gov/program_offices/comm_planning/cdbg-dr"]
-        ].map(([label,url])=><a key={label} href={url} target="_blank" rel="noopener noreferrer"
-          style={{color:GOLD,fontSize:12,textDecoration:"none",padding:"4px 10px",border:`1px solid ${GOLD}44`,borderRadius:4}}>{label} ↗</a>)}
+        <Btn onClick={scan} disabled={scanning} style={{marginLeft:"auto"}}>{scanning ? "Scanning..." : "Run Live Scan"}</Btn>
       </div>
-    </Card>
-  </div>;
+      {scanning && <Card style={{marginBottom:16,border:`1px solid ${GOLD}44`}}>
+        <div style={{color:GOLD,fontWeight:700,marginBottom:6}}>Scanning procurement portals...</div>
+        <div style={{color:TEXT_D,fontSize:12}}>{progress}</div>
+      </Card>}
+      {error && <Card style={{marginBottom:16,border:`1px solid ${RED}44`}}><div style={{color:RED,fontSize:13}}>{error}</div></Card>}
+      {!scanning && !opps.length && !error && <Card style={{textAlign:"center",padding:48,border:`1px dashed ${BORDER}`}}>
+        <div style={{fontSize:40,marginBottom:12}}>◎</div>
+        <Btn onClick={scan}>Run First Scan</Btn>
+      </Card>}
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {opps.map(opp => (
+          <Card key={opp.id} style={{borderLeft:`3px solid ${GOLD}`}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,color:TEXT,fontSize:14,marginBottom:4}}>{opp.title}</div>
+                {opp.description && <div style={{color:TEXT_D,fontSize:12,marginBottom:6}}>{opp.description}</div>}
+                <div style={{display:"flex",gap:16,fontSize:12,flexWrap:"wrap"}}>
+                  {opp.agency && <span><span style={{color:GOLD}}>Agency:</span> {opp.agency}</span>}
+                  {opp.value && <span><span style={{color:GOLD}}>Value:</span> {opp.value}</span>}
+                  {opp.deadline && <span><span style={{color:GOLD}}>Due:</span> {opp.deadline}</span>}
+                  {opp.url && <a href={opp.url} target="_blank" rel="noopener noreferrer" style={{color:GOLD}}>View RFP</a>}
+                </div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                <Btn small onClick={()=>analyze(opp)} disabled={analyzing[opp.id]}>{analyzing[opp.id]?"...":"Analyze"}</Btn>
+                <Btn small variant="secondary" onClick={()=>addTracker(opp)}>+ Track</Btn>
+              </div>
+            </div>
+            {(analyzing[opp.id] || analysis[opp.id]) && <div style={{marginTop:12}}><AIOut content={analysis[opp.id]} loading={analyzing[opp.id]} /></div>}
+          </Card>
+        ))}
+      </div>
+      <Card style={{marginTop:20,background:BG3}}>
+        <div style={{color:GOLD_D,fontSize:11,fontWeight:700,letterSpacing:"0.08em",marginBottom:10}}>MANUAL PORTALS</div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          {[["SAM.gov","https://sam.gov/search/?index=opp&keywords=disaster+recovery+program+management"],
+            ["LaPAC","https://wwwcfprd.doa.louisiana.gov/lapac/bidSelect.cfm"],
+            ["Texas SmartBuy","https://www.txsmartbuy.gov/sp"],
+            ["FEMA Procurement","https://www.fema.gov/about/procurement"],
+            ["HUD CDBG-DR","https://www.hud.gov/program_offices/comm_planning/cdbg-dr"]
+          ].map(([label,url]) => (
+            <a key={label} href={url} target="_blank" rel="noopener noreferrer"
+              style={{color:GOLD,fontSize:12,textDecoration:"none",padding:"4px 10px",border:`1px solid ${GOLD}44`,borderRadius:4}}>{label}</a>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
 }
 
 // ── PIPELINE TRACKER ──────────────────────────────────────────────────────────
-const STAGES=[
-  {id:"identified",label:"Identified",color:TEXT_D},
-  {id:"qualifying",label:"Qualifying",color:BLUE},
-  {id:"pursuing",label:"Pursuing",color:GOLD},
-  {id:"proposal",label:"Proposal",color:ORANGE},
-  {id:"submitted",label:"Submitted",color:"#9B59B6"},
-  {id:"won",label:"Won",color:GREEN},
-  {id:"lost",label:"Lost",color:RED},
+const STAGES = [
+  {id:"identified", label:"Identified", color:TEXT_D},
+  {id:"qualifying", label:"Qualifying", color:BLUE},
+  {id:"pursuing", label:"Pursuing", color:GOLD},
+  {id:"proposal", label:"Proposal", color:ORANGE},
+  {id:"submitted", label:"Submitted", color:"#9B59B6"},
+  {id:"won", label:"Won", color:GREEN},
+  {id:"lost", label:"Lost", color:RED},
 ];
 
-function PipelineTracker(){
-  const [items,setItems]=useState(()=>store.get("tracker")||[]);
-  const [showAdd,setShowAdd]=useState(false);
-  const [editItem,setEditItem]=useState(null);
-  const [form,setForm]=useState({title:"",agency:"",type:"",value:"",deadline:"",notes:"",stage:"identified",opiScore:""});
-  const [aiNotes,setAiNotes]=useState({});
-  const [aiLoading,setAiLoading]=useState({});
-  const [expanded,setExpanded]=useState({});
+function PipelineTracker() {
+  const [items, setItems] = useState(() => store.get("tracker") || []);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+  const [form, setForm] = useState({title:"",agency:"",type:"",value:"",deadline:"",notes:"",stage:"identified",opiScore:""});
+  const [aiNotes, setAiNotes] = useState({});
+  const [aiLoading, setAiLoading] = useState({});
+  const [expanded, setExpanded] = useState({});
+  const setF = (k,v) => setForm(f => ({...f, [k]:v}));
+  const save = (d) => { setItems(d); store.set("tracker", d); };
 
-  const save=(d)=>{setItems(d);store.set("tracker",d);};
-  const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
-
-  const submit=()=>{
-    if(!form.title) return;
-    const updated=editItem?items.map(i=>i.id===editItem.id?{...i,...form}:i)
-      :[{id:`t-${Date.now()}`,...form,addedDate:new Date().toISOString()},...items];
-    save(updated);setForm({title:"",agency:"",type:"",value:"",deadline:"",notes:"",stage:"identified",opiScore:""});
-    setShowAdd(false);setEditItem(null);
+  const submit = () => {
+    if (!form.title) return;
+    const updated = editItem
+      ? items.map(i => i.id === editItem.id ? {...i,...form} : i)
+      : [{id:"t-"+Date.now(),...form,addedDate:new Date().toISOString()}, ...items];
+    save(updated);
+    setForm({title:"",agency:"",type:"",value:"",deadline:"",notes:"",stage:"identified",opiScore:""});
+    setShowAdd(false); setEditItem(null);
   };
 
-  const getStrategy=async(item)=>{
-    setAiLoading(a=>({...a,[item.id]:true}));
-    const txt=await callClaude(`Capture strategy for HGI — stage: ${item.stage}:\nTitle: ${item.title}\nAgency: ${item.agency}\nValue: ${item.value}\nDecision: ${item.decision||"N/A"}\nOPI: ${item.opiScore||"N/A"}\n\nProvide: 3 actions this week, key intel to gather, teaming considerations, Pwin estimate.`);
-    setAiNotes(a=>({...a,[item.id]:txt}));setAiLoading(a=>({...a,[item.id]:false}));
+  const getStrategy = async (item) => {
+    setAiLoading(a => ({...a, [item.id]:true}));
+    const txt = await callClaude("Capture strategy for HGI — stage: " + item.stage + ":\nTitle: " + item.title + "\nAgency: " + item.agency + "\nValue: " + item.value + "\nDecision: " + (item.decision||"N/A") + "\nOPI: " + (item.opiScore||"N/A") + "\n\nProvide: 3 actions this week, key intel to gather, teaming considerations, Pwin estimate.");
+    setAiNotes(a => ({...a, [item.id]:txt}));
+    setAiLoading(a => ({...a, [item.id]:false}));
   };
 
-  return <div>
-    <div style={{display:"flex",alignItems:"center",marginBottom:20}}>
-      <div>
-        <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Pipeline Tracker</h2>
-        <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>{items.length} opportunities · Workflow artifacts stored here</p>
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",marginBottom:20}}>
+        <div>
+          <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Pipeline Tracker</h2>
+          <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>{items.length} opportunities · Workflow artifacts stored here</p>
+        </div>
+        <Btn style={{marginLeft:"auto"}} onClick={()=>{setShowAdd(!showAdd);setEditItem(null);}}>+ Add</Btn>
       </div>
-      <Btn style={{marginLeft:"auto"}} onClick={()=>{setShowAdd(!showAdd);setEditItem(null);}}>+ Add</Btn>
-    </div>
-    {showAdd&&<Card style={{marginBottom:20,border:`1px solid ${GOLD}44`}}>
-      <h3 style={{color:GOLD,margin:"0 0 12px",fontSize:14}}>{editItem?"Edit":"New Opportunity"}</h3>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <Input value={form.title} onChange={v=>setF("title",v)} placeholder="Title*" style={{gridColumn:"1/-1"}}/>
-        <Input value={form.agency} onChange={v=>setF("agency",v)} placeholder="Agency"/>
-        <Input value={form.type} onChange={v=>setF("type",v)} placeholder="Type (FEMA PA, TPA...)"/>
-        <Input value={form.value} onChange={v=>setF("value",v)} placeholder="Est. Value"/>
-        <Input value={form.deadline} onChange={v=>setF("deadline",v)} placeholder="Deadline YYYY-MM-DD"/>
-        <Input value={form.opiScore} onChange={v=>setF("opiScore",v)} placeholder="OPI Score (0-100)"/>
-        <Sel value={form.stage} onChange={v=>setF("stage",v)} options={STAGES.map(s=>({value:s.id,label:s.label}))} style={{gridColumn:"1/-1"}}/>
-        <Textarea value={form.notes} onChange={v=>setF("notes",v)} placeholder="Notes..." rows={2} style={{gridColumn:"1/-1"}}/>
-      </div>
-      <div style={{marginTop:12,display:"flex",gap:8}}>
-        <Btn onClick={submit}>{editItem?"Save":"Add"}</Btn>
-        <Btn variant="secondary" onClick={()=>{setShowAdd(false);setEditItem(null);}}>Cancel</Btn>
-      </div>
-    </Card>}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
-      {STAGES.map(stage=>{
-        const si=items.filter(i=>i.stage===stage.id);
-        return <div key={stage.id} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6}}>
-          <div style={{padding:"10px 14px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:8}}>
-            <div style={{width:8,height:8,borderRadius:"50%",background:stage.color}}/>
-            <span style={{color:stage.color,fontWeight:700,fontSize:11,letterSpacing:"0.08em"}}>{stage.label.toUpperCase()}</span>
-            <span style={{marginLeft:"auto",background:BG4,color:TEXT_D,borderRadius:10,padding:"1px 7px",fontSize:11}}>{si.length}</span>
+      {showAdd && (
+        <Card style={{marginBottom:20,border:`1px solid ${GOLD}44`}}>
+          <h3 style={{color:GOLD,margin:"0 0 12px",fontSize:14}}>{editItem?"Edit":"New Opportunity"}</h3>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Input value={form.title} onChange={v=>setF("title",v)} placeholder="Title*" style={{gridColumn:"1/-1"}} />
+            <Input value={form.agency} onChange={v=>setF("agency",v)} placeholder="Agency" />
+            <Input value={form.type} onChange={v=>setF("type",v)} placeholder="Type (FEMA PA, TPA...)" />
+            <Input value={form.value} onChange={v=>setF("value",v)} placeholder="Est. Value" />
+            <Input value={form.deadline} onChange={v=>setF("deadline",v)} placeholder="Deadline YYYY-MM-DD" />
+            <Input value={form.opiScore} onChange={v=>setF("opiScore",v)} placeholder="OPI Score (0-100)" />
+            <Sel value={form.stage} onChange={v=>setF("stage",v)} options={STAGES.map(s=>({value:s.id,label:s.label}))} style={{gridColumn:"1/-1"}} />
+            <Textarea value={form.notes} onChange={v=>setF("notes",v)} placeholder="Notes..." rows={2} style={{gridColumn:"1/-1"}} />
           </div>
-          <div style={{padding:10,display:"flex",flexDirection:"column",gap:8}}>
-            {si.map(item=><div key={item.id} style={{background:BG3,borderRadius:4,padding:10,border:`1px solid ${BORDER}`}}>
-              <div style={{fontWeight:600,fontSize:12,color:TEXT,marginBottom:4}}>{item.title}</div>
-              {item.agency&&<div style={{fontSize:11,color:TEXT_D,marginBottom:4}}>{item.agency}</div>}
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8,alignItems:"center"}}>
-                {item.value&&<span style={{color:GREEN,fontSize:11}}>{item.value}</span>}
-                {item.opiScore&&<OPIBadge score={item.opiScore}/>}
-                {item.decision&&<Badge color={item.decision==="GO"?GREEN:item.decision==="CONDITIONAL GO"?GOLD:RED}>{item.decision}</Badge>}
-              </div>
-              <Sel value={item.stage} onChange={v=>save(items.map(i=>i.id===item.id?{...i,stage:v}:i))}
-                options={STAGES.map(s=>({value:s.id,label:s.label}))} style={{width:"100%",fontSize:11,marginBottom:6}}/>
-              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                <Btn small onClick={()=>getStrategy(item)} disabled={aiLoading[item.id]}>Strategy</Btn>
-                {(item.decomposition||item.execBrief||item.proposal)&&
-                  <Btn small variant="ghost" onClick={()=>setExpanded(e=>({...e,[item.id]:!e[item.id]}))}>Artifacts</Btn>}
-                <Btn small variant="secondary" onClick={()=>{setForm({title:item.title,agency:item.agency||"",type:item.type||"",value:item.value||"",deadline:item.deadline||"",notes:item.notes||"",stage:item.stage,opiScore:item.opiScore||""});setEditItem(item);setShowAdd(true);}}>Edit</Btn>
-                <Btn small variant="danger" onClick={()=>save(items.filter(i=>i.id!==item.id))}>✕</Btn>
-              </div>
-              {expanded[item.id]&&<div style={{marginTop:8,fontSize:11}}>
-                {item.decomposition&&<div style={{color:GOLD,marginBottom:2}}>✓ Decomposition stored</div>}
-                {item.execBrief&&<div style={{color:GOLD,marginBottom:2}}>✓ Executive Brief stored</div>}
-                {item.proposal&&<div style={{color:GREEN,marginBottom:2}}>✓ Proposal Package stored</div>}
-              </div>}
-              {(aiLoading[item.id]||aiNotes[item.id])&&<div style={{marginTop:8}}><AIOut content={aiNotes[item.id]} loading={aiLoading[item.id]}/></div>}
-            </div>)}
+          <div style={{marginTop:12,display:"flex",gap:8}}>
+            <Btn onClick={submit}>{editItem?"Save":"Add"}</Btn>
+            <Btn variant="secondary" onClick={()=>{setShowAdd(false);setEditItem(null);}}>Cancel</Btn>
           </div>
-        </div>;
-      })}
+        </Card>
+      )}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
+        {STAGES.map(stage => {
+          const si = items.filter(i => i.stage === stage.id);
+          return (
+            <div key={stage.id} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6}}>
+              <div style={{padding:"10px 14px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:stage.color}} />
+                <span style={{color:stage.color,fontWeight:700,fontSize:11,letterSpacing:"0.08em"}}>{stage.label.toUpperCase()}</span>
+                <span style={{marginLeft:"auto",background:BG4,color:TEXT_D,borderRadius:10,padding:"1px 7px",fontSize:11}}>{si.length}</span>
+              </div>
+              <div style={{padding:10,display:"flex",flexDirection:"column",gap:8}}>
+                {si.map(item => (
+                  <div key={item.id} style={{background:BG3,borderRadius:4,padding:10,border:`1px solid ${BORDER}`}}>
+                    <div style={{fontWeight:600,fontSize:12,color:TEXT,marginBottom:4}}>{item.title}</div>
+                    {item.agency && <div style={{fontSize:11,color:TEXT_D,marginBottom:4}}>{item.agency}</div>}
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8,alignItems:"center"}}>
+                      {item.value && <span style={{color:GREEN,fontSize:11}}>{item.value}</span>}
+                      {item.opiScore && <OPIBadge score={item.opiScore} />}
+                      {item.decision && <Badge color={item.decision==="GO"?GREEN:item.decision==="CONDITIONAL GO"?GOLD:RED}>{item.decision}</Badge>}
+                    </div>
+                    <Sel value={item.stage} onChange={v=>save(items.map(i=>i.id===item.id?{...i,stage:v}:i))}
+                      options={STAGES.map(s=>({value:s.id,label:s.label}))} style={{width:"100%",fontSize:11,marginBottom:6}} />
+                    <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                      <Btn small onClick={()=>getStrategy(item)} disabled={aiLoading[item.id]}>Strategy</Btn>
+                      {(item.decomposition||item.execBrief||item.proposal) &&
+                        <Btn small variant="ghost" onClick={()=>setExpanded(e=>({...e,[item.id]:!e[item.id]}))}>Artifacts</Btn>}
+                      <Btn small variant="secondary" onClick={()=>{
+                        setForm({title:item.title,agency:item.agency||"",type:item.type||"",value:item.value||"",deadline:item.deadline||"",notes:item.notes||"",stage:item.stage,opiScore:item.opiScore||""});
+                        setEditItem(item); setShowAdd(true);
+                      }}>Edit</Btn>
+                      <Btn small variant="danger" onClick={()=>save(items.filter(i=>i.id!==item.id))}>X</Btn>
+                    </div>
+                    {expanded[item.id] && (
+                      <div style={{marginTop:8,fontSize:11}}>
+                        {item.decomposition && <div style={{color:GOLD,marginBottom:2}}>Decomposition stored</div>}
+                        {item.execBrief && <div style={{color:GOLD,marginBottom:2}}>Executive Brief stored</div>}
+                        {item.proposal && <div style={{color:GREEN,marginBottom:2}}>Proposal Package stored</div>}
+                      </div>
+                    )}
+                    {(aiLoading[item.id]||aiNotes[item.id]) && <div style={{marginTop:8}}><AIOut content={aiNotes[item.id]} loading={aiLoading[item.id]} /></div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
-  </div>;
+  );
 }
 
 // ── WINNABILITY SCORING ───────────────────────────────────────────────────────
-function WinnabilityScoring(){
-  const [f,setF]=useState({title:"",agency:"",value:"",type:"",hgiPP:5,budget:5,timeline:5,incumbent:"",competitors:"",teaming:"",revenueTimeline:"near",context:""});
-  const [score,setScore]=useState("");
-  const [loading,setLoading]=useState(false);
-  const upd=(k,v)=>setF(p=>({...p,[k]:v}));
+function WinnabilityScoring() {
+  const [f, setF] = useState({title:"",agency:"",value:"",type:"",hgiPP:5,budget:5,timeline:5,incumbent:"",competitors:"",teaming:"",revenueTimeline:"near",context:""});
+  const [score, setScore] = useState("");
+  const [loading, setLoading] = useState(false);
+  const upd = (k,v) => setF(p => ({...p, [k]:v}));
 
-  const compute=async()=>{
+  const compute = async () => {
     setLoading(true);
-    const txt=await callClaude(`Score HGI winnability AND OPI:\nOpportunity: ${f.title}\nAgency: ${f.agency}\nType: ${f.type}\nValue: ${f.value}\nRevenue Timeline: ${f.revenueTimeline}\nHGI PP Match (1-10): ${f.hgiPP}\nIncumbent: ${f.incumbent||"Unknown"}\nTeaming: ${f.teaming||"Unknown"}\nBudget certainty (1-10): ${f.budget}\nCompetitors: ${f.competitors||"Unknown"}\nContext: ${f.context}\n\nProvide:\n1. Pwin X/100 with sub-scores: Strategic Fit/20, Competitive Position/25, Staffing/20, Execution/20, Pricing/15\n2. OPI X/100 with sub-scores: Revenue Timing/25, Pwin/20, Staffing/20, Pricing/15, Effort/10, Strategic/10\n3. Priority Tier (Tier 1/2/3/Archive)\n4. Recommendation (Strong Pursue/Conditional/Shape Only/Watchlist/No-Bid)\n5. Top 3 actions to increase win probability`);
-    setScore(txt);setLoading(false);
+    const txt = await callClaude(
+      "Score HGI winnability AND OPI:\nOpportunity: " + f.title + "\nAgency: " + f.agency + "\nType: " + f.type + "\nValue: " + f.value + "\nRevenue Timeline: " + f.revenueTimeline + "\nHGI PP Match (1-10): " + f.hgiPP + "\nIncumbent: " + (f.incumbent||"Unknown") + "\nTeaming: " + (f.teaming||"Unknown") + "\nBudget certainty (1-10): " + f.budget + "\nCompetitors: " + (f.competitors||"Unknown") + "\nContext: " + f.context + "\n\nProvide:\n1. Pwin X/100 with sub-scores\n2. OPI X/100 with sub-scores\n3. Priority Tier (Tier 1/2/3/Archive)\n4. Recommendation\n5. Top 3 actions to increase win probability"
+    );
+    setScore(txt); setLoading(false);
   };
 
-  const SliderRow=({k,label})=><div style={{marginBottom:10}}>
-    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-      <Label text={label}/>
-      <span style={{color:GOLD,fontSize:12,fontWeight:700}}>{f[k]}/10</span>
-    </div>
-    <input type="range" min="1" max="10" value={f[k]} onChange={e=>upd(k,parseInt(e.target.value))}
-      style={{width:"100%",accentColor:GOLD}}/>
-  </div>;
-
-  return <div>
-    <h2 style={{color:GOLD,margin:"0 0 20px",fontSize:20,fontWeight:800}}>Winnability Scoring</h2>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-      <Card>
-        <h3 style={{color:GOLD,margin:"0 0 14px",fontSize:14}}>OPPORTUNITY DETAILS</h3>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <div><Label text="TITLE"/><Input value={f.title} onChange={v=>upd("title",v)} placeholder="Opportunity name"/></div>
-          <div><Label text="AGENCY"/><Input value={f.agency} onChange={v=>upd("agency",v)} placeholder="Agency/client"/></div>
-          <div><Label text="EST. VALUE"/><Input value={f.value} onChange={v=>upd("value",v)} placeholder="$50M"/></div>
-          <div><Label text="TYPE"/><Input value={f.type} onChange={v=>upd("type",v)} placeholder="FEMA PA, TPA, CDBG-DR..."/></div>
-          <div><Label text="KNOWN INCUMBENT"/><Input value={f.incumbent} onChange={v=>upd("incumbent",v)} placeholder="ICF / None / Unknown"/></div>
-          <div><Label text="COMPETITORS"/><Input value={f.competitors} onChange={v=>upd("competitors",v)} placeholder="Witt, Hagerty, Dewberry..."/></div>
-          <div><Label text="TEAMING NEEDED"/><Input value={f.teaming} onChange={v=>upd("teaming",v)} placeholder="Yes — need construction sub / No"/></div>
-          <div><Label text="REVENUE TIMELINE"/>
-            <Sel value={f.revenueTimeline} onChange={v=>upd("revenueTimeline",v)} options={[
-              {value:"immediate",label:"Immediate (<90 days)"},
-              {value:"near",label:"Near-term (90–180 days)"},
-              {value:"medium",label:"Medium (180–365 days)"},
-              {value:"long",label:"Long-term (365+ days)"}
-            ]} style={{width:"100%"}}/>
+  return (
+    <div>
+      <h2 style={{color:GOLD,margin:"0 0 20px",fontSize:20,fontWeight:800}}>Winnability Scoring</h2>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+        <Card>
+          <h3 style={{color:GOLD,margin:"0 0 14px",fontSize:14}}>OPPORTUNITY DETAILS</h3>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div><Label text="TITLE" /><Input value={f.title} onChange={v=>upd("title",v)} placeholder="Opportunity name" /></div>
+            <div><Label text="AGENCY" /><Input value={f.agency} onChange={v=>upd("agency",v)} placeholder="Agency/client" /></div>
+            <div><Label text="EST. VALUE" /><Input value={f.value} onChange={v=>upd("value",v)} placeholder="$50M" /></div>
+            <div><Label text="TYPE" /><Input value={f.type} onChange={v=>upd("type",v)} placeholder="FEMA PA, TPA, CDBG-DR..." /></div>
+            <div><Label text="KNOWN INCUMBENT" /><Input value={f.incumbent} onChange={v=>upd("incumbent",v)} placeholder="ICF / None / Unknown" /></div>
+            <div><Label text="COMPETITORS" /><Input value={f.competitors} onChange={v=>upd("competitors",v)} placeholder="Witt, Hagerty, Dewberry..." /></div>
+            <div><Label text="TEAMING NEEDED" /><Input value={f.teaming} onChange={v=>upd("teaming",v)} placeholder="Yes — need construction sub / No" /></div>
+            <div><Label text="REVENUE TIMELINE" />
+              <Sel value={f.revenueTimeline} onChange={v=>upd("revenueTimeline",v)} options={[
+                {value:"immediate",label:"Immediate (<90 days)"},
+                {value:"near",label:"Near-term (90-180 days)"},
+                {value:"medium",label:"Medium (180-365 days)"},
+                {value:"long",label:"Long-term (365+ days)"}
+              ]} style={{width:"100%"}} />
+            </div>
           </div>
-        </div>
-      </Card>
-      <Card>
-        <h3 style={{color:GOLD,margin:"0 0 14px",fontSize:14}}>SCORING FACTORS</h3>
-        <SliderRow k="hgiPP" label="HGI PAST PERFORMANCE MATCH"/>
-        <SliderRow k="budget" label="BUDGET CERTAINTY"/>
-        <SliderRow k="timeline" label="TIMELINE FEASIBILITY"/>
-        <div style={{marginTop:10}}><Label text="ADDITIONAL CONTEXT"/>
-          <Textarea value={f.context} onChange={v=>upd("context",v)} placeholder="Agency relationships, political context, competing priorities..." rows={4}/>
-        </div>
-        <Btn onClick={compute} disabled={loading||!f.title} style={{marginTop:12,width:"100%"}}>
-          {loading?"⟳ Calculating...":"Calculate Pwin + OPI"}
-        </Btn>
-      </Card>
+        </Card>
+        <Card>
+          <h3 style={{color:GOLD,margin:"0 0 14px",fontSize:14}}>SCORING FACTORS</h3>
+          {[["hgiPP","HGI PAST PERFORMANCE MATCH"],["budget","BUDGET CERTAINTY"],["timeline","TIMELINE FEASIBILITY"]].map(([k,label]) => (
+            <div key={k} style={{marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                <Label text={label} /><span style={{color:GOLD,fontSize:12,fontWeight:700}}>{f[k]}/10</span>
+              </div>
+              <input type="range" min="1" max="10" value={f[k]} onChange={e=>upd(k,parseInt(e.target.value))} style={{width:"100%",accentColor:GOLD}} />
+            </div>
+          ))}
+          <div style={{marginTop:10}}><Label text="ADDITIONAL CONTEXT" />
+            <Textarea value={f.context} onChange={v=>upd("context",v)} placeholder="Agency relationships, political context..." rows={4} />
+          </div>
+          <Btn onClick={compute} disabled={loading||!f.title} style={{marginTop:12,width:"100%"}}>
+            {loading ? "Calculating..." : "Calculate Pwin + OPI"}
+          </Btn>
+        </Card>
+      </div>
+      {(loading||score) && <div style={{marginTop:20}}><AIOut content={score} loading={loading} label="PWIN + OPI ANALYSIS" /></div>}
     </div>
-    {(loading||score)&&<div style={{marginTop:20}}><AIOut content={score} loading={loading} label="PWIN + OPI ANALYSIS"/></div>}
-  </div>;
+  );
 }
 
-// ── RESEARCH & ANALYSIS ───────────────────────────────────────────────────────
-function ResearchAnalysis(){
-  const [agencyName,setAgencyName]=useState("");
-  const [oppType,setOppType]=useState("");
-  const [competitors,setCompetitors]=useState("");
-  const [context,setContext]=useState("");
-  const [result,setResult]=useState("");
-  const [loading,setLoading]=useState(false);
+// ── RESEARCH ─────────────────────────────────────────────────────────────────
+function ResearchAnalysis() {
+  const [agencyName, setAgencyName] = useState("");
+  const [oppType, setOppType] = useState("");
+  const [competitors, setCompetitors] = useState("");
+  const [context, setContext] = useState("");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const generate=async()=>{
+  const generate = async () => {
     setLoading(true);
-    const txt=await callClaude(`Deep research for HGI capture:\nAgency: ${agencyName}\nOpportunity Type: ${oppType}\nKnown Competitors: ${competitors}\nContext: ${context}\n\nProvide:\n1. Agency Profile — mission, budget, decision makers, procurement history\n2. Funding Landscape — active FEMA/HUD/state allocations relevant to HGI\n3. Competitive Intel — known players, their strengths/weaknesses vs HGI\n4. Relationship Map — who matters, who HGI should know\n5. Win Strategy — 5 specific recommendations for HGI\n6. Red Flags — reasons to be cautious\n7. Intel Gaps — what we still need to find out`);
-    setResult(txt);setLoading(false);
+    const txt = await callClaude("Deep research for HGI capture:\nAgency: " + agencyName + "\nOpportunity Type: " + oppType + "\nKnown Competitors: " + competitors + "\nContext: " + context + "\n\nProvide:\n1. Agency Profile\n2. Funding Landscape\n3. Competitive Intel\n4. Relationship Map\n5. Win Strategy — 5 specific recommendations\n6. Red Flags\n7. Intel Gaps");
+    setResult(txt); setLoading(false);
   };
 
-  return <div>
-    <h2 style={{color:GOLD,margin:"0 0 20px",fontSize:20,fontWeight:800}}>Research & Analysis</h2>
-    <Card style={{marginBottom:20}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        <div><Label text="AGENCY / CLIENT"/><Input value={agencyName} onChange={setAgencyName} placeholder="e.g. Louisiana OCD, Harris County"/></div>
-        <div><Label text="OPPORTUNITY TYPE"/><Input value={oppType} onChange={setOppType} placeholder="e.g. CDBG-DR TPA, FEMA PA"/></div>
-        <div><Label text="KNOWN COMPETITORS"/><Input value={competitors} onChange={setCompetitors} placeholder="e.g. ICF, Witt O'Brien's, Hagerty"/></div>
-        <div><Label text="CONTEXT"/><Input value={context} onChange={setContext} placeholder="Disaster event, funding round, RFP timeline..."/></div>
-      </div>
-      <Btn onClick={generate} disabled={loading||!agencyName}>{loading?"⟳ Researching...":"Generate Research Pack"}</Btn>
-    </Card>
-    <AIOut content={result} loading={loading} label="RESEARCH & COMPETITIVE INTELLIGENCE"/>
-  </div>;
+  return (
+    <div>
+      <h2 style={{color:GOLD,margin:"0 0 20px",fontSize:20,fontWeight:800}}>Research & Analysis</h2>
+      <Card style={{marginBottom:20}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+          <div><Label text="AGENCY / CLIENT" /><Input value={agencyName} onChange={setAgencyName} placeholder="e.g. Louisiana OCD, Harris County" /></div>
+          <div><Label text="OPPORTUNITY TYPE" /><Input value={oppType} onChange={setOppType} placeholder="e.g. CDBG-DR TPA, FEMA PA" /></div>
+          <div><Label text="KNOWN COMPETITORS" /><Input value={competitors} onChange={setCompetitors} placeholder="e.g. ICF, Witt, Hagerty" /></div>
+          <div><Label text="CONTEXT" /><Input value={context} onChange={setContext} placeholder="Disaster event, funding round, timeline..." /></div>
+        </div>
+        <Btn onClick={generate} disabled={loading||!agencyName}>{loading?"Researching...":"Generate Research Pack"}</Btn>
+      </Card>
+      <AIOut content={result} loading={loading} label="RESEARCH & COMPETITIVE INTELLIGENCE" />
+    </div>
+  );
 }
 
 // ── PROPOSAL ENGINE ───────────────────────────────────────────────────────────
-function ProposalEngine(){
-  const [rfpText,setRfpText]=useState("");
-  const [section,setSection]=useState("executive_summary");
-  const [context,setContext]=useState("");
-  const [result,setResult]=useState("");
-  const [loading,setLoading]=useState(false);
+function ProposalEngine() {
+  const [rfpText, setRfpText] = useState("");
+  const [section, setSection] = useState("executive_summary");
+  const [context, setContext] = useState("");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const SECTIONS=[
+  const SECTIONS = [
     {value:"executive_summary",label:"Executive Summary"},
     {value:"technical_approach",label:"Technical Approach"},
     {value:"management_approach",label:"Management Approach"},
@@ -674,265 +648,242 @@ function ProposalEngine(){
     {value:"red_team",label:"Red Team Critique"},
   ];
 
-  const generate=async()=>{
+  const generate = async () => {
     setLoading(true);
-    const sLabel=SECTIONS.find(s=>s.value===section)?.label||section;
-    const txt=await callClaude(`Write a ${sLabel} for HGI proposal.\nRFP Context: ${rfpText||"General disaster recovery TPA services"}\nAdditional Context: ${context}\n\nWrite this section as a winning proposal section. Use HGI past performance where relevant. Be specific and evaluator-aligned. Use [TBD: ...] for any unknown specifics.`);
-    setResult(txt);setLoading(false);
+    const sLabel = SECTIONS.find(s => s.value === section)?.label || section;
+    const txt = await callClaude("Write a " + sLabel + " for HGI proposal.\nRFP Context: " + (rfpText||"General disaster recovery TPA services") + "\nAdditional Context: " + context + "\n\nWrite this section as a winning proposal. Use HGI past performance where relevant. Use [TBD: ...] for unknowns.");
+    setResult(txt); setLoading(false);
   };
 
-  return <div>
-    <div style={{marginBottom:20}}>
-      <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Proposal Engine</h2>
-      <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>Generate individual sections · Use Full Workflow for complete package</p>
-    </div>
-    <Card style={{marginBottom:20}}>
-      <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <div><Label text="RFP CONTEXT / SCOPE"/><Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text, scope of work, or key requirements..." rows={5}/></div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <div><Label text="SECTION TO GENERATE"/>
-            <Sel value={section} onChange={setSection} options={SECTIONS} style={{width:"100%"}}/>
+  return (
+    <div>
+      <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:20,fontWeight:800}}>Proposal Engine</h2>
+      <p style={{color:TEXT_D,margin:"0 0 20px",fontSize:12}}>Generate individual sections or use Full Workflow for complete package</p>
+      <Card style={{marginBottom:20}}>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div><Label text="RFP CONTEXT / SCOPE" /><Textarea value={rfpText} onChange={setRfpText} placeholder="Paste RFP text, scope of work, or key requirements..." rows={5} /></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div><Label text="SECTION TO GENERATE" /><Sel value={section} onChange={setSection} options={SECTIONS} style={{width:"100%"}} /></div>
+            <div><Label text="ADDITIONAL CONTEXT" /><Input value={context} onChange={setContext} placeholder="Agency, value, key win themes..." /></div>
           </div>
-          <div><Label text="ADDITIONAL CONTEXT"/><Input value={context} onChange={setContext} placeholder="Agency, value, key win themes..."/></div>
+          <Btn onClick={generate} disabled={loading} style={{alignSelf:"flex-start"}}>{loading?"Writing...":"Generate Section"}</Btn>
         </div>
-        <Btn onClick={generate} disabled={loading} style={{alignSelf:"flex-start"}}>{loading?"⟳ Writing...":"Generate Section"}</Btn>
-      </div>
-    </Card>
-    <AIOut content={result} loading={loading} label="PROPOSAL SECTION"/>
-  </div>;
+      </Card>
+      <AIOut content={result} loading={loading} label="PROPOSAL SECTION" />
+    </div>
+  );
 }
 
-// ── RECRUITING & BENCH ────────────────────────────────────────────────────────
-function RecruitingBench(){
-  const [bench,setBench]=useState(()=>store.get("bench")||[]);
-  const [showAdd,setShowAdd]=useState(false);
-  const [form,setForm]=useState({name:"",role:"",domain:"",clearance:"",location:"",availability:"",notes:""});
-  const [gapText,setGapText]=useState("");
-  const [gapResult,setGapResult]=useState("");
-  const [gapLoading,setGapLoading]=useState(false);
-  const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
+// ── RECRUITING ────────────────────────────────────────────────────────────────
+function RecruitingBench() {
+  const [bench, setBench] = useState(() => store.get("bench") || []);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({name:"",role:"",domain:"",clearance:"",location:"",availability:"",notes:""});
+  const [gapText, setGapText] = useState("");
+  const [gapResult, setGapResult] = useState("");
+  const [gapLoading, setGapLoading] = useState(false);
+  const setF = (k,v) => setForm(f => ({...f,[k]:v}));
+  const save = (d) => { setBench(d); store.set("bench", d); };
 
-  const save=(d)=>{setBench(d);store.set("bench",d);};
-
-  const addPerson=()=>{
-    if(!form.name) return;
-    save([{id:`b-${Date.now()}`,...form,addedDate:new Date().toISOString()},...bench]);
+  const addPerson = () => {
+    if (!form.name) return;
+    save([{id:"b-"+Date.now(),...form,addedDate:new Date().toISOString()}, ...bench]);
     setForm({name:"",role:"",domain:"",clearance:"",location:"",availability:"",notes:""});
     setShowAdd(false);
   };
 
-  const analyzeGaps=async()=>{
+  const analyzeGaps = async () => {
     setGapLoading(true);
-    const benchSummary=bench.map(p=>`${p.name} — ${p.role} — ${p.domain}`).join("\n")||"No bench entries yet";
-    const txt=await callClaude(`Staffing gap analysis for HGI:\nRFP Requirements: ${gapText}\nCurrent Bench:\n${benchSummary}\n\nProvide:\n1. Required roles from this RFP\n2. Bench members who qualify for each role\n3. Gaps — roles not covered\n4. Specific recruiting profile for each gap\n5. Teaming partners to consider for gaps\n6. Mobilization timeline risk assessment`);
-    setGapResult(txt);setGapLoading(false);
+    const benchSummary = bench.map(p => p.name + " — " + p.role + " — " + p.domain).join("\n") || "No bench entries yet";
+    const txt = await callClaude("Staffing gap analysis for HGI:\nRFP Requirements: " + gapText + "\nCurrent Bench:\n" + benchSummary + "\n\nProvide:\n1. Required roles\n2. Bench members who qualify\n3. Gaps not covered\n4. Recruiting profile for each gap\n5. Teaming partners to consider\n6. Mobilization timeline risk");
+    setGapResult(txt); setGapLoading(false);
   };
 
-  return <div>
-    <div style={{display:"flex",alignItems:"center",marginBottom:20}}>
-      <div>
-        <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Recruiting & Bench</h2>
-        <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>{bench.length} bench members tracked</p>
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",marginBottom:20}}>
+        <div>
+          <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Recruiting & Bench</h2>
+          <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>{bench.length} bench members tracked</p>
+        </div>
+        <Btn style={{marginLeft:"auto"}} onClick={()=>setShowAdd(!showAdd)}>+ Add Person</Btn>
       </div>
-      <Btn style={{marginLeft:"auto"}} onClick={()=>setShowAdd(!showAdd)}>+ Add Person</Btn>
+      {showAdd && (
+        <Card style={{marginBottom:20,border:`1px solid ${GOLD}44`}}>
+          <h3 style={{color:GOLD,margin:"0 0 12px",fontSize:14}}>Add Bench Member</h3>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Input value={form.name} onChange={v=>setF("name",v)} placeholder="Full Name*" />
+            <Input value={form.role} onChange={v=>setF("role",v)} placeholder="Role (Program Manager...)" />
+            <Input value={form.domain} onChange={v=>setF("domain",v)} placeholder="Domain (FEMA PA, CDBG-DR...)" />
+            <Input value={form.clearance} onChange={v=>setF("clearance",v)} placeholder="Clearance / Certs" />
+            <Input value={form.location} onChange={v=>setF("location",v)} placeholder="Location" />
+            <Input value={form.availability} onChange={v=>setF("availability",v)} placeholder="Availability" />
+            <Textarea value={form.notes} onChange={v=>setF("notes",v)} placeholder="Notes..." rows={2} style={{gridColumn:"1/-1"}} />
+          </div>
+          <div style={{marginTop:12,display:"flex",gap:8}}>
+            <Btn onClick={addPerson}>Add</Btn>
+            <Btn variant="secondary" onClick={()=>setShowAdd(false)}>Cancel</Btn>
+          </div>
+        </Card>
+      )}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12,marginBottom:24}}>
+        {bench.map(p => (
+          <Card key={p.id}>
+            <div style={{fontWeight:700,color:TEXT,marginBottom:4}}>{p.name}</div>
+            <div style={{color:GOLD,fontSize:12,marginBottom:6}}>{p.role}</div>
+            {p.domain && <div style={{fontSize:12,color:TEXT_D,marginBottom:2}}>Domain: {p.domain}</div>}
+            {p.location && <div style={{fontSize:12,color:TEXT_D,marginBottom:2}}>Location: {p.location}</div>}
+            {p.availability && <div style={{fontSize:12,color:TEXT_D,marginBottom:2}}>Available: {p.availability}</div>}
+            {p.notes && <div style={{fontSize:11,color:TEXT_D,marginTop:6,fontStyle:"italic"}}>{p.notes}</div>}
+            <Btn small variant="danger" style={{marginTop:10}} onClick={()=>save(bench.filter(b=>b.id!==p.id))}>Remove</Btn>
+          </Card>
+        ))}
+        {!bench.length && <div style={{color:TEXT_D,fontSize:13,gridColumn:"1/-1",padding:20}}>No bench members yet.</div>}
+      </div>
+      <Card style={{border:`1px solid ${GOLD}33`}}>
+        <h3 style={{color:GOLD,margin:"0 0 12px",fontSize:14}}>STAFFING GAP ANALYSIS</h3>
+        <Textarea value={gapText} onChange={setGapText} placeholder="Paste RFP key personnel requirements..." rows={4} />
+        <Btn onClick={analyzeGaps} disabled={gapLoading||!gapText} style={{marginTop:10}}>{gapLoading?"Analyzing...":"Analyze Gaps vs Bench"}</Btn>
+        {(gapLoading||gapResult) && <div style={{marginTop:12}}><AIOut content={gapResult} loading={gapLoading} label="STAFFING GAP ANALYSIS" /></div>}
+      </Card>
     </div>
-    {showAdd&&<Card style={{marginBottom:20,border:`1px solid ${GOLD}44`}}>
-      <h3 style={{color:GOLD,margin:"0 0 12px",fontSize:14}}>Add Bench Member</h3>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <Input value={form.name} onChange={v=>setF("name",v)} placeholder="Full Name*"/>
-        <Input value={form.role} onChange={v=>setF("role",v)} placeholder="Role (Program Manager, PM...)"/>
-        <Input value={form.domain} onChange={v=>setF("domain",v)} placeholder="Domain (FEMA PA, CDBG-DR...)"/>
-        <Input value={form.clearance} onChange={v=>setF("clearance",v)} placeholder="Clearance / Certs"/>
-        <Input value={form.location} onChange={v=>setF("location",v)} placeholder="Location"/>
-        <Input value={form.availability} onChange={v=>setF("availability",v)} placeholder="Availability"/>
-        <Textarea value={form.notes} onChange={v=>setF("notes",v)} placeholder="Notes..." rows={2} style={{gridColumn:"1/-1"}}/>
-      </div>
-      <div style={{marginTop:12,display:"flex",gap:8}}>
-        <Btn onClick={addPerson}>Add</Btn>
-        <Btn variant="secondary" onClick={()=>setShowAdd(false)}>Cancel</Btn>
-      </div>
-    </Card>}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12,marginBottom:24}}>
-      {bench.map(p=><Card key={p.id}>
-        <div style={{fontWeight:700,color:TEXT,marginBottom:4}}>{p.name}</div>
-        <div style={{color:GOLD,fontSize:12,marginBottom:6}}>{p.role}</div>
-        {p.domain&&<div style={{fontSize:12,color:TEXT_D,marginBottom:2}}>Domain: {p.domain}</div>}
-        {p.location&&<div style={{fontSize:12,color:TEXT_D,marginBottom:2}}>Location: {p.location}</div>}
-        {p.availability&&<div style={{fontSize:12,color:TEXT_D,marginBottom:2}}>Available: {p.availability}</div>}
-        {p.notes&&<div style={{fontSize:11,color:TEXT_D,marginTop:6,fontStyle:"italic"}}>{p.notes}</div>}
-        <Btn small variant="danger" style={{marginTop:10}} onClick={()=>save(bench.filter(b=>b.id!==p.id))}>Remove</Btn>
-      </Card>)}
-      {!bench.length&&<div style={{color:TEXT_D,fontSize:13,gridColumn:"1/-1",padding:20}}>No bench members yet. Add people to track available talent.</div>}
-    </div>
-    <Card style={{border:`1px solid ${GOLD}33`}}>
-      <h3 style={{color:GOLD,margin:"0 0 12px",fontSize:14}}>STAFFING GAP ANALYSIS</h3>
-      <Textarea value={gapText} onChange={setGapText} placeholder="Paste RFP key personnel requirements or describe the opportunity staffing needs..." rows={4}/>
-      <Btn onClick={analyzeGaps} disabled={gapLoading||!gapText} style={{marginTop:10}}>{gapLoading?"⟳ Analyzing...":"Analyze Gaps vs Bench"}</Btn>
-      {(gapLoading||gapResult)&&<div style={{marginTop:12}}><AIOut content={gapResult} loading={gapLoading} label="STAFFING GAP ANALYSIS"/></div>}
-    </Card>
-  </div>;
+  );
 }
 
 // ── WEEKLY DIGEST ─────────────────────────────────────────────────────────────
-function WeeklyDigest(){
-  const [focus,setFocus]=useState("");
-  const [result,setResult]=useState("");
-  const [loading,setLoading]=useState(false);
-  const [digests,setDigests]=useState(()=>store.get("digests")||[]);
+function WeeklyDigest() {
+  const [focus, setFocus] = useState("");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [digests, setDigests] = useState(() => store.get("digests") || []);
 
-  const generate=async()=>{
+  const generate = async () => {
     setLoading(true);
-    const tracker=store.get("tracker")||[];
-    const pipeline=tracker.slice(0,5).map(o=>`- ${o.title} (${o.stage}${o.opiScore?`, OPI:${o.opiScore}`:""})`).join("\n")||"No active pipeline entries";
-    const txt=await callClaude(`Generate HGI Weekly Capture Intelligence Digest for week of ${new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}.
-
-${focus?`SPECIAL FOCUS: ${focus}`:""}
-
-ACTIVE PIPELINE:
-${pipeline}
-
-Include:
-## EXECUTIVE SUMMARY
-4-5 bullet market intelligence highlights
-
-## HOT OPPORTUNITIES
-3-5 specific opportunities with: value, release date, HGI advantage, competition, action required
-
-## RECOMPETE WATCHLIST
-Current contracts approaching renewal
-
-## INTELLIGENCE UPDATES
-Policy/regulatory changes, market moves, funding announcements
-
-## COMPETITIVE INTEL
-Recent awards to competitors, market moves, personnel changes
-
-## THIS WEEK'S CAPTURE PRIORITIES
-5 specific actions with owners (TBD)
-
-## UPCOMING DEADLINES
-Industry events, RFP milestones
-
-## MARKET TRENDS
-FEMA PA, CDBG-DR, Gulf Coast activity`);
+    const tracker = store.get("tracker") || [];
+    const pipeline = tracker.slice(0,5).map(o => "- " + o.title + " (" + o.stage + (o.opiScore?", OPI:"+o.opiScore:"") + ")").join("\n") || "No active pipeline entries";
+    const dateStr = new Date().toLocaleDateString("en-US", {weekday:"long",year:"numeric",month:"long",day:"numeric"});
+    const txt = await callClaude(
+      "Generate HGI Weekly Capture Intelligence Digest for week of " + dateStr + ".\n\n" +
+      (focus ? "SPECIAL FOCUS: " + focus + "\n\n" : "") +
+      "ACTIVE PIPELINE:\n" + pipeline + "\n\n" +
+      "Include:\n## EXECUTIVE SUMMARY\n## HOT OPPORTUNITIES (3-5 specific with value, HGI advantage, competition)\n## RECOMPETE WATCHLIST\n## INTELLIGENCE UPDATES\n## COMPETITIVE INTEL\n## THIS WEEK CAPTURE PRIORITIES (5 actions)\n## UPCOMING DEADLINES\n## MARKET TRENDS"
+    );
     setResult(txt);
-    const newDigests=[{date:new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"}),content:txt},...digests].slice(0,10);
-    setDigests(newDigests);store.set("digests",newDigests);
+    const newDigests = [{date:dateStr, content:txt}, ...digests].slice(0,10);
+    setDigests(newDigests); store.set("digests", newDigests);
     setLoading(false);
   };
 
-  return <div>
-    <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:20,fontWeight:800}}>Weekly Digest</h2>
-    <p style={{color:TEXT_D,margin:"0 0 20px",fontSize:12}}>AI-generated capture intelligence brief for HGI leadership</p>
-    <Card style={{marginBottom:20}}>
-      <Label text="SPECIAL FOCUS AREAS (optional)"/>
-      <Input value={focus} onChange={setFocus} placeholder="e.g. FEMA PA recompetes, Texas TPA, Florida Helene/Milton..."/>
-      <Btn onClick={generate} disabled={loading} style={{marginTop:12}}>
-        {loading?"⟳ Generating...":"⟳ Generate This Week's Digest"}
-      </Btn>
-    </Card>
-    <AIOut content={result} loading={loading} label="AI ANALYSIS"/>
-    {digests.length>0&&<div style={{marginTop:24}}>
-      <div style={{color:GOLD_D,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:10}}>ARCHIVED DIGESTS</div>
-      {digests.map((d,i)=><div key={i} style={{padding:"10px 0",borderBottom:`1px solid ${BORDER}`,cursor:"pointer",color:i===0?GOLD:TEXT_D,fontSize:13}}
-        onClick={()=>setResult(d.content)}>{d.date}</div>)}
-    </div>}
-  </div>;
+  return (
+    <div>
+      <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:20,fontWeight:800}}>Weekly Digest</h2>
+      <p style={{color:TEXT_D,margin:"0 0 20px",fontSize:12}}>AI-generated capture intelligence brief for HGI leadership</p>
+      <Card style={{marginBottom:20}}>
+        <Label text="SPECIAL FOCUS AREAS (optional)" />
+        <Input value={focus} onChange={setFocus} placeholder="e.g. FEMA PA recompetes, Texas TPA, Florida recovery..." />
+        <Btn onClick={generate} disabled={loading} style={{marginTop:12}}>{loading?"Generating...":"Generate This Week Digest"}</Btn>
+      </Card>
+      <AIOut content={result} loading={loading} label="AI ANALYSIS" />
+      {digests.length > 0 && (
+        <div style={{marginTop:24}}>
+          <div style={{color:GOLD_D,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:10}}>ARCHIVED DIGESTS</div>
+          {digests.map((d,i) => (
+            <div key={i} style={{padding:"10px 0",borderBottom:`1px solid ${BORDER}`,cursor:"pointer",color:i===0?GOLD:TEXT_D,fontSize:13}}
+              onClick={()=>setResult(d.content)}>{d.date}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-// ── MAIN APP ──────────────────────────────────────────────────────────────────
-const MODULES=[
-  {id:"workflow",label:"Full Workflow",icon:"⚡",badge:"NEW"},
-  {id:"scanner",label:"Live Pipeline Scanner",icon:"◎"},
-  {id:"tracker",label:"Pipeline Tracker",icon:"◈"},
-  {id:"scoring",label:"Winnability Scoring",icon:"◆"},
-  {id:"research",label:"Research & Analysis",icon:"◉"},
-  {id:"proposal",label:"Proposal Engine",icon:"✦"},
-  {id:"recruiting",label:"Recruiting & Bench",icon:"◐"},
-  {id:"digest",label:"Weekly Digest",icon:"◇"},
+// ── APP ───────────────────────────────────────────────────────────────────────
+const MODULES = [
+  {id:"workflow", label:"Full Workflow", icon:"⚡", badge:"NEW"},
+  {id:"scanner", label:"Live Pipeline Scanner", icon:"◎"},
+  {id:"tracker", label:"Pipeline Tracker", icon:"◈"},
+  {id:"scoring", label:"Winnability Scoring", icon:"◆"},
+  {id:"research", label:"Research & Analysis", icon:"◉"},
+  {id:"proposal", label:"Proposal Engine", icon:"✦"},
+  {id:"recruiting", label:"Recruiting & Bench", icon:"◐"},
+  {id:"digest", label:"Weekly Digest", icon:"◇"},
 ];
 
-function App(){
-  const [active,setActive]=useState("workflow");
-  const [sideOpen,setSideOpen]=useState(true);
+function App() {
+  const [active, setActive] = useState("workflow");
+  const [sideOpen, setSideOpen] = useState(true);
 
-  const components={
-    workflow:<FullWorkflow/>,
-    scanner:<PipelineScanner/>,
-    tracker:<PipelineTracker/>,
-    scoring:<WinnabilityScoring/>,
-    research:<ResearchAnalysis/>,
-    proposal:<ProposalEngine/>,
-    recruiting:<RecruitingBench/>,
-    digest:<WeeklyDigest/>,
+  const components = {
+    workflow: <FullWorkflow />,
+    scanner: <PipelineScanner />,
+    tracker: <PipelineTracker />,
+    scoring: <WinnabilityScoring />,
+    research: <ResearchAnalysis />,
+    proposal: <ProposalEngine />,
+    recruiting: <RecruitingBench />,
+    digest: <WeeklyDigest />,
   };
 
-  const tracker=store.get("tracker")||[];
-  const t1=tracker.filter(o=>o.opiScore&&parseInt(o.opiScore)>=70).length;
+  const tracker = store.get("tracker") || [];
+  const t1 = tracker.filter(o => o.opiScore && parseInt(o.opiScore) >= 70).length;
 
-  return <div style={{display:"flex",height:"100vh",overflow:"hidden"}}>
-    {/* Sidebar */}
-    <div style={{width:sideOpen?260:60,background:BG2,borderRight:`1px solid ${BORDER}`,
-      display:"flex",flexDirection:"column",transition:"width 0.2s",overflow:"hidden",flexShrink:0}}>
-      <div style={{padding:"20px 16px",borderBottom:`1px solid ${BORDER}`}}>
-        {sideOpen?<>
-          <div style={{color:GOLD,fontWeight:800,fontSize:18,letterSpacing:"0.05em"}}>HGI</div>
-          <div style={{color:GOLD_D,fontSize:10,letterSpacing:"0.15em",marginTop:2}}>AI CAPTURE SYSTEM v1.1</div>
-          <div style={{color:TEXT_D,fontSize:11,marginTop:4}}>Hammerman & Gainer LLC · 95 Years</div>
-          {t1>0&&<div style={{marginTop:8}}><Badge color={GREEN}>{t1} Tier 1 Opp{t1>1?"s":""}</Badge></div>}
-        </>:<div style={{color:GOLD,fontWeight:800,fontSize:16,textAlign:"center"}}>H</div>}
+  return (
+    <div style={{display:"flex",height:"100vh",overflow:"hidden"}}>
+      <div style={{width:sideOpen?260:60,background:BG2,borderRight:`1px solid ${BORDER}`,display:"flex",flexDirection:"column",transition:"width 0.2s",overflow:"hidden",flexShrink:0}}>
+        <div style={{padding:"20px 16px",borderBottom:`1px solid ${BORDER}`}}>
+          {sideOpen ? (
+            <div>
+              <div style={{color:GOLD,fontWeight:800,fontSize:18,letterSpacing:"0.05em"}}>HGI</div>
+              <div style={{color:GOLD_D,fontSize:10,letterSpacing:"0.15em",marginTop:2}}>AI CAPTURE SYSTEM v1.1</div>
+              <div style={{color:TEXT_D,fontSize:11,marginTop:4}}>Hammerman &amp; Gainer LLC · 95 Years</div>
+              {t1 > 0 && <div style={{marginTop:8}}><Badge color={GREEN}>{t1} Tier 1 Opp{t1>1?"s":""}</Badge></div>}
+            </div>
+          ) : (
+            <div style={{color:GOLD,fontWeight:800,fontSize:16,textAlign:"center"}}>H</div>
+          )}
+        </div>
+        <nav style={{flex:1,overflowY:"auto",padding:"12px 8px"}}>
+          {MODULES.map(m => {
+            const isActive = active === m.id;
+            return (
+              <button key={m.id} onClick={()=>setActive(m.id)}
+                style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 10px",borderRadius:4,
+                  cursor:"pointer",border:"none",fontFamily:"inherit",marginBottom:2,
+                  background:isActive?GOLD+"22":"transparent",
+                  borderLeft:isActive?`3px solid ${GOLD}`:"3px solid transparent",
+                  color:isActive?GOLD:TEXT_D,fontSize:13,textAlign:"left"}}>
+                <span style={{fontSize:16,flexShrink:0}}>{m.icon}</span>
+                {sideOpen && (
+                  <span style={{fontWeight:isActive?700:400,flex:1}}>{m.label}</span>
+                )}
+                {sideOpen && m.badge && <Badge color={GREEN}>{m.badge}</Badge>}
+              </button>
+            );
+          })}
+        </nav>
+        {sideOpen && (
+          <div style={{padding:"12px 16px",borderTop:`1px solid ${BORDER}`,fontSize:10,color:TEXT_D}}>
+            <div style={{fontWeight:700,color:GOLD_D,marginBottom:6,letterSpacing:"0.08em"}}>KEY PAST PERFORMANCE</div>
+            {["Road Home $12B CDBG-DR","BP GCCF 1M+ claims","PBGC 34M beneficiaries","TPCIGA 20yrs Texas","Restore Louisiana","Terrebonne Parish / Ida"].map(p => (
+              <div key={p} style={{marginBottom:3}}>· {p}</div>
+            ))}
+          </div>
+        )}
       </div>
-      <nav style={{flex:1,overflowY:"auto",padding:"12px 8px"}}>
-        {MODULES.map(m=>{
-          const isActive=active===m.id;
-          return <button key={m.id} onClick={()=>setActive(m.id)}
-            style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 10px",
-              borderRadius:4,cursor:"pointer",border:"none",fontFamily:"inherit",marginBottom:2,
-              background:isActive?GOLD+"22":"transparent",
-              borderLeft:isActive?`3px solid ${GOLD}`:"3px solid transparent",
-              color:isActive?GOLD:TEXT_D,fontSize:13,textAlign:"left"}}>
-            <span style={{fontSize:16,flexShrink:0}}>{m.icon}</span>
-            {sideOpen&&<>
-              <span style={{fontWeight:isActive?700:400}}>{m.label}</span>
-              {m.badge&&<Badge color={GREEN} style={{marginLeft:"auto",fontSize:9}}>{m.badge}</Badge>}
-            </>}
-          </button>;
-        })}
-      </nav>
-      {sideOpen&&<div style={{padding:"12px 16px",borderTop:`1px solid ${BORDER}`,fontSize:10,color:TEXT_D}}>
-        <div style={{fontWeight:700,color:GOLD_D,marginBottom:6,letterSpacing:"0.08em"}}>KEY PAST PERFORMANCE</div>
-        {["Road Home $12B CDBG-DR","BP GCCF 1M+ claims","PBGC 34M beneficiaries","TPCIGA 20yrs Texas","Restore Louisiana","Terrebonne Parish / Ida"].map(p=>(
-          <div key={p} style={{marginBottom:3}}>• {p}</div>
-        ))}
-      </div>}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <div style={{padding:"14px 20px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:12,background:BG2}}>
+          <button onClick={()=>setSideOpen(s=>!s)} style={{background:"none",border:"none",color:TEXT_D,cursor:"pointer",fontSize:16,padding:4}}>☰</button>
+          <span style={{color:GOLD,fontWeight:700,fontSize:14}}>{MODULES.find(m=>m.id===active)?.label}</span>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:24}}>
+          {components[active]}
+        </div>
+      </div>
     </div>
-
-    {/* Main */}
-    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <div style={{padding:"14px 20px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:12,background:BG2}}>
-        <button onClick={()=>setSideOpen(s=>!s)} style={{background:"none",border:"none",color:TEXT_D,cursor:"pointer",fontSize:16,padding:4}}>☰</button>
-        <span style={{color:GOLD,fontWeight:700,fontSize:14}}>{MODULES.find(m=>m.id===active)?.label}</span>
-      </div>
-      <div style={{flex:1,overflowY:"auto",padding:24}}>
-        {components[active]}
-      </div>
-    </div>
-  </div>;
+  );
 }
 
-class ErrorBoundary extends React.Component {
-  constructor(props){super(props);this.state={error:null};}
-  static getDerivedStateFromError(e){return {error:e.toString()};}
-  render(){
-    if(this.state.error) return React.createElement('div',
-      {style:{padding:40,color:"#C9A84C",fontFamily:"monospace",background:"#0A0A0A",minHeight:"100vh"}},
-      React.createElement('h2',null,"HGI System Error"),
-      React.createElement('pre',{style:{color:"#E8E0D0",fontSize:12,marginTop:16,whiteSpace:"pre-wrap"}},this.state.error)
-    );
-    return this.props.children;
-  }
-}
-ReactDOM.render(React.createElement(ErrorBoundary,null,React.createElement(App)), document.getElementById("root"));
+ReactDOM.render(<App />, document.getElementById("root"));
 </script>
 </body>
 </html>
