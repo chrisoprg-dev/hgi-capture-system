@@ -1608,22 +1608,67 @@ function FinancialPricing({ sharedCtx={} }) {
         </div>
       )}
 
-      {/* Summary Stats */}
-      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
-        {[
-          ["Base Year", fmt(periodTotal(periods[0],0)), GOLD],
-          ["Contract Total", fmt(contractTotal()), GREEN],
-          ["Profit Margin", profitMargin()+"%", parseFloat(profitMargin())>=intel.hgiMarginTarget?GREEN:ORANGE],
-          ["Labor Total", fmt(totalLabor()), TEXT_D],
-          ["ODCs", fmt(totalODC()), TEXT_D],
-          ["Recommended", recommendedPrice ? fmt(recommendedPrice) : "Run PTW →", recommendedPrice?BLUE:TEXT_D],
-        ].map(([l,v,c])=>(
-          <div key={l} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:"10px 14px",flex:1,minWidth:110}}>
-            <div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div>
-            <div style={{fontSize:10,color:TEXT_D,letterSpacing:"0.06em"}}>{l}</div>
+      {/* Live Summary Stats — clickable drill-downs */}
+      {(()=>{
+        const laborBreakdown = laborRows.map(r => { const c=calcRow(r); return {...r, ...c}; });
+        const odcTotal = totalODC();
+        const laborTotal = totalLabor();
+        const baseYearTotal = periodTotal(periods[0]||{months:12,escalation:0}, 0);
+        const contractTotalAmt = contractTotal();
+        const marginPct = profitMargin();
+        const marginColor = parseFloat(marginPct) >= intel.hgiMarginTarget ? GREEN : parseFloat(marginPct) >= intel.hgiMarginTarget * 0.7 ? ORANGE : RED;
+        const totalCost = laborRows.reduce((s,r)=>s+calcRow(r).cost*calcRow(r).hours,0) + odcTotal;
+        const totalFee = laborTotal - laborRows.reduce((s,r)=>s+calcRow(r).cost*calcRow(r).hours,0);
+
+        return (
+          <div style={{marginBottom:16}}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+              {[
+                {label:"BASE YEAR", value:fmt(baseYearTotal), color:GOLD, tab:"periods",
+                  detail: periods[0] ? "Labor: " + fmt(totalLabor()) + " · ODCs: " + fmt(odcTotal) + " · " + (periods[0].months||12) + " months" : ""},
+                {label:"CONTRACT TOTAL", value:fmt(contractTotalAmt), color:GREEN, tab:"periods",
+                  detail: periods.map((p,i)=>p.label+": "+fmt(periodTotal(p,i))).join(" · ")},
+                {label:"PROFIT MARGIN", value:marginPct+"%", color:marginColor, tab:"buildup",
+                  detail: "Target: "+intel.hgiMarginTarget+"% · Fee earned: "+fmt(totalFee) + " · Cost base: "+fmt(totalCost)},
+                {label:"LABOR TOTAL", value:fmt(laborTotal), color:TEXT, tab:"buildup",
+                  detail: laborRows.map(r=>r.cat+": "+fmt(calcRow(r).total)).join(" · ")},
+                {label:"ODCs", value:fmt(odcTotal), color:TEXT, tab:"buildup",
+                  detail: odcs.map(o=>o.desc+": "+fmt(parseFloat(o.amount||0))).join(" · ")},
+                {label:"WIN PRICE", value:recommendedPrice ? fmt(recommendedPrice) : "Run PTW →", color:recommendedPrice?BLUE:TEXT_D, tab:"intelligence",
+                  detail: recommendedPrice ? "Gap to buildup: "+fmt(recommendedPrice-contractTotalAmt) : "Click Price Intelligence → Run PTW Analysis"},
+              ].map(stat => (
+                <div key={stat.label} onClick={()=>setActiveTab(stat.tab)} style={{
+                  background:BG2, border:`1px solid ${activeTab===stat.tab?stat.color:BORDER}`,
+                  borderRadius:6, padding:"10px 14px", flex:1, minWidth:120,
+                  cursor:"pointer", transition:"border-color 0.15s",
+                  borderBottom:`3px solid ${stat.color}44`
+                }}>
+                  <div style={{fontSize:17,fontWeight:800,color:stat.color,marginBottom:2}}>{stat.value}</div>
+                  <div style={{fontSize:9,color:TEXT_D,letterSpacing:"0.08em",marginBottom:4,fontWeight:700}}>{stat.label}</div>
+                  {stat.detail && <div style={{fontSize:10,color:TEXT_D,lineHeight:1.4,borderTop:`1px solid ${BORDER}`,paddingTop:4,marginTop:2}}>{stat.detail}</div>}
+                </div>
+              ))}
+            </div>
+            {/* Visual cost stack bar */}
+            {contractTotalAmt > 0 && (
+              <div style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:"10px 14px"}}>
+                <div style={{fontSize:10,color:TEXT_D,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>COST COMPOSITION — {fmt(contractTotalAmt)} total</div>
+                <div style={{display:"flex",height:14,borderRadius:3,overflow:"hidden",marginBottom:6}}>
+                  <div style={{width:(laborTotal/contractTotalAmt*100)+"%",background:GOLD,transition:"width 0.3s"}} title={"Labor: "+fmt(laborTotal)} />
+                  <div style={{width:(odcTotal/contractTotalAmt*100)+"%",background:BLUE,transition:"width 0.3s"}} title={"ODCs: "+fmt(odcTotal)} />
+                  <div style={{width:(totalFee/contractTotalAmt*100)+"%",background:GREEN,transition:"width 0.3s"}} title={"Fee: "+fmt(totalFee)} />
+                </div>
+                <div style={{display:"flex",gap:16,fontSize:10,color:TEXT_D}}>
+                  <span><span style={{color:GOLD}}>■</span> Labor {(laborTotal/contractTotalAmt*100).toFixed(0)}% — {fmt(laborTotal)}</span>
+                  <span><span style={{color:BLUE}}>■</span> ODCs {(odcTotal/contractTotalAmt*100).toFixed(0)}% — {fmt(odcTotal)}</span>
+                  <span><span style={{color:GREEN}}>■</span> Fee {(totalFee/contractTotalAmt*100).toFixed(0)}% — {fmt(totalFee)}</span>
+                  {recommendedPrice && <span style={{marginLeft:"auto",color:BLUE,fontWeight:700}}>PTW Gap: {fmt(recommendedPrice-contractTotalAmt)}</span>}
+                </div>
+              </div>
+            )}
           </div>
-        ))}
-      </div>
+        );
+      })()}
 
       {/* Tabs */}
       <div style={{display:"flex",gap:4,marginBottom:16,borderBottom:`1px solid ${BORDER}`,paddingBottom:8,flexWrap:"wrap"}}>
