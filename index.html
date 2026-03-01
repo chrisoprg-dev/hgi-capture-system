@@ -229,7 +229,7 @@ function FullWorkflow(){
   const [opi,setOpi]=useState(null);
   const [tab,setTab]=useState("decomp");
 
-  const getDecision=(t)=>{const m=t.match(/Decision:\s*(GO|CONDITIONAL GO|NO-BID|WATCHLIST)/i);return m?m[1].toUpperCase():"";};
+  const getDecision=(t)=>{const m=t.match(/Decision(?:\s+Recommendation)?:\s*(GO|CONDITIONAL GO|NO-BID|WATCHLIST)/i);return m?m[1].toUpperCase():"";};
   const getOPI=(t)=>{const m=t.match(/OPI Score[^:]*:\s*(\d+)/i);return m?parseInt(m[1]):null;};
 
   const runA=async()=>{
