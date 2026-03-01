@@ -34,7 +34,7 @@ const store = {
 async function callClaude(prompt, system) {
   const body = {
     model: "claude-sonnet-4-20250514",
-    max_tokens: 1500,
+    max_tokens: 4000,
     system: system || "You are an expert government contracting capture manager for HGI. " + HGI_CONTEXT,
     messages: [{ role: "user", content: prompt }]
   };
@@ -270,7 +270,23 @@ function FullWorkflow() {
             </div>
           )}
           {tab === "c" && (
-            outC ? <AIOut content={outC} label="PROPOSAL PACKAGE" /> :
+            outC ? (
+              <div>
+                <AIOut content={outC} label="PROPOSAL PACKAGE — First Pass" />
+                <Card style={{marginTop:20,border:`1px solid ${GOLD}33`}}>
+                  <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>EXPAND INDIVIDUAL SECTIONS</div>
+                  <p style={{color:TEXT_D,fontSize:12,marginBottom:12}}>Generate a full deep-dive for any section using the Proposal Engine module, or click below to expand directly:</p>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {["Executive Summary","Technical Approach","Management Approach","Staffing Plan","Past Performance","Transition Plan","Pricing Narrative","Compliance Matrix"].map(sec => (
+                      <button key={sec} onClick={()=>{setActive&&setActive("proposal");}} style={{
+                        padding:"6px 12px",borderRadius:4,fontSize:11,cursor:"pointer",fontFamily:"inherit",
+                        background:BG3,color:GOLD,border:`1px solid ${GOLD}44`}}>{sec}</button>
+                    ))}
+                  </div>
+                  <p style={{color:TEXT_D,fontSize:11,marginTop:10}}>Tip: Go to Proposal Engine, paste the RFP context, select the section, and generate a full version.</p>
+                </Card>
+              </div>
+            ) :
             <Card style={{textAlign:"center",padding:32,color:TEXT_D}}>
               {step < 3 ? "Complete Step 2 first." : "Proposal not generated — decision was " + (decision || "not GO")}
             </Card>
