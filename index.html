@@ -2089,6 +2089,8 @@ function OpportunityDiscovery({ saveSharedCtx, goToWorkflow }) {
     GA: ["GEMA", "Georgia DCA", "Atlanta metro agencies", "Municipal tax administration", "Workforce agencies"],
   };
 
+  const [expandedCard, setExpandedCard] = useState(null);
+
   const runHunt = async () => {
     setHunting(true);
     const now = new Date().toISOString();
@@ -2109,33 +2111,39 @@ GEOGRAPHIC SCOPE: Louisiana (ALL parishes + municipal), Texas (GLO, TDEM, TWIA, 
 
 FEDERAL: SAM.gov across NAICS codes relevant to HGI — program management, claims admin, disaster recovery, housing assistance, TPA, workforce services
 
-DEAL SIZE: No minimum — include everything from <$150K TPA contracts to $50M+ disaster recovery programs. Small and recurring contracts are strategic.
+DEAL SIZE: No minimum — include everything from <$150K TPA contracts to $50M+ disaster recovery programs.
 
-GENERATE 15-20 specific, realistic procurement opportunities HGI should be pursuing RIGHT NOW. For each include:
+GENERATE 15-20 specific, realistic procurement opportunities HGI should be pursuing RIGHT NOW.
 
-1. Opportunity title (specific, realistic)
-2. Issuing agency (real agency name)
-3. State/jurisdiction
-4. Vertical category (disaster/tpa/workforce/health/infrastructure/tax_appeals/federal)
-5. Estimated value range
-6. Likely procurement timing (e.g. "Active RFP — due in 14 days", "Recompete expected Q3 2025", "Funding allocated — RFP imminent", "Watch — contract expires 2025")
-7. Source where to find it (SAM.gov / LaPAC / Texas SmartBuy / agency website / etc)
-8. OPI score 0-100 (HGI win probability based on past performance and fit)
-9. Why HGI wins (2-3 specific reasons)
-10. Urgency flag: IMMEDIATE (< 21 days) / ACTIVE / PIPELINE / WATCH
-11. Strategic importance: TIER_1 / TIER_2 / TIER_3
-12. Recompete: true/false
-13. Incumbent if known
+Return as JSON only. No markdown. Each opportunity must include ALL these fields:
+{
+  "title": "specific opportunity title",
+  "agency": "real agency name",
+  "state": "2-letter state code or Federal",
+  "vertical": "disaster|tpa|workforce|health|infrastructure|tax_appeals|federal",
+  "estimatedValue": "dollar range as string",
+  "timing": "specific timing description",
+  "source": "SAM.gov|LaPAC|Texas SmartBuy|agency website name",
+  "sourceUrl": "most likely direct URL to find this — e.g. https://sam.gov/search/?keywords=... or https://lapac.doa.louisiana.gov or https://smartbuy.hhs.texas.gov etc",
+  "opiScore": number 0-100,
+  "whyHgiWins": ["reason 1", "reason 2", "reason 3"],
+  "urgency": "IMMEDIATE|ACTIVE|PIPELINE|WATCH",
+  "strategicImportance": "TIER_1|TIER_2|TIER_3",
+  "recompete": true/false,
+  "incumbent": "name or empty string",
+  "description": "2-3 sentence plain English summary of what this contract is and why it exists",
+  "scopeOfWork": "4-6 bullet points describing the key deliverables and work scope — what the contractor will actually do",
+  "keyRequirements": "2-3 critical qualification requirements or past performance requirements",
+  "captureAction": "the single most important action HGI should take THIS WEEK to position for this opportunity"
+}
 
-Also generate:
-- 3-5 DISASTER SIGNALS: recent declarations or major weather events that will trigger future FEMA PA / CDBG-DR RFP waves
-- 3-5 FUNDING SIGNALS: recent HUD, FEMA, Treasury, USDA allocations that have NOT yet produced RFPs but will
+Also generate disasterSignals and fundingSignals arrays.
 
-Return as JSON only. No markdown. Structure:
+Full JSON structure:
 {
   "opportunities": [...],
-  "disasterSignals": [...],
-  "fundingSignals": [...]
+  "disasterSignals": [{"event": "...", "implication": "...", "timing": "..."}],
+  "fundingSignals": [{"allocation": "...", "amount": "...", "implication": "...", "expectedRfp": "..."}]
 }`;
 
     try {
@@ -2146,12 +2154,36 @@ Return as JSON only. No markdown. Structure:
         const clean = raw.replace(/```json|```/g,"").trim();
         const start = clean.indexOf("{");
         const end = clean.lastIndexOf("}");
-        data = JSON.parse(clean.slice(start, end+1));
+        if (start >= 0 && end > start) {
+          data = JSON.parse(clean.slice(start, end+1));
+        }
       } catch(e) {
-        // Try to extract opportunities array directly
-        const arrMatch = raw.match(/\[[\s\S]*\]/);
-        if (arrMatch) data = { opportunities: JSON.parse(arrMatch[0]) };
-        else { setHunting(false); return; }
+        console.warn("Full JSON parse failed, trying array extraction:", e.message);
+      }
+      // Fallback: try extracting opportunities array directly
+      if (!data || !data.opportunities) {
+        try {
+          const arrMatch = raw.match(/"opportunities"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
+          if (arrMatch) data = { opportunities: JSON.parse(arrMatch[1]) };
+        } catch(e2) { console.warn("Array extraction failed:", e2.message); }
+      }
+      // Last resort: ask Claude to return simpler format
+      if (!data || !data.opportunities || data.opportunities.length === 0) {
+        console.warn("Retrying with simpler prompt...");
+        const simplePrompt = "List 12 specific government procurement opportunities HGI should pursue. HGI profile: " + HGI_CONTEXT + "\n\nFor each return JSON with these exact fields: title, agency, state, vertical (one of: disaster/tpa/workforce/health/infrastructure/tax_appeals/federal), estimatedValue, timing, source, opiScore (number 0-100), whyHgiWins (array of 2 strings), urgency (one of: IMMEDIATE/ACTIVE/PIPELINE/WATCH), strategicImportance (one of: TIER_1/TIER_2/TIER_3), recompete (boolean), incumbent.\n\nReturn ONLY a JSON array. No other text. Example: [{\"title\":\"...\",\"agency\":\"...\",...}]";
+        const raw2 = await callClaude(simplePrompt, "Return ONLY a valid JSON array. No markdown, no explanation, no backticks.", 3000);
+        try {
+          const c2 = raw2.replace(/```json|```/g,"").trim();
+          const a2 = c2.indexOf("["), b2 = c2.lastIndexOf("]");
+          if (a2 >= 0 && b2 > a2) {
+            data = { opportunities: JSON.parse(c2.slice(a2, b2+1)) };
+          }
+        } catch(e3) {
+          console.error("All parsing attempts failed:", e3.message, "\nRaw:", raw2.slice(0,500));
+          setHunting(false);
+          alert("Hunt returned data but couldn't parse it. Check console for details.");
+          return;
+        }
       }
 
       const opps = (data.opportunities || []).map((o, i) => ({
@@ -2330,7 +2362,7 @@ Return as JSON only. No markdown. Structure:
                 TOP OPPORTUNITIES — {huntResults.filter(o=>o.urgency==="IMMEDIATE").length} IMMEDIATE ACTION REQUIRED
               </div>
               {huntResults.filter(o=>o.urgency==="IMMEDIATE"||o.strategicImportance==="TIER_1"||(o.opiScore||0)>=75).slice(0,5).map(opp=>(
-                <Card key={opp.id} style={{marginBottom:10,border:`1px solid ${urgencyColor(opp.urgency)}44`,cursor:"pointer"}} onClick={()=>{setSelectedResult(opp);setActiveTab("results");}}>
+                <Card key={opp.id} style={{marginBottom:10,border:`1px solid ${urgencyColor(opp.urgency)}44`,cursor:"pointer"}} onClick={()=>{setExpandedCard(opp.id);setActiveTab("results");}}>
                   <div style={{display:"flex",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
                     <div style={{flex:1,minWidth:200}}>
                       <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
@@ -2342,14 +2374,20 @@ Return as JSON only. No markdown. Structure:
                       <div style={{color:TEXT,fontWeight:700,fontSize:13,marginBottom:2}}>{opp.title}</div>
                       <div style={{color:TEXT_D,fontSize:11}}>{opp.agency} · {opp.state} · {opp.estimatedValue}</div>
                       <div style={{color:TEXT_D,fontSize:11,marginTop:2}}>{opp.timing}</div>
+                      {opp.description && <div style={{color:TEXT_D,fontSize:11,marginTop:4,fontStyle:"italic"}}>{opp.description}</div>}
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
                       <div style={{fontSize:28,fontWeight:800,color:opiColor(opp.opiScore||0)}}>{opp.opiScore||"?"}</div>
                       <div style={{fontSize:9,color:TEXT_D,letterSpacing:"0.06em"}}>OPI SCORE</div>
-                      <div style={{display:"flex",gap:6,marginTop:6,justifyContent:"flex-end"}}>
+                      <div style={{display:"flex",gap:6,marginTop:6,justifyContent:"flex-end",flexWrap:"wrap"}}>
                         <Btn small onClick={(e)=>{e.stopPropagation();sendToWorkflow(opp);}} disabled={sendingToWorkflow===opp.id}>
                           {sendingToWorkflow===opp.id?"Sending...":"→ Workflow"}
                         </Btn>
+                        {opp.sourceUrl && (
+                          <a href={opp.sourceUrl} target="_blank" rel="noopener noreferrer"
+                            style={{padding:"4px 10px",borderRadius:4,fontSize:11,fontWeight:700,background:BLUE+"22",color:BLUE,border:`1px solid ${BLUE}44`,textDecoration:"none"}}
+                            onClick={e=>e.stopPropagation()}>🔗</a>
+                        )}
                         {!opp.savedToTracker && <Btn small variant="ghost" onClick={(e)=>{e.stopPropagation();saveToTracker(opp);}}>+ Track</Btn>}
                         {opp.savedToTracker && <Badge color={GREEN}>Tracked</Badge>}
                       </div>
@@ -2405,9 +2443,12 @@ Return as JSON only. No markdown. Structure:
             </div>
           )}
 
-          {filtered.map(opp => (
-            <Card key={opp.id} style={{marginBottom:10,border:`1px solid ${selectedResult?.id===opp.id?GOLD:urgencyColor(opp.urgency)}33`,transition:"border 0.15s"}}>
-              <div style={{display:"flex",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}>
+          {filtered.map(opp => {
+            const isExpanded = expandedCard === opp.id;
+            return (
+            <Card key={opp.id} style={{marginBottom:10,border:`1px solid ${isExpanded?GOLD:urgencyColor(opp.urgency)}33`,transition:"border 0.15s"}}>
+              {/* Header row — always visible */}
+              <div style={{display:"flex",gap:12,alignItems:"flex-start",flexWrap:"wrap",cursor:"pointer"}} onClick={()=>setExpandedCard(isExpanded?null:opp.id)}>
                 <div style={{flex:1,minWidth:220}}>
                   <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:6,flexWrap:"wrap"}}>
                     <Badge color={urgencyColor(opp.urgency)}>{opp.urgency||"WATCH"}</Badge>
@@ -2420,37 +2461,119 @@ Return as JSON only. No markdown. Structure:
                   <div style={{color:TEXT_D,fontSize:12,marginBottom:2}}>
                     <strong style={{color:TEXT}}>{opp.agency}</strong> · {opp.state} · <span style={{color:GOLD}}>{opp.estimatedValue}</span>
                   </div>
-                  <div style={{color:TEXT_D,fontSize:11,marginBottom:6}}>{opp.timing}</div>
+                  <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>{opp.timing}</div>
+                  {opp.description && <div style={{color:TEXT_D,fontSize:12,fontStyle:"italic"}}>{opp.description}</div>}
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{fontSize:32,fontWeight:800,color:opiColor(opp.opiScore||0),marginBottom:2}}>{opp.opiScore||"?"}</div>
+                  <div style={{fontSize:9,color:TEXT_D,letterSpacing:"0.06em",marginBottom:6}}>OPI SCORE</div>
+                  <div style={{color:TEXT_D,fontSize:11}}>{isExpanded?"▲ Collapse":"▼ Details"}</div>
+                </div>
+              </div>
 
-                  {/* Why HGI wins */}
-                  {opp.whyHgiWins && (
-                    <div style={{marginBottom:6}}>
-                      {(Array.isArray(opp.whyHgiWins) ? opp.whyHgiWins : [opp.whyHgiWins]).map((w,i)=>(
-                        <div key={i} style={{fontSize:11,color:GREEN,marginBottom:2}}>✓ {w}</div>
+              {/* Expanded detail panel */}
+              {isExpanded && (
+                <div style={{marginTop:14,paddingTop:14,borderTop:`1px solid ${BORDER}`}}>
+                  {/* Scope of Work */}
+                  {opp.scopeOfWork && (
+                    <div style={{marginBottom:12}}>
+                      <div style={{fontSize:11,color:GOLD,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>SCOPE OF WORK</div>
+                      {(Array.isArray(opp.scopeOfWork) ? opp.scopeOfWork : opp.scopeOfWork.split("\n").filter(Boolean)).map((s,i)=>(
+                        <div key={i} style={{fontSize:12,color:TEXT_D,marginBottom:4,paddingLeft:12,borderLeft:`2px solid ${GOLD}44`}}>· {s.replace(/^[-•·]\s*/,"")}</div>
                       ))}
                     </div>
                   )}
 
-                  {opp.incumbent && <div style={{fontSize:11,color:TEXT_D}}>Incumbent: <span style={{color:ORANGE}}>{opp.incumbent}</span></div>}
-                  <div style={{fontSize:11,color:TEXT_D,marginTop:3}}>Source: {opp.source}</div>
-                </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+                    {/* Why HGI Wins */}
+                    {opp.whyHgiWins && (
+                      <div>
+                        <div style={{fontSize:11,color:GREEN,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>WHY HGI WINS</div>
+                        {(Array.isArray(opp.whyHgiWins)?opp.whyHgiWins:[opp.whyHgiWins]).map((w,i)=>(
+                          <div key={i} style={{fontSize:12,color:TEXT_D,marginBottom:4}}>✓ {w}</div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Key Requirements */}
+                    {opp.keyRequirements && (
+                      <div>
+                        <div style={{fontSize:11,color:ORANGE,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>KEY REQUIREMENTS</div>
+                        <div style={{fontSize:12,color:TEXT_D}}>{opp.keyRequirements}</div>
+                      </div>
+                    )}
+                  </div>
 
-                <div style={{textAlign:"right",flexShrink:0}}>
-                  <div style={{fontSize:32,fontWeight:800,color:opiColor(opp.opiScore||0),marginBottom:2}}>{opp.opiScore||"?"}</div>
-                  <div style={{fontSize:9,color:TEXT_D,letterSpacing:"0.06em",marginBottom:10}}>OPI SCORE</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
-                    <Btn small onClick={()=>sendToWorkflow(opp)} disabled={sendingToWorkflow===opp.id}>
-                      {sendingToWorkflow===opp.id?"⟳ Sending...":"⚡ Send to Workflow"}
+                  {/* Capture Action */}
+                  {opp.captureAction && (
+                    <div style={{marginBottom:12,padding:"8px 12px",background:GOLD+"11",border:`1px solid ${GOLD}33`,borderRadius:4}}>
+                      <div style={{fontSize:11,color:GOLD,fontWeight:700,letterSpacing:"0.08em",marginBottom:4}}>⚡ THIS WEEK ACTION</div>
+                      <div style={{fontSize:12,color:TEXT}}>{opp.captureAction}</div>
+                    </div>
+                  )}
+
+                  {/* Incumbent */}
+                  {opp.incumbent && (
+                    <div style={{fontSize:12,color:TEXT_D,marginBottom:10}}>
+                      Incumbent: <span style={{color:ORANGE,fontWeight:700}}>{opp.incumbent}</span>
+                    </div>
+                  )}
+
+                  {/* Source + Link */}
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12,flexWrap:"wrap"}}>
+                    <div style={{fontSize:11,color:TEXT_D}}>Source: <span style={{color:TEXT}}>{opp.source}</span></div>
+                    {opp.sourceUrl && (
+                      <a href={opp.sourceUrl} target="_blank" rel="noopener noreferrer"
+                        style={{padding:"4px 12px",borderRadius:4,fontSize:11,fontWeight:700,background:BLUE+"22",color:BLUE,border:`1px solid ${BLUE}44`,textDecoration:"none",cursor:"pointer"}}
+                        onClick={e=>e.stopPropagation()}>
+                        🔗 Open Source →
+                      </a>
+                    )}
+                    {/* SAM.gov search fallback */}
+                    {!opp.sourceUrl && opp.source && opp.source.toLowerCase().includes("sam") && (
+                      <a href={`https://sam.gov/search/?keywords=${encodeURIComponent(opp.title)}&index=opp`} target="_blank" rel="noopener noreferrer"
+                        style={{padding:"4px 12px",borderRadius:4,fontSize:11,fontWeight:700,background:BLUE+"22",color:BLUE,border:`1px solid ${BLUE}44`,textDecoration:"none"}}
+                        onClick={e=>e.stopPropagation()}>
+                        🔗 Search SAM.gov →
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <Btn small onClick={(e)=>{e.stopPropagation();sendToWorkflow(opp);}} disabled={sendingToWorkflow===opp.id}>
+                      {sendingToWorkflow===opp.id?"⟳ Sending...":"⚡ Send to Full Workflow"}
                     </Btn>
                     {!opp.savedToTracker
-                      ? <Btn small variant="ghost" onClick={()=>saveToTracker(opp)}>+ Add to Tracker</Btn>
+                      ? <Btn small variant="ghost" onClick={(e)=>{e.stopPropagation();saveToTracker(opp);}}>+ Add to Tracker</Btn>
                       : <Badge color={GREEN}>✓ In Tracker</Badge>
                     }
+                    <Btn small variant="secondary" onClick={(e)=>{e.stopPropagation();setExpandedCard(null);}}>Collapse</Btn>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* Collapsed action buttons */}
+              {!isExpanded && (
+                <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+                  <Btn small onClick={(e)=>{e.stopPropagation();sendToWorkflow(opp);}} disabled={sendingToWorkflow===opp.id}>
+                    {sendingToWorkflow===opp.id?"⟳":"⚡"} Workflow
+                  </Btn>
+                  {!opp.savedToTracker
+                    ? <Btn small variant="ghost" onClick={(e)=>{e.stopPropagation();saveToTracker(opp);}}>+ Track</Btn>
+                    : <Badge color={GREEN}>✓ Tracked</Badge>
+                  }
+                  {opp.sourceUrl && (
+                    <a href={opp.sourceUrl} target="_blank" rel="noopener noreferrer"
+                      style={{padding:"4px 10px",borderRadius:4,fontSize:11,fontWeight:700,background:BLUE+"22",color:BLUE,border:`1px solid ${BLUE}44`,textDecoration:"none"}}
+                      onClick={e=>e.stopPropagation()}>
+                      🔗 Source
+                    </a>
+                  )}
+                </div>
+              )}
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
