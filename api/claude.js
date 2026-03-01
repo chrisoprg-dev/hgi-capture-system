@@ -18,10 +18,8 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body;
-    // Remove web_search tool if present - not supported via proxy on hobby tier
-    if (body.tools) {
-      delete body.tools;
-    }
+    body.max_tokens = 800;
+    if (body.tools) delete body.tools;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
