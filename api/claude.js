@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body;
-    body.max_tokens = 800;
+    body.max_tokens = 400;
     if (body.tools) delete body.tools;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
