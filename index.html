@@ -1261,23 +1261,98 @@ function WeeklyDigest() {
 
 // ── FINANCIAL ANALYSIS & PRICING ─────────────────────────────────────────────
 function FinancialPricing({ sharedCtx={} }) {
-  const LABOR_CATS = ["Program Manager","Deputy PM","Senior Analyst","Analyst","Associate Analyst","Data Specialist","Field Inspector","Administrative Support","IT Specialist","Financial Analyst"];
-  const [activeTab, setActiveTab] = useState("buildup");
+  const LABOR_CATS = ["Program Manager","Deputy PM","Senior Program Manager","Grant Manager","Senior Analyst","Analyst","Associate Analyst","Data Specialist","GIS Specialist","Field Inspector","Case Manager","Housing Specialist","Financial Analyst","Compliance Officer","Quality Assurance","Administrative Support","IT Specialist","Legal/Policy Advisor","Communications Specialist","Training Coordinator"];
+  const [activeTab, setActiveTab] = useState("intelligence");
   const [laborRows, setLaborRows] = useState(() => store.get("laborRows") || [
     {id:1, cat:"Program Manager", hours:2080, rawRate:95, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
     {id:2, cat:"Senior Analyst", hours:2080, rawRate:65, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10},
   ]);
   const [odcs, setOdcs] = useState(() => store.get("odcs") || [{id:1,desc:"Travel",amount:25000},{id:2,desc:"Other Direct Costs",amount:10000}]);
   const [periods, setPeriods] = useState(() => store.get("pricePeriods") || [{id:1,label:"Base Year",months:12,escalation:0},{id:2,label:"Option Year 1",months:12,escalation:3},{id:3,label:"Option Year 2",months:12,escalation:3}]);
-  const [ptw, setPtw] = useState(() => store.get("ptw") || {low:"",mid:"",high:"",strategy:"value"});
   const [costNarrative, setCostNarrative] = useState("");
   const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [scenario, setScenario] = useState({feeAdj:0, laborAdj:0, hoursAdj:0});
 
+  // Price Intelligence Engine state
+  const [intel, setIntel] = useState(() => store.get("priceIntel") || {
+    contractType:"best_value", setAside:"none", pricingWeight:30,
+    incumbent:"", incumbentAdvantage:"unknown",
+    competitors:"ICF, Hagerty, Witt O'Brien's, Dewberry",
+    estimatedValue:"", geography:"Louisiana", contractYears:"3",
+    hgiMarginTarget:12, hgiIncumbent:false,
+    evaluationModel:"best_value", protestRisk:"low"
+  });
+  const [ptwAnalysis, setPtwAnalysis] = useState(() => store.get("ptwAnalysis") || "");
+  const [ptwLoading, setPtwLoading] = useState(false);
+  const [marketRates, setMarketRates] = useState(() => store.get("marketRates") || "");
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [evalModel, setEvalModel] = useState(() => store.get("evalModel") || {priceWeight:30, techWeight:40, pastPerfWeight:20, managementWeight:10});
+  const [evalResult, setEvalResult] = useState(() => store.get("evalResult") || "");
+  const [evalLoading, setEvalLoading] = useState(false);
+  const [recommendedPrice, setRecommendedPrice] = useState(() => store.get("recommendedPrice") || null);
+
+  const saveIntel = (u) => { const n={...intel,...u}; setIntel(n); store.set("priceIntel",n); };
   const saveLR = (rows) => { setLaborRows(rows); store.set("laborRows", rows); };
   const saveODC = (rows) => { setOdcs(rows); store.set("odcs", rows); };
   const savePeriods = (rows) => { setPeriods(rows); store.set("pricePeriods", rows); };
-  const savePTW = (p) => { setPtw(p); store.set("ptw", p); };
+
+  // Auto-populate ALL fields from every data source the system has collected
+  useEffect(() => {
+    const ex = (text, ...fields) => {
+      if (!text) return "";
+      for (const f of fields) {
+        const line = text.split("\n").find(l => l.trim().toLowerCase().startsWith(f.toLowerCase()+":"));
+        if (line) { const v = line.slice(f.length+1).trim(); if (v && !v.toLowerCase().includes("not found") && v.toLowerCase() !== "tbd") return v; }
+      }
+      return "";
+    };
+
+    const decomp = sharedCtx.decomposition || "";
+    const brief = sharedCtx.execBrief || "";
+    const research = sharedCtx.research || "";
+    const wfState = store.get("wfState") || {};
+
+    const updates = {};
+
+    // From decomposition
+    const val = ex(decomp, "Estimated Value","Contract Value","Award Amount","Budget","Total Value");
+    const geo = ex(decomp, "Geography","Place of Performance","State","Location");
+    const period = ex(decomp, "Period of Performance");
+    const pricingType = ex(decomp, "Pricing Type","Contract Type");
+    const incumbent = ex(decomp, "Incumbent","Current Contractor","Existing Contractor");
+
+    if (val && !intel.estimatedValue) updates.estimatedValue = val;
+    if (geo && intel.geography === "Louisiana") updates.geography = geo;
+    if (period) {
+      const yrs = period.match(/(\d+)\s*year/i);
+      if (yrs) updates.contractYears = yrs[1];
+    }
+    if (pricingType) {
+      if (pricingType.toLowerCase().includes("lpta")) updates.evaluationModel = "lpta";
+      if (pricingType.toLowerCase().includes("fixed")) updates.contractType = "ffp";
+      if (pricingType.toLowerCase().includes("best value")) updates.contractType = "best_value";
+    }
+
+    // Extract incumbent from decomp OR wfState
+    const incumbentVal = incumbent || ex(brief, "Incumbent","Current Incumbent") || wfState.incumbent || "";
+    if (incumbentVal && !intel.incumbent) updates.incumbent = incumbentVal;
+
+    // Extract competitors from research analysis — look for competitor mentions
+    if (research && intel.competitors === "ICF, Hagerty, Witt O'Brien's, Dewberry") {
+      const competitorPatterns = ["ICF","Hagerty","Witt","Dewberry","Guidehouse","Tetra Tech","LPA Group","Sikich","Burns & McDonnell","Accenture Federal","Deloitte","KPMG","Navigant","RSM","Baker Tilly","Cloudburst","IEM","Innovative Emergency Management","CDM Smith","Atkins","WSP","Arcadis"];
+      const foundCompetitors = competitorPatterns.filter(c => research.includes(c) || decomp.includes(c) || brief.includes(c));
+      if (foundCompetitors.length > 0) updates.competitors = foundCompetitors.join(", ");
+    }
+
+    // Extract pricing weight from decomposition evaluation criteria
+    const evalSection = decomp.split("\n").find(l => l.toLowerCase().includes("price") && l.toLowerCase().includes("%"));
+    if (evalSection) {
+      const weightMatch = evalSection.match(/(\d+)\s*%/);
+      if (weightMatch) updates.pricingWeight = parseInt(weightMatch[1]);
+    }
+
+    if (Object.keys(updates).length) saveIntel(updates);
+  }, [sharedCtx.decomposition, sharedCtx.execBrief, sharedCtx.research]);
 
   const calcRow = (r, feeAdj=0, laborAdj=0, hoursAdj=0) => {
     const raw = parseFloat(r.rawRate||0) * (1 + laborAdj/100);
@@ -1306,9 +1381,57 @@ function FinancialPricing({ sharedCtx={} }) {
     return t > 0 ? ((t - cost) / t * 100).toFixed(1) : 0;
   };
 
+  const runMarketRates = async () => {
+    setMarketLoading(true);
+    const decomp = sharedCtx.decomposition ? sharedCtx.decomposition.slice(0,1200) : "";
+    const research = sharedCtx.research ? sharedCtx.research.slice(0,1000) : "";
+    const brief = sharedCtx.execBrief ? sharedCtx.execBrief.slice(0,600) : "";
+    const roles = laborRows.map(r => r.cat).join(", ");
+    const prompt = "You are a government contract pricing expert. Analyze current market labor rates for this specific opportunity.\n\nOPPORTUNITY: " + (sharedCtx.title||"Disaster Recovery Grant Management") + "\nAGENCY: " + (sharedCtx.agency||"Louisiana State Agency") + "\nGEOGRAPHY: " + intel.geography + "\nCONTRACT TYPE: " + intel.contractType + "\nSET-ASIDE: " + intel.setAside + "\nESTIMATED VALUE: " + intel.estimatedValue + "\nCONTRACT YEARS: " + intel.contractYears + "\nKNOWN COMPETITORS: " + intel.competitors + "\nINCUMBENT: " + (intel.incumbent||"Unknown") + "\nROLES NEEDED: " + roles + "\n\nRFP DECOMPOSITION:\n" + decomp + "\n\nCOMPETITIVE RESEARCH:\n" + research + "\n\nEXECUTIVE BRIEF CONTEXT:\n" + brief + "\n\nUsing ALL of the above context, provide:\n1. MARKET RATE ANALYSIS — for each role: GSA Schedule range, competitive market range, Louisiana/Gulf Coast locality adjustment, recommended raw rate for HGI\n2. COMPETITOR INDIRECT RATES — based on research intel, model the likely fringe/OH/G&A/fee structure for each identified competitor\n3. GEOGRAPHY & LOCALITY FACTORS — how this specific geography and agency affect rates\n4. SET-ASIDE IMPACT — how " + intel.setAside + " status reshapes the bidder pool\n5. INCUMBENT RATE ADVANTAGE — how " + (intel.incumbent||"the incumbent") + " likely prices given their position\n6. RATE RED FLAGS — specific rates that raise evaluator concerns for this contract type\n7. HGI RATE POSITIONING — exactly where HGI should land on each role to be competitive AND credible";
+    const result = await callClaude(prompt, "You are a senior pricing strategist specializing in government disaster recovery and grants management contracts. Be specific with dollar figures. Reference the research data provided. " + HGI_CONTEXT, 4000);
+    setMarketRates(result);
+    store.set("marketRates", result);
+    setMarketLoading(false);
+  };
+
+  const runPTW = async () => {
+    setPtwLoading(true);
+    const hgiCost = fmt(contractTotal() || totalLabor() + totalODC());
+    const decomp = sharedCtx.decomposition ? sharedCtx.decomposition.slice(0,1000) : "";
+    const execBrief = sharedCtx.execBrief ? sharedCtx.execBrief.slice(0,800) : "";
+    const research = sharedCtx.research ? sharedCtx.research.slice(0,1000) : "";
+    const marketContext = marketRates ? "\n\nMARKET RATE ANALYSIS (already completed):\n" + marketRates.slice(0,800) : "";
+    const prompt = "You are a Price-to-Win expert. Build a comprehensive PTW analysis using ALL available intelligence for this specific opportunity.\n\nOPPORTUNITY: " + (sharedCtx.title||"Disaster Recovery Grant Management") + "\nAGENCY: " + (sharedCtx.agency||"Louisiana Agency") + "\nESTIMATED VALUE: " + intel.estimatedValue + "\nGEOGRAPHY: " + intel.geography + "\nCONTRACT YEARS: " + intel.contractYears + "\nCONTRACT TYPE: " + intel.contractType + "\nEVALUATION MODEL: " + intel.evaluationModel + "\nPRICE WEIGHT: " + evalModel.priceWeight + "%\nSET-ASIDE: " + intel.setAside + "\nINCUMBENT: " + (intel.incumbent||"Unknown") + "\nINCUMBENT ADVANTAGE: " + intel.incumbentAdvantage + "\nHGI IS INCUMBENT: " + intel.hgiIncumbent + "\nIDENTIFIED COMPETITORS: " + intel.competitors + "\nHGI TARGET MARGIN: " + intel.hgiMarginTarget + "%\nHGI CURRENT COST BUILDUP: " + hgiCost + "\nPROTEST RISK TOLERANCE: " + intel.protestRisk + "\n\nRFP DECOMPOSITION:\n" + decomp + "\n\nEXECUTIVE BRIEF:\n" + execBrief + "\n\nCOMPETITIVE RESEARCH INTEL:\n" + research + marketContext + "\n\nUsing ALL of the above intelligence, provide a COMPLETE Price-to-Win analysis:\n\n## 1. LIKELY BIDDER POOL\nBased on research and contract characteristics, identify ALL likely bidders for THIS specific opportunity (not generic — use the research data to determine who is active in this market, this agency, and this contract type). Include small businesses if set-aside applies.\n\n## 2. COMPETITOR-BY-COMPETITOR PRICING MODEL\nFor each likely bidder: estimated bid range, known indirect rate structure, incumbent/relationship advantage, likely pricing strategy, and HGI head-to-head assessment\n\n## 3. INCUMBENT ANALYSIS\nDetailed analysis of " + (intel.incumbent||"the incumbent") + ": pricing advantage, re-bid strategy, relationship equity, agency satisfaction signals from research\n\n## 4. EVALUATION SCORE MODELING\nWith price weighted at " + evalModel.priceWeight + "%:\n- Show HGI's evaluated score at aggressive / value / premium price points\n- Model competitor evaluated scores\n- Identify the price crossover point where HGI wins on total evaluated score\n\n## 5. PRICE SENSITIVITY ANALYSIS\n- Impact of each $100K change on win probability\n- Price floor (protest risk threshold)\n- Price ceiling (losing on price to competitors)\n\n## 6. HGI WIN PRICE RECOMMENDATION\nThree specific dollar scenarios:\n- AGGRESSIVE: exact price, win probability %, margin %, risk\n- VALUE: exact price, win probability %, margin % — RECOMMENDED\n- PREMIUM: exact price, win probability %, justification required\n\n## 7. PRICING STRATEGY NARRATIVE\nThe specific strategy HGI should execute, referencing HGI's past performance advantages (Road Home, BP GCCF, Jefferson Parish) as justification for premium positioning if applicable\n\n## 8. RED FLAGS & RISKS";
+    const result = await callClaude(prompt, "You are a senior PTW analyst with 20 years in government contracting. Be specific with dollar amounts, percentages, and competitor names. Use all research data provided. " + HGI_CONTEXT, 4000);
+    setPtwAnalysis(result);
+    store.set("ptwAnalysis", result);
+
+    // Extract recommended price
+    const priceMatch = result.match(/VALUE[^$]*\$([\d,]+)/i);
+    if (priceMatch) {
+      const p = parseInt(priceMatch[1].replace(/,/g,""));
+      if (p > 100000) { setRecommendedPrice(p); store.set("recommendedPrice", p); }
+    }
+    setPtwLoading(false);
+  };
+
+  const runEvalModel = async () => {
+    setEvalLoading(true);
+    const total = evalModel.priceWeight + evalModel.techWeight + evalModel.pastPerfWeight + evalModel.managementWeight;
+    const prompt = "Model the evaluation scoring for HGI on this opportunity.\n\nEVALUATION CRITERIA WEIGHTS:\nPrice: " + evalModel.priceWeight + "%\nTechnical: " + evalModel.techWeight + "%\nPast Performance: " + evalModel.pastPerfWeight + "%\nManagement: " + evalModel.managementWeight + "%" + (total !== 100 ? "\nNOTE: weights sum to " + total + "% — adjust analysis accordingly" : "") + "\n\nOPPORTUNITY: " + (sharedCtx.title||"Disaster Recovery") + "\nAGENCY: " + (sharedCtx.agency||"Louisiana Agency") + "\nHGI COST BUILDUP: " + fmt(contractTotal()) + "\nCOMPETITORS: " + intel.competitors + "\n\nProvide:\n1. TECHNICAL SCORE — HGI likely score (0-100) with reasoning based on our past performance\n2. PAST PERFORMANCE SCORE — HGI likely score with reasoning (Road Home, BP, PBGC, Jefferson Parish)\n3. MANAGEMENT SCORE — HGI likely score with reasoning\n4. PRICE SCORING — how price is typically scored (lowest price gets 100, others scored proportionally)\n5. TOTAL EVALUATED SCORE — HGI's projected total vs competitors at each price scenario\n6. SWING ANALYSIS — which evaluation factor has the most impact on HGI's win probability\n7. RECOMMENDATIONS — specific actions to improve each score before submission";
+    const result = await callClaude(prompt, "You are a government proposal evaluator and capture strategist. " + HGI_CONTEXT, 3000);
+    setEvalResult(result);
+    store.set("evalResult", result);
+    setEvalLoading(false);
+  };
+
   const generateNarrative = async () => {
     setNarrativeLoading(true);
-    const txt = await callClaude("Write a professional Cost Proposal Narrative for HGI.\nTotal Contract Value: " + fmt(contractTotal()) + "\nBase Year: " + fmt(periodTotal(periods[0],0)) + "\nLabor: " + laborRows.map(r => r.cat + " — " + fmt(calcRow(r).total)).join(", ") + "\nODCs: " + fmt(totalODC()) + "\nProfit Margin: " + profitMargin() + "%\n\nWrite a complete cost narrative: pricing methodology, labor rate justification, ODC explanation, cost realism. Professional government proposal tone.", "You are a cost proposal specialist for HGI.", 2000);
+    const ptwContext = ptwAnalysis ? "\n\nPTW ANALYSIS CONTEXT:\n" + ptwAnalysis.slice(0,600) : "";
+    const txt = await callClaude(
+      "Write a professional, submission-ready Cost Proposal Narrative for HGI.\n\nCONTRACT: " + (sharedCtx.title||"Disaster Recovery Grant Management") + "\nAGENCY: " + (sharedCtx.agency||"Louisiana Agency") + "\nTotal Contract Value: " + fmt(contractTotal()) + "\nBase Year: " + fmt(periodTotal(periods[0],0)) + "\nContract Type: " + intel.contractType + "\nLabor Categories: " + laborRows.map(r => r.cat + " — " + fmt(calcRow(r).total)).join(", ") + "\nODCs: " + fmt(totalODC()) + "\nProfit Margin: " + profitMargin() + "%\nGeography: " + intel.geography + ptwContext + "\n\nWrite a complete cost narrative (800+ words) covering:\n1. Pricing Methodology\n2. Labor Rate Justification — reference GSA schedules and market comparables\n3. Indirect Rate Explanation and reasonableness\n4. ODC Justification\n5. Cost Realism — why HGI's price is realistic and deliverable\n6. Value Proposition — what the agency gets for this price\n7. Fee Reasonableness\n\nTone: professional government proposal. Do not use placeholders.",
+      "You are a cost proposal writer specializing in disaster recovery government contracts. " + HGI_CONTEXT, 3000
+    );
     setCostNarrative(txt);
     setNarrativeLoading(false);
   };
@@ -1317,26 +1440,173 @@ function FinancialPricing({ sharedCtx={} }) {
   const updateLR = (id, field, val) => saveLR(laborRows.map(r => r.id===id ? {...r,[field]:val} : r));
   const removeLR = (id) => saveLR(laborRows.filter(r => r.id!==id));
 
-  const TABS = [{id:"buildup",label:"Cost Buildup"},{id:"periods",label:"Period Pricing"},{id:"ptw",label:"Price to Win"},{id:"scenario",label:"Scenario Modeling"},{id:"narrative",label:"Cost Narrative"}];
+  const TABS = [
+    {id:"intelligence",label:"⚡ Price Intelligence"},
+    {id:"buildup",label:"Cost Buildup"},
+    {id:"periods",label:"Period Pricing"},
+    {id:"evaluation",label:"Eval Score Model"},
+    {id:"scenario",label:"Scenario Modeling"},
+    {id:"narrative",label:"Cost Narrative"},
+  ];
 
   return (
     <div>
-      <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
-      <p style={{color:TEXT_D,margin:"0 0 16px",fontSize:12}}>Cost buildup · Period pricing · Price-to-win · Scenario modeling · Cost narrative</p>
-      <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
-        {[["Base Year",fmt(periodTotal(periods[0],0)),GOLD],["Contract Total",fmt(contractTotal()),GREEN],["Profit Margin",profitMargin()+"%",profitMargin()>10?GREEN:ORANGE],["Labor",fmt(totalLabor()),TEXT_D],["ODCs",fmt(totalODC()),TEXT_D]].map(([l,v,c])=>(
-          <div key={l} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:"12px 16px",flex:1,minWidth:120}}>
-            <div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div>
-            <div style={{fontSize:11,color:TEXT_D}}>{l}</div>
+      <div style={{marginBottom:4}}>
+        <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
+        <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>Price Intelligence Engine · Cost Buildup · PTW · Evaluation Modeling · Cost Narrative</p>
+      </div>
+
+      {sharedCtx.title && (
+        <div style={{marginBottom:12,padding:"8px 12px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
+          ✓ Loaded: <strong>{sharedCtx.title}</strong>{sharedCtx.agency ? " — " + sharedCtx.agency : ""}
+          {intel.estimatedValue ? <span style={{marginLeft:12,color:GOLD}}>Est. Value: {intel.estimatedValue}</span> : ""}
+        </div>
+      )}
+
+      {/* Summary Stats */}
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+        {[
+          ["Base Year", fmt(periodTotal(periods[0],0)), GOLD],
+          ["Contract Total", fmt(contractTotal()), GREEN],
+          ["Profit Margin", profitMargin()+"%", parseFloat(profitMargin())>=intel.hgiMarginTarget?GREEN:ORANGE],
+          ["Labor Total", fmt(totalLabor()), TEXT_D],
+          ["ODCs", fmt(totalODC()), TEXT_D],
+          ["Recommended", recommendedPrice ? fmt(recommendedPrice) : "Run PTW →", recommendedPrice?BLUE:TEXT_D],
+        ].map(([l,v,c])=>(
+          <div key={l} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:"10px 14px",flex:1,minWidth:110}}>
+            <div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div>
+            <div style={{fontSize:10,color:TEXT_D,letterSpacing:"0.06em"}}>{l}</div>
           </div>
         ))}
       </div>
-      <div style={{display:"flex",gap:4,marginBottom:16,borderBottom:`1px solid ${BORDER}`,paddingBottom:8}}>
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:16,borderBottom:`1px solid ${BORDER}`,paddingBottom:8,flexWrap:"wrap"}}>
         {TABS.map(t=>(
           <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{padding:"6px 14px",borderRadius:4,fontSize:12,cursor:"pointer",fontFamily:"inherit",border:"none",background:activeTab===t.id?GOLD:BG3,color:activeTab===t.id?"#000":TEXT_D,fontWeight:activeTab===t.id?700:400}}>{t.label}</button>
         ))}
       </div>
 
+      {/* ── PRICE INTELLIGENCE ENGINE ── */}
+      {activeTab === "intelligence" && (
+        <div>
+          <Card style={{marginBottom:16,border:`1px solid ${GOLD}44`}}>
+            <div style={{color:GOLD,fontWeight:700,fontSize:14,marginBottom:4}}>PRICE INTELLIGENCE ENGINE</div>
+            <div style={{color:TEXT_D,fontSize:12,marginBottom:16}}>Configure all pricing factors — the system analyzes competitors, evaluation scoring, market rates, and calculates your optimal win price</div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+              <div>
+                <Label text="CONTRACT TYPE" />
+                <Sel value={intel.contractType} onChange={v=>saveIntel({contractType:v})} options={[
+                  {value:"best_value",label:"Best Value — Tradeoff"},
+                  {value:"lpta",label:"LPTA — Lowest Price Technically Acceptable"},
+                  {value:"ssa",label:"Source Selection — Subjective"},
+                  {value:"ffp",label:"Firm Fixed Price"},
+                  {value:"t_and_m",label:"Time & Materials"},
+                  {value:"cost_plus",label:"Cost Plus Fixed Fee"},
+                ]} style={{width:"100%"}} />
+              </div>
+              <div>
+                <Label text="SET-ASIDE STATUS" />
+                <Sel value={intel.setAside} onChange={v=>saveIntel({setAside:v})} options={[
+                  {value:"none",label:"Full & Open Competition"},
+                  {value:"8a",label:"8(a) Set-Aside"},
+                  {value:"sdvosb",label:"SDVOSB Set-Aside"},
+                  {value:"hubzone",label:"HUBZone Set-Aside"},
+                  {value:"wosb",label:"WOSB Set-Aside"},
+                  {value:"sb",label:"Small Business Set-Aside"},
+                ]} style={{width:"100%"}} />
+              </div>
+              <div>
+                <Label text="PRICE WEIGHT IN EVALUATION (%)" />
+                <Input value={intel.pricingWeight} onChange={v=>saveIntel({pricingWeight:v})} placeholder="e.g. 30" />
+              </div>
+              <div>
+                <Label text="ESTIMATED CONTRACT VALUE" />
+                <Input value={intel.estimatedValue} onChange={v=>saveIntel({estimatedValue:v})} placeholder="e.g. $8,500,000" />
+              </div>
+              <div>
+                <Label text="CONTRACT YEARS" />
+                <Input value={intel.contractYears} onChange={v=>saveIntel({contractYears:v})} placeholder="e.g. 3 (1 base + 2 options)" />
+              </div>
+              <div>
+                <Label text="GEOGRAPHY / LOCALITY" />
+                <Input value={intel.geography} onChange={v=>saveIntel({geography:v})} placeholder="e.g. Louisiana, Baton Rouge" />
+              </div>
+              <div>
+                <Label text="KNOWN INCUMBENT" />
+                <Input value={intel.incumbent} onChange={v=>saveIntel({incumbent:v})} placeholder="ICF / None / Unknown" />
+              </div>
+              <div>
+                <Label text="INCUMBENT ADVANTAGE" />
+                <Sel value={intel.incumbentAdvantage} onChange={v=>saveIntel({incumbentAdvantage:v})} options={[
+                  {value:"unknown",label:"Unknown"},
+                  {value:"strong",label:"Strong — entrenched, agency loves them"},
+                  {value:"moderate",label:"Moderate — performing okay"},
+                  {value:"weak",label:"Weak — agency dissatisfied"},
+                  {value:"none",label:"No Incumbent"},
+                ]} style={{width:"100%"}} />
+              </div>
+              <div>
+                <Label text="HGI IS INCUMBENT?" />
+                <Sel value={intel.hgiIncumbent?"yes":"no"} onChange={v=>saveIntel({hgiIncumbent:v==="yes"})} options={[{value:"no",label:"No"},{value:"yes",label:"Yes — HGI is incumbent"}]} style={{width:"100%"}} />
+              </div>
+            </div>
+
+            <div style={{marginBottom:12}}>
+              <Label text="KNOWN COMPETITORS" />
+              <Input value={intel.competitors} onChange={v=>saveIntel({competitors:v})} placeholder="ICF, Hagerty, Witt O'Brien's, Dewberry..." />
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+              <div>
+                <Label text="HGI TARGET PROFIT MARGIN (%)" />
+                <input type="range" min={5} max={25} value={intel.hgiMarginTarget} onChange={e=>saveIntel({hgiMarginTarget:parseInt(e.target.value)})} style={{width:"100%",accentColor:GOLD,marginBottom:4}} />
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:TEXT_D}}>
+                  <span>5%</span><span style={{color:GOLD,fontWeight:700}}>{intel.hgiMarginTarget}% target</span><span>25%</span>
+                </div>
+              </div>
+              <div>
+                <Label text="PROTEST RISK TOLERANCE" />
+                <Sel value={intel.protestRisk} onChange={v=>saveIntel({protestRisk:v})} options={[
+                  {value:"low",label:"Low — stay well above floor"},
+                  {value:"moderate",label:"Moderate — competitive but defensible"},
+                  {value:"aggressive",label:"Aggressive — willing to push limits"},
+                ]} style={{width:"100%"}} />
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <Btn onClick={runMarketRates} disabled={marketLoading}>
+                {marketLoading ? "⟳ Analyzing Market Rates..." : "1. Analyze Market Rates"}
+              </Btn>
+              <Btn onClick={runPTW} disabled={ptwLoading}>
+                {ptwLoading ? "⟳ Running PTW Analysis..." : "2. Run Full PTW Analysis"}
+              </Btn>
+            </div>
+          </Card>
+
+          {(marketLoading || marketRates) && (
+            <div style={{marginBottom:16}}>
+              <AIOut content={marketRates} loading={marketLoading} label="MARKET RATE ANALYSIS" />
+            </div>
+          )}
+
+          {(ptwLoading || ptwAnalysis) && (
+            <AIOut content={ptwAnalysis} loading={ptwLoading} label="PRICE-TO-WIN ANALYSIS" />
+          )}
+
+          {recommendedPrice && !ptwLoading && (
+            <Card style={{marginTop:16,border:`1px solid ${BLUE}44`,background:BLUE+"11`"}}>
+              <div style={{color:BLUE,fontWeight:700,fontSize:13,marginBottom:8}}>⚡ SYSTEM RECOMMENDED WIN PRICE</div>
+              <div style={{fontSize:32,fontWeight:800,color:BLUE,marginBottom:4}}>{fmt(recommendedPrice)}</div>
+              <div style={{color:TEXT_D,fontSize:12}}>Value scenario — best balance of win probability and margin. See full PTW analysis above for aggressive and premium alternatives.</div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* ── COST BUILDUP ── */}
       {activeTab === "buildup" && (
         <Card>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -1376,7 +1646,7 @@ function FinancialPricing({ sharedCtx={} }) {
                 })}
               </tbody>
               <tfoot>
-                <tr><td colSpan={8} style={{padding:"8px 8px",color:TEXT_D,fontSize:11,fontWeight:700}}>LABOR SUBTOTAL</td><td style={{padding:"8px 8px",color:GOLD,fontSize:13,fontWeight:700}}>{fmt(totalLabor())}</td><td></td></tr>
+                <tr><td colSpan={8} style={{padding:"8px",color:TEXT_D,fontSize:11,fontWeight:700}}>LABOR SUBTOTAL</td><td style={{padding:"8px",color:GOLD,fontSize:13,fontWeight:700}}>{fmt(totalLabor())}</td><td></td></tr>
               </tfoot>
             </table>
           </div>
@@ -1385,7 +1655,7 @@ function FinancialPricing({ sharedCtx={} }) {
             {odcs.map(o=>(
               <div key={o.id} style={{display:"flex",gap:8,marginBottom:6,alignItems:"center"}}>
                 <input value={o.desc} onChange={e=>saveODC(odcs.map(x=>x.id===o.id?{...x,desc:e.target.value}:x))} placeholder="Description" style={{flex:1,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"4px 8px"}} />
-                <input type="number" value={o.amount} onChange={e=>saveODC(odcs.map(x=>x.id===o.id?{...x,amount:e.target.value}:x))} style={{width:100,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"4px 8px"}} />
+                <input type="number" value={o.amount} onChange={e=>saveODC(odcs.map(x=>x.id===o.id?{...x,amount:e.target.value}:x))} style={{width:110,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:11,padding:"4px 8px"}} />
                 <span style={{color:GREEN,fontSize:11,minWidth:80}}>{fmt(parseFloat(o.amount||0))}</span>
                 <button onClick={()=>saveODC(odcs.filter(x=>x.id!==o.id))} style={{background:"none",border:"none",color:RED,cursor:"pointer"}}>×</button>
               </div>
@@ -1399,15 +1669,16 @@ function FinancialPricing({ sharedCtx={} }) {
         </Card>
       )}
 
+      {/* ── PERIOD PRICING ── */}
       {activeTab === "periods" && (
         <Card>
           <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>PERIOD OF PERFORMANCE PRICING</div>
           {periods.map((p,i)=>(
             <div key={p.id} style={{display:"flex",gap:10,marginBottom:8,alignItems:"center",padding:"10px 12px",background:BG3,borderRadius:4}}>
               <input value={p.label} onChange={e=>savePeriods(periods.map(x=>x.id===p.id?{...x,label:e.target.value}:x))} style={{flex:1,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:12,padding:"4px 8px"}} />
-              <div style={{fontSize:11,color:TEXT_D}}>Months:</div>
+              <span style={{fontSize:11,color:TEXT_D}}>Months:</span>
               <input type="number" value={p.months} onChange={e=>savePeriods(periods.map(x=>x.id===p.id?{...x,months:e.target.value}:x))} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:12,padding:"4px 8px"}} />
-              <div style={{fontSize:11,color:TEXT_D}}>Escalation %:</div>
+              <span style={{fontSize:11,color:TEXT_D}}>Escalation %:</span>
               <input type="number" value={p.escalation} onChange={e=>savePeriods(periods.map(x=>x.id===p.id?{...x,escalation:e.target.value}:x))} style={{width:50,background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:12,padding:"4px 8px"}} />
               <span style={{color:GOLD,fontWeight:700,minWidth:100,textAlign:"right"}}>{fmt(periodTotal(p,i))}</span>
               <button onClick={()=>savePeriods(periods.filter(x=>x.id!==p.id))} style={{background:"none",border:"none",color:RED,cursor:"pointer"}}>×</button>
@@ -1420,38 +1691,41 @@ function FinancialPricing({ sharedCtx={} }) {
         </Card>
       )}
 
-      {activeTab === "ptw" && (
-        <Card>
-          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>PRICE-TO-WIN ANALYSIS</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
-            <div><Label text="COMPETITOR LOW ($)" /><Input value={ptw.low} onChange={v=>savePTW({...ptw,low:v})} placeholder="e.g. 4500000" /></div>
-            <div><Label text="COMPETITOR MID ($)" /><Input value={ptw.mid} onChange={v=>savePTW({...ptw,mid:v})} placeholder="e.g. 5200000" /></div>
-            <div><Label text="COMPETITOR HIGH ($)" /><Input value={ptw.high} onChange={v=>savePTW({...ptw,high:v})} placeholder="e.g. 6100000" /></div>
-          </div>
-          <div style={{marginBottom:16}}>
-            <Label text="PRICING STRATEGY" />
-            <Sel value={ptw.strategy} onChange={v=>savePTW({...ptw,strategy:v})} options={[{value:"aggressive",label:"Aggressive — come in low to win"},{value:"value",label:"Value — competitive with strong narrative"},{value:"premium",label:"Premium — highest quality justified"}]} style={{width:"100%"}} />
-          </div>
-          {ptw.mid && (
-            <div style={{padding:16,background:BG3,borderRadius:4,border:`1px solid ${GOLD}44`}}>
-              <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:8}}>HGI RECOMMENDED PRICE</div>
-              {[
-                ["Aggressive",fmt(parseFloat(ptw.low||0)*0.97),RED,"Risk: may be below cost"],
-                ["Value",fmt((parseFloat(ptw.low||0)+parseFloat(ptw.mid||0))/2*0.99),GOLD,"Best balance of win probability and margin"],
-                ["Premium",fmt(parseFloat(ptw.mid||0)*1.02),GREEN,"Justified if past performance is strong"],
-              ].map(([label,val,color,note])=>(
-                <div key={label} style={{display:"flex",gap:12,alignItems:"center",marginBottom:8,padding:"8px 12px",background:ptw.strategy===label.toLowerCase()?color+"22":"transparent",borderRadius:4,border:`1px solid ${ptw.strategy===label.toLowerCase()?color:BORDER}`}}>
-                  <span style={{color,fontWeight:700,minWidth:80}}>{label}</span>
-                  <span style={{color:TEXT,fontWeight:700,fontSize:16}}>{val}</span>
-                  <span style={{color:TEXT_D,fontSize:11}}>{note}</span>
-                  {ptw.strategy===label.toLowerCase() && <Badge color={color}>SELECTED</Badge>}
+      {/* ── EVALUATION SCORE MODEL ── */}
+      {activeTab === "evaluation" && (
+        <div>
+          <Card style={{marginBottom:16}}>
+            <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>EVALUATION CRITERIA WEIGHTS</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+              {[["priceWeight","PRICE / COST"],["techWeight","TECHNICAL APPROACH"],["pastPerfWeight","PAST PERFORMANCE"],["managementWeight","MANAGEMENT"]].map(([key,label])=>(
+                <div key={key}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <Label text={label} />
+                    <span style={{color:GOLD,fontSize:12,fontWeight:700}}>{evalModel[key]}%</span>
+                  </div>
+                  <input type="range" min={0} max={60} value={evalModel[key]}
+                    onChange={e=>{const n={...evalModel,[key]:parseInt(e.target.value)};setEvalModel(n);store.set("evalModel",n);}}
+                    style={{width:"100%",accentColor:GOLD}} />
                 </div>
               ))}
             </div>
-          )}
-        </Card>
+            <div style={{padding:"8px 12px",background:BG3,borderRadius:4,marginBottom:12,fontSize:12}}>
+              <span style={{color:TEXT_D}}>Total Weight: </span>
+              <span style={{color:(evalModel.priceWeight+evalModel.techWeight+evalModel.pastPerfWeight+evalModel.managementWeight)===100?GREEN:RED,fontWeight:700}}>
+                {evalModel.priceWeight+evalModel.techWeight+evalModel.pastPerfWeight+evalModel.managementWeight}%
+              </span>
+              {(evalModel.priceWeight+evalModel.techWeight+evalModel.pastPerfWeight+evalModel.managementWeight)!==100 &&
+                <span style={{color:RED,marginLeft:8}}>⚠ Should equal 100%</span>}
+            </div>
+            <Btn onClick={runEvalModel} disabled={evalLoading}>
+              {evalLoading ? "⟳ Modeling Evaluation Scores..." : "Model HGI Evaluation Scores"}
+            </Btn>
+          </Card>
+          {(evalLoading || evalResult) && <AIOut content={evalResult} loading={evalLoading} label="EVALUATION SCORE MODEL" />}
+        </div>
       )}
 
+      {/* ── SCENARIO MODELING ── */}
       {activeTab === "scenario" && (
         <Card>
           <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>SCENARIO MODELING</div>
@@ -1459,38 +1733,36 @@ function FinancialPricing({ sharedCtx={} }) {
             {[["Fee Adjustment (%)", "feeAdj", -5, 5],["Labor Rate Adjustment (%)", "laborAdj", -20, 20],["Hours Adjustment (%)", "hoursAdj", -30, 30]].map(([label, key, min, max])=>(
               <div key={key}>
                 <Label text={label.toUpperCase()} />
-                <input type="range" min={min} max={max} value={scenario[key]} onChange={e=>setScenario(s=>({...s,[key]:parseInt(e.target.value)}))} style={{width:"100%",marginBottom:4}} />
+                <input type="range" min={min} max={max} value={scenario[key]} onChange={e=>setScenario(s=>({...s,[key]:parseInt(e.target.value)}))} style={{width:"100%",marginBottom:4,accentColor:GOLD}} />
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:TEXT_D}}>
-                  <span>{min}%</span><span style={{color:GOLD,fontWeight:700}}>{scenario[key]>0?"+":""}{scenario[key]}%</span><span>{max}%</span>
+                  <span>{min}%</span><span style={{color:GOLD,fontWeight:700}}>{scenario[key]>0?"+":""}{scenario[key]}%</span><span>+{max}%</span>
                 </div>
               </div>
             ))}
           </div>
-          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-            <div style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${BORDER}`}}>
-              <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>Base Scenario</div>
-              <div style={{color:TEXT,fontSize:22,fontWeight:800}}>{fmt(totalLabor()+totalODC())}</div>
-            </div>
-            <div style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${GOLD}44`}}>
-              <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>Adjusted Scenario</div>
-              <div style={{color:GOLD,fontSize:22,fontWeight:800}}>{fmt(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)+totalODC())}</div>
-            </div>
-            <div style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${GREEN}44`}}>
-              <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>Delta</div>
-              <div style={{fontSize:22,fontWeight:800,color:(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor())>=0?GOLD:GREEN}}>
-                {(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor())>=0?"+":""}{fmt(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor())}
+          <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
+            {[["Base",fmt(totalLabor()+totalODC()),TEXT,BORDER],["Adjusted",fmt(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)+totalODC()),GOLD,GOLD+"44"],["Delta",(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor())>=0?"+"+fmt(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor()):fmt(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor()),(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)-totalLabor())>=0?ORANGE:GREEN,GREEN+"44"]].map(([l,v,c,b])=>(
+              <div key={l} style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${b}`}}>
+                <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>{l}</div>
+                <div style={{color:c,fontSize:22,fontWeight:800}}>{v}</div>
               </div>
-            </div>
+            ))}
+            {recommendedPrice && <div style={{flex:1,padding:16,background:BG3,borderRadius:4,border:`1px solid ${BLUE}44`}}>
+              <div style={{color:TEXT_D,fontSize:11,marginBottom:4}}>Gap to Win Price</div>
+              <div style={{color:BLUE,fontSize:22,fontWeight:800}}>{fmt(recommendedPrice-(totalLabor(scenario.feeAdj,scenario.laborAdj,scenario.hoursAdj)+totalODC()))}</div>
+            </div>}
           </div>
-          <Btn small variant="ghost" onClick={()=>setScenario({feeAdj:0,laborAdj:0,hoursAdj:0})} style={{marginTop:12}}>Reset to Base</Btn>
+          <Btn small variant="ghost" onClick={()=>setScenario({feeAdj:0,laborAdj:0,hoursAdj:0})}>Reset to Base</Btn>
         </Card>
       )}
 
+      {/* ── COST NARRATIVE ── */}
       {activeTab === "narrative" && (
         <div>
           <Card style={{marginBottom:16}}>
-            <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:8}}>COST PROPOSAL NARRATIVE GENERATOR</div>
-            <Btn onClick={generateNarrative} disabled={narrativeLoading}>{narrativeLoading?"Generating...":"Generate Cost Narrative"}</Btn>
+            <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:4}}>COST PROPOSAL NARRATIVE</div>
+            <div style={{color:TEXT_D,fontSize:12,marginBottom:12}}>Generates a complete, submission-ready cost narrative using your buildup, PTW analysis, and contract context</div>
+            <Btn onClick={generateNarrative} disabled={narrativeLoading}>{narrativeLoading?"⟳ Writing Cost Narrative...":"Generate Cost Narrative"}</Btn>
           </Card>
           {(narrativeLoading||costNarrative) && <AIOut content={costNarrative} loading={narrativeLoading} label="COST PROPOSAL NARRATIVE" />}
         </div>
