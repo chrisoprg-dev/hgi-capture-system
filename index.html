@@ -31,10 +31,10 @@ const store = {
   set(k,v){try{localStorage.setItem('hgi_'+k,JSON.stringify(v))}catch{}}
 };
 
-async function callClaude(prompt, system) {
+async function callClaude(prompt, system, maxTokens=3000) {
   const body = {
     model: "claude-sonnet-4-20250514",
-    max_tokens: 4000,
+    max_tokens: maxTokens,
     system: system || "You are an expert government contracting capture manager for HGI. " + HGI_CONTEXT,
     messages: [{ role: "user", content: prompt }]
   };
@@ -106,15 +106,20 @@ const OPIBadge = ({score}) => {
 
 // ── FULL WORKFLOW ─────────────────────────────────────────────────────────────
 function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} }) {
-  const [title, setTitle] = useState("");
-  const [agency, setAgency] = useState("");
-  const [rfpUrl, setRfpUrl] = useState("");
-  const [incumbent, setIncumbent] = useState("");
-  const [intel, setIntel] = useState("");
-  const [rfpText, setRfpText] = useState("");
-  const [fileName, setFileName] = useState("");
+  const wfStore = store.get("wfState") || {};
+  const [title, setTitle] = useState(wfStore.title || "");
+  const [agency, setAgency] = useState(wfStore.agency || "");
+  const [rfpUrl, setRfpUrl] = useState(wfStore.rfpUrl || "");
+  const [incumbent, setIncumbent] = useState(wfStore.incumbent || "");
+  const [intel, setIntel] = useState(wfStore.intel || "");
+  const [rfpText, setRfpText] = useState(wfStore.rfpText || "");
+  const [fileName, setFileName] = useState(wfStore.fileName || "");
   const [fileLoading, setFileLoading] = useState(false);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(wfStore.step || 0);
+
+  const persistWF = (updates) => {
+    store.set("wfState", {...(store.get("wfState")||{}), ...updates});
+  };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -161,11 +166,11 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
       setFileLoading(false);
     }
   };
-  const [outA, setOutA] = useState("");
-  const [outB, setOutB] = useState("");
+  const [outA, setOutA] = useState(wfStore.outA || "");
+  const [outB, setOutB] = useState(wfStore.outB || "");
   const [outC, setOutC] = useState("");
-  const [decision, setDecision] = useState("");
-  const [opi, setOpi] = useState(null);
+  const [decision, setDecision] = useState(wfStore.decision || "");
+  const [opi, setOpi] = useState(wfStore.opi || null);
   const [tab, setTab] = useState("a");
   const [loadingStep, setLoadingStep] = useState(0);
 
@@ -208,14 +213,27 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
     const rIn = rfpText || "Title: " + title + "\nAgency: " + agency + "\nContext: " + intel;
     const sys = "You are an expert capture manager for HGI (Hammerman & Gainer). " + HGI_CONTEXT + " Extract solicitation requirements precisely. Mark missing info as Not Found in Provided Text.";
     const a = await callClaude(buildPromptA(rIn), sys);
+    stopTimer(t1); setElapsed(0);
     setOutA(a); setLoadingStep(0); setStep(2);
-    // Save to shared context for other modules
+    persistWF({ outA: a, step: 2, title, agency, rfpText: rIn, rfpUrl, incumbent, intel });
     saveSharedCtx({ rfpText: rIn, decomposition: a, title, agency });
-    // Auto-trigger background research using extracted agency/context
     autoResearch(a, title, agency);
+    autoWinnability(a, title, agency);
+    autoBenchPull(a);
   };
 
   const [researchStatus, setResearchStatus] = useState("");
+  const [winStatus, setWinStatus] = useState("");
+  const [elapsed, setElapsed] = useState(0);
+  const [timerRef, setTimerRef] = useState(null);
+
+  const startTimer = () => {
+    setElapsed(0);
+    const ref = setInterval(() => setElapsed(e => e + 1), 1000);
+    setTimerRef(ref);
+    return ref;
+  };
+  const stopTimer = (ref) => { if(ref) clearInterval(ref); };
 
   const autoResearch = async (decomp, oppTitle, oppAgency) => {
     const agencyLine = decomp.split("\n").find(l => l.match(/^Agency:/i));
@@ -237,38 +255,69 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
     }
   };
 
+  // 2. AUTO-WINNABILITY: fires after Step 1, feeds into Step 2
+  const autoWinnability = async (decomp, oppTitle, oppAgency) => {
+    setWinStatus("Scoring winnability...");
+    try {
+      const prompt = "Score this opportunity for HGI on a 0-100 OPI scale.\n\nRFP DECOMPOSITION:\n" + decomp.slice(0,1500) + "\n\nReturn ONLY this format:\nOPI Score: [number]\nPwin: [number]%\nTop 3 Win Factors: [bullets]\nTop 3 Risk Factors: [bullets]\nCompetitive Position: [1 sentence]";
+      const r = await callClaude(prompt, "You are a capture scoring expert for HGI. Score objectively based on HGI past performance and capabilities. " + HGI_CONTEXT, 800);
+      saveSharedCtx({ winnabilityScore: r });
+      setWinStatus("Winnability scored");
+    } catch(e) {
+      setWinStatus("");
+    }
+  };
+
+  // 3. AUTO-BENCH PULL: extracts staffing requirements and saves for Recruiting module
+  const autoBenchPull = (decomp) => {
+    const lines = decomp.split("\n");
+    const staffStart = lines.findIndex(l => l.match(/staffing|key personnel|labor categor/i));
+    if (staffStart > -1) {
+      const staffSection = lines.slice(staffStart, staffStart + 20).join("\n");
+      saveSharedCtx({ staffingRequirements: staffSection });
+    }
+  };
+
   const runB = async () => {
     setStep(2); setLoadingStep(2);
+    const t2 = startTimer();
     const researchBlock = sharedCtx.research ? "\n\nCOMPETITIVE RESEARCH:\n" + sharedCtx.research.slice(0, 1200) : "";
     const ctx = "Title: " + title + "\nAgency: " + agency + "\nIncumbent: " + (incumbent || "Unknown") + "\nIntel: " + intel + "\nURL: " + rfpUrl + researchBlock;
     const sys = "You are a senior capture executive for HGI. Be analytical, decisive, specific. " + HGI_CONTEXT;
     const b = await callClaude(buildPromptB(outA, ctx), sys);
     setOutB(b);
-    setDecision(extractDecision(b));
-    setOpi(extractOPI(b));
+    const dec = extractDecision(b);
+    const opiVal = extractOPI(b);
+    setDecision(dec);
+    setOpi(opiVal);
+    stopTimer(t2); setElapsed(0);
     setLoadingStep(0); setStep(3);
+    persistWF({ outB: b, step: 3, decision: dec, opi: opiVal });
     saveSharedCtx({ execBrief: b });
   };
 
-  const runC = async () => {
-    setStep(3); setLoadingStep(3);
-    const sys = "You are a proposal production engine for HGI. Write to win. " + HGI_CONTEXT;
-    const c = await callClaude(buildPromptC(outA, outB), sys);
-    setOutC(c); setLoadingStep(0); setStep(4);
+  const saveToTracker = (proposal) => {
     const tracker = store.get("tracker") || [];
-    // Extract fields from decomposition
-    const extractField = (text, field) => {
-      const m = text.match(new RegExp(field + ":\s*([^\n]+)", "i"));
-      return m ? m[1].trim().replace(/^Not Found.*$/i, "") : "";
+    const extractField = (text, ...fields) => {
+      for (const field of fields) {
+        const lines = text.split("\n");
+        for (const line of lines) {
+          if (line.toLowerCase().startsWith(field.toLowerCase() + ":")) {
+            const val = line.slice(field.length + 1).trim();
+            if (val && !val.toLowerCase().includes("not found") && val !== "TBD") return val;
+          }
+        }
+      }
+      return "";
     };
-    const extractedTitle = extractField(outA, "RFP Title") || title || "Untitled";
-    const extractedAgency = extractField(outA, "Agency") || agency || "";
-    const extractedValue = extractField(outA, "Estimated Value") || "";
-    const extractedDeadline = extractField(outA, "Key Dates") || "";
-    const extractedType = extractField(outA, "Service Archetype") || extractField(outA, "Buyer Type") || "";
-    const extractedGeo = extractField(outA, "Geography") || "";
-    const opiMatch = outB.match(/OPI[^:]*:\s*(\d+)/i);
-    const extractedOPI = opiMatch ? parseInt(opiMatch[1]) : opi;
+    const extractedTitle = extractField(outA, "RFP Title", "Title", "Opportunity Title", "Solicitation Title") || title || "Untitled";
+    const extractedAgency = extractField(outA, "Agency", "Client Agency", "Issuing Agency", "Contracting Agency") || agency || "";
+    const extractedValue = extractField(outA, "Estimated Value", "Contract Value", "Value", "Budget", "Award Amount") || "";
+    const extractedDeadline = extractField(outA, "Proposal Due Date", "Submission Deadline", "Due Date", "Key Dates", "Deadline") || "";
+    const extractedType = extractField(outA, "Service Archetype", "Contract Type", "Opportunity Type", "Buyer Type", "Program Type") || "";
+    const extractedGeo = extractField(outA, "Geography", "Place of Performance", "Location", "State") || "";
+    const opiMatch = outB ? outB.split("\n").find(l => l.match(/OPI/i) && l.match(/\d+/)) : null;
+    const extractedOPI = opiMatch ? parseInt(opiMatch.match(/\d+/)[0]) : opi;
     store.set("tracker", [{
       id: "wf-" + Date.now(),
       title: extractedTitle,
@@ -279,34 +328,25 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
       geography: extractedGeo,
       stage: decision === "GO" ? "pursuing" : decision === "CONDITIONAL GO" ? "qualifying" : "identified",
       decision, opiScore: extractedOPI,
-      decomposition: outA, execBrief: outB, proposal: c,
+      decomposition: outA, execBrief: outB, proposal: proposal || "",
       addedDate: new Date().toISOString(),
       notes: "Full workflow " + new Date().toLocaleDateString()
     }, ...tracker]);
+  };
+
+  const runC = () => {
+    // Save to tracker with all workflow artifacts
+    saveToTracker("");
+    // Navigate to Proposal Engine with full context loaded
+    saveSharedCtx({ rfpText: rfpText || sharedCtx.rfpText, decomposition: outA, execBrief: outB, title, agency });
+    setStep(4);
+    goToProposal("executive_summary");
   };
 
   const saveNoProposal = () => {
+    saveToTracker("");
     setStep(4);
-    const tracker = store.get("tracker") || [];
-    const extractField2 = (text, field) => {
-      const m = text.match(new RegExp(field + ":\s*([^\n]+)", "i"));
-      return m ? m[1].trim().replace(/^Not Found.*$/i, "") : "";
-    };
-    store.set("tracker", [{
-      id: "wf-" + Date.now(),
-      title: extractField2(outA, "RFP Title") || title || "Untitled",
-      agency: extractField2(outA, "Agency") || agency || "",
-      value: extractField2(outA, "Estimated Value") || "",
-      deadline: extractField2(outA, "Key Dates") || "",
-      type: extractField2(outA, "Service Archetype") || "",
-      stage: decision === "GO" ? "pursuing" : decision === "CONDITIONAL GO" ? "qualifying" : "identified",
-      decision, opiScore: opi,
-      decomposition: outA, execBrief: outB, proposal: "",
-      addedDate: new Date().toISOString(),
-      notes: "Full workflow " + new Date().toLocaleDateString()
-    }, ...tracker]);
   };
-
   const decColor = decision === "GO" ? GREEN : decision === "CONDITIONAL GO" ? GOLD : decision === "NO-BID" ? RED : TEXT_D;
 
   return (
@@ -404,9 +444,14 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
             <div>
               <AIOut content={outB} label="EXECUTIVE DECISION BRIEF" />
               {step === 3 && loadingStep === 0 && (
-                <div style={{marginTop:12,display:"flex",gap:8}}>
-                  <Btn onClick={runC}>Step 3: Generate Proposal Package</Btn>
-                  <Btn variant="secondary" onClick={saveNoProposal}>Save Without Proposal</Btn>
+                <div style={{marginTop:16}}>
+                  <div style={{marginBottom:10,padding:"10px 14px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
+                    ✓ Workflow complete — ready to build your full proposal section by section
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <Btn onClick={runC}>Step 3: Build Proposal in Proposal Engine →</Btn>
+                    <Btn variant="secondary" onClick={saveNoProposal}>Save to Tracker Only</Btn>
+                  </div>
                 </div>
               )}
             </div>
