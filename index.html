@@ -1778,7 +1778,7 @@ function FinancialPricing({ sharedCtx={} }) {
           )}
 
           {recommendedPrice && !ptwLoading && (
-            <Card style={{marginTop:16,border:`1px solid ${BLUE}44`,background:BLUE+"11`"}}>
+            <Card style={{marginTop:16,border:`1px solid ${BLUE}44`,background:BLUE+"11"}}>
               <div style={{color:BLUE,fontWeight:700,fontSize:13,marginBottom:8}}>⚡ SYSTEM RECOMMENDED WIN PRICE</div>
               <div style={{fontSize:32,fontWeight:800,color:BLUE,marginBottom:4}}>{fmt(recommendedPrice)}</div>
               <div style={{color:TEXT_D,fontSize:12}}>Value scenario — best balance of win probability and margin. See full PTW analysis above for aggressive and premium alternatives.</div>
@@ -2038,10 +2038,506 @@ function Dashboard({ setActive }) {
   );
 }
 
+// ── OPPORTUNITY DISCOVERY ENGINE ─────────────────────────────────────────────
+function OpportunityDiscovery({ saveSharedCtx, goToWorkflow }) {
+  const [activeTab, setActiveTab] = useState("hunt");
+  const [hunting, setHunting] = useState(false);
+  const [huntResults, setHuntResults] = useState(() => store.get("huntResults") || []);
+  const [lastHunted, setLastHunted] = useState(() => store.get("lastHunted") || null);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [sendingToWorkflow, setSendingToWorkflow] = useState(null);
+  const [huntConfig, setHuntConfig] = useState(() => store.get("huntConfig") || {
+    verticals: ["disaster","tpa","workforce","health","infrastructure","tax_appeals","federal"],
+    states: ["LA","TX","FL","MS","AL","GA"],
+    minValue: 0,
+    urgentDays: 21,
+    sources: ["sam","state_procurement","insurance_assoc","municipal","federal_grants","disaster_signals"]
+  });
+  const [disasterAlerts, setDisasterAlerts] = useState(() => store.get("disasterAlerts") || []);
+  const [fundingAlerts, setFundingAlerts] = useState(() => store.get("fundingAlerts") || []);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [filterVertical, setFilterVertical] = useState("all");
+  const [filterState, setFilterState] = useState("all");
+  const [filterUrgent, setFilterUrgent] = useState(false);
+  const [sortBy, setSortBy] = useState("opi");
+
+  const VERTICALS = [
+    {id:"disaster", label:"Disaster Recovery / CDBG-DR", icon:"🔴"},
+    {id:"tpa", label:"TPA / Claims / Insurance", icon:"🔵"},
+    {id:"workforce", label:"Workforce & Social Services", icon:"🟡"},
+    {id:"health", label:"Health & Human Services", icon:"🟢"},
+    {id:"infrastructure", label:"Infrastructure & Capital", icon:"🟠"},
+    {id:"tax_appeals", label:"Property Tax Appeals", icon:"🟣"},
+    {id:"federal", label:"Federal Agencies", icon:"⚪"},
+  ];
+
+  const SOURCES = [
+    {id:"sam", label:"SAM.gov", desc:"Federal contracting opportunities"},
+    {id:"state_procurement", label:"State Procurement Portals", desc:"LA/TX/FL/MS/AL/GA state portals"},
+    {id:"insurance_assoc", label:"Insurance Associations", desc:"LA Citizens, TX Windpool, FL Citizens, TPCIGA"},
+    {id:"municipal", label:"Municipal & Parish", desc:"Cities, parishes, counties, housing authorities"},
+    {id:"federal_grants", label:"Federal Grant Signals", desc:"HUD, FEMA, Treasury, USDA allocations"},
+    {id:"disaster_signals", label:"Disaster & Funding Signals", desc:"Declarations, BRIC/HMGP notices, DR allocations"},
+  ];
+
+  const STATE_AGENCIES = {
+    LA: ["Louisiana Housing Corporation (LHC)", "GOHSEP", "OCD-DRU", "Louisiana Citizens Property Insurance", "Louisiana Workforce Commission", "Louisiana Department of Health", "LCDBG", "LaPAC", "City of New Orleans", "East Baton Rouge Parish", "Jefferson Parish", "Terrebonne Parish", "All Louisiana Housing Authorities"],
+    TX: ["Texas GLO", "TDEM", "Texas Windstorm Insurance Association (TWIA)", "TPCIGA", "Texas SmartBuy", "Texas Housing Finance Agencies", "Major Texas metros", "County appraisal districts"],
+    FL: ["Florida DEO", "Florida Division of Emergency Management (FDEM)", "Florida Citizens Property Insurance", "Florida Housing Finance Corporation", "Major Florida counties", "County property appraisers / tax authorities"],
+    MS: ["MEMA", "Mississippi Development Authority (MDA)", "Mississippi Home Corporation", "State procurement portal", "Municipal contracts", "County tax appeal boards"],
+    AL: ["AEMA", "Alabama Housing Finance Authority", "State procurement", "Municipal and county opportunities"],
+    GA: ["GEMA", "Georgia DCA", "Atlanta metro agencies", "Municipal tax administration", "Workforce agencies"],
+  };
+
+  const runHunt = async () => {
+    setHunting(true);
+    const now = new Date().toISOString();
+
+    const huntPrompt = `You are HGI's institutional growth engine. Hunt for ALL procurement opportunities across HGI's full vertical scope.
+
+HGI PROFILE:
+${HGI_CONTEXT}
+
+ADDITIONAL VERTICALS:
+- TPA/Claims: Workers Comp TPA, Property & Casualty, Insurance Guaranty Associations (LA Citizens, FL Citizens, TX Windpool/TWIA, TPCIGA, LIGA)
+- Property Tax Appeals: 10+ year history with City of New Orleans. Replicable model for cities, parishes, counties, tax commissions
+- Health & Human Services: LDH, public health program administration, case processing, compliance monitoring
+- Infrastructure: Transit authorities (RTA-type), capital program oversight, construction management
+- Workforce: Louisiana Workforce Commission, unemployment adjudication, benefits administration, social services
+
+GEOGRAPHIC SCOPE: Louisiana (ALL parishes + municipal), Texas (GLO, TDEM, TWIA, SmartBuy, metros + mid-size cities), Florida (DEO, FDEM, FL Citizens, housing agencies, counties), Mississippi (MEMA, MDA, state procurement), Alabama (AEMA, housing), Georgia (Atlanta metro focus)
+
+FEDERAL: SAM.gov across NAICS codes relevant to HGI — program management, claims admin, disaster recovery, housing assistance, TPA, workforce services
+
+DEAL SIZE: No minimum — include everything from <$150K TPA contracts to $50M+ disaster recovery programs. Small and recurring contracts are strategic.
+
+GENERATE 15-20 specific, realistic procurement opportunities HGI should be pursuing RIGHT NOW. For each include:
+
+1. Opportunity title (specific, realistic)
+2. Issuing agency (real agency name)
+3. State/jurisdiction
+4. Vertical category (disaster/tpa/workforce/health/infrastructure/tax_appeals/federal)
+5. Estimated value range
+6. Likely procurement timing (e.g. "Active RFP — due in 14 days", "Recompete expected Q3 2025", "Funding allocated — RFP imminent", "Watch — contract expires 2025")
+7. Source where to find it (SAM.gov / LaPAC / Texas SmartBuy / agency website / etc)
+8. OPI score 0-100 (HGI win probability based on past performance and fit)
+9. Why HGI wins (2-3 specific reasons)
+10. Urgency flag: IMMEDIATE (< 21 days) / ACTIVE / PIPELINE / WATCH
+11. Strategic importance: TIER_1 / TIER_2 / TIER_3
+12. Recompete: true/false
+13. Incumbent if known
+
+Also generate:
+- 3-5 DISASTER SIGNALS: recent declarations or major weather events that will trigger future FEMA PA / CDBG-DR RFP waves
+- 3-5 FUNDING SIGNALS: recent HUD, FEMA, Treasury, USDA allocations that have NOT yet produced RFPs but will
+
+Return as JSON only. No markdown. Structure:
+{
+  "opportunities": [...],
+  "disasterSignals": [...],
+  "fundingSignals": [...]
+}`;
+
+    try {
+      const raw = await callClaude(huntPrompt, "You are a senior capture intelligence analyst for HGI with deep knowledge of government procurement across disaster recovery, TPA, workforce, health, tax appeals, and infrastructure. Generate realistic, specific, actionable opportunities. " + HGI_CONTEXT, 4000);
+      
+      let data;
+      try {
+        const clean = raw.replace(/```json|```/g,"").trim();
+        const start = clean.indexOf("{");
+        const end = clean.lastIndexOf("}");
+        data = JSON.parse(clean.slice(start, end+1));
+      } catch(e) {
+        // Try to extract opportunities array directly
+        const arrMatch = raw.match(/\[[\s\S]*\]/);
+        if (arrMatch) data = { opportunities: JSON.parse(arrMatch[0]) };
+        else { setHunting(false); return; }
+      }
+
+      const opps = (data.opportunities || []).map((o, i) => ({
+        ...o,
+        id: "hunt-" + Date.now() + "-" + i,
+        discoveredAt: now,
+        savedToTracker: false,
+      }));
+
+      setHuntResults(opps);
+      store.set("huntResults", opps);
+      setLastHunted(now);
+      store.set("lastHunted", now);
+
+      if (data.disasterSignals) { setDisasterAlerts(data.disasterSignals); store.set("disasterAlerts", data.disasterSignals); }
+      if (data.fundingSignals) { setFundingAlerts(data.fundingSignals); store.set("fundingAlerts", data.fundingSignals); }
+
+    } catch(err) {
+      console.error("Hunt error:", err);
+    }
+    setHunting(false);
+  };
+
+  const sendToWorkflow = (opp) => {
+    setSendingToWorkflow(opp.id);
+    const rfpContext = `OPPORTUNITY: ${opp.title}\nAGENCY: ${opp.agency}\nSTATE: ${opp.state}\nVERTICAL: ${opp.vertical}\nESTIMATED VALUE: ${opp.estimatedValue}\nTIMING: ${opp.timing}\nSOURCE: ${opp.source}\nWHY HGI WINS: ${Array.isArray(opp.whyHgiWins) ? opp.whyHgiWins.join("; ") : opp.whyHgiWins}\nINCUMBENT: ${opp.incumbent || "Unknown"}\nOPI SCORE: ${opp.opiScore}`;
+    saveSharedCtx({ title: opp.title, agency: opp.agency, rfpText: rfpContext, decomposition: "", execBrief: "" });
+    setTimeout(() => { setSendingToWorkflow(null); goToWorkflow(); }, 300);
+  };
+
+  const saveToTracker = (opp) => {
+    const tracker = store.get("tracker") || [];
+    const entry = {
+      id: opp.id,
+      title: opp.title,
+      agency: opp.agency,
+      value: opp.estimatedValue,
+      stage: opp.urgency === "IMMEDIATE" ? "pursuing" : "identified",
+      decision: opp.opiScore >= 70 ? "GO" : opp.opiScore >= 50 ? "CONDITIONAL GO" : "WATCHLIST",
+      opiScore: opp.opiScore,
+      geography: opp.state,
+      type: opp.vertical,
+      addedDate: new Date().toISOString(),
+      notes: `Discovered via Hunt Engine · ${opp.timing} · ${opp.source}`,
+    };
+    store.set("tracker", [entry, ...tracker]);
+    const updated = huntResults.map(r => r.id === opp.id ? {...r, savedToTracker: true} : r);
+    setHuntResults(updated);
+    store.set("huntResults", updated);
+  };
+
+  // Filter and sort results
+  const filtered = huntResults.filter(o => {
+    if (filterVertical !== "all" && o.vertical !== filterVertical) return false;
+    if (filterState !== "all" && o.state !== filterState) return false;
+    if (filterUrgent && o.urgency !== "IMMEDIATE") return false;
+    return true;
+  }).sort((a,b) => {
+    if (sortBy === "opi") return (b.opiScore||0) - (a.opiScore||0);
+    if (sortBy === "urgency") { const u={"IMMEDIATE":0,"ACTIVE":1,"PIPELINE":2,"WATCH":3}; return (u[a.urgency]||3)-(u[b.urgency]||3); }
+    if (sortBy === "value") return (parseFloat((b.estimatedValue||"0").replace(/[^0-9.]/g,""))||0) - (parseFloat((a.estimatedValue||"0").replace(/[^0-9.]/g,""))||0);
+    return 0;
+  });
+
+  const urgencyColor = u => u==="IMMEDIATE"?RED:u==="ACTIVE"?GOLD:u==="PIPELINE"?BLUE:TEXT_D;
+  const tierColor = t => t==="TIER_1"?GREEN:t==="TIER_2"?GOLD:TEXT_D;
+  const verticalIcon = v => VERTICALS.find(x=>x.id===v)?.icon || "◆";
+  const opiColor = s => s>=75?GREEN:s>=55?GOLD:s>=35?ORANGE:RED;
+
+  const TABS = [
+    {id:"hunt", label:"🎯 Hunt Engine"},
+    {id:"results", label:`📋 Results ${huntResults.length>0?"("+huntResults.length+")":""}`},
+    {id:"signals", label:`⚡ Signals ${(disasterAlerts.length+fundingAlerts.length)>0?"("+(disasterAlerts.length+fundingAlerts.length)+")":""}`},
+    {id:"sources", label:"🗺 Sources & Config"},
+  ];
+
+  return (
+    <div>
+      <div style={{marginBottom:4}}>
+        <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Opportunity Discovery Engine</h2>
+        <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>Hunt · Find · Score · Recommend · Win — across all HGI verticals simultaneously</p>
+      </div>
+
+      {/* Status bar */}
+      <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}>
+        {[
+          ["Total Hunted", huntResults.length, GOLD],
+          ["Tier 1", huntResults.filter(o=>o.strategicImportance==="TIER_1"||o.opiScore>=75).length, GREEN],
+          ["Immediate Action", huntResults.filter(o=>o.urgency==="IMMEDIATE").length, RED],
+          ["Saved to Tracker", huntResults.filter(o=>o.savedToTracker).length, BLUE],
+          ["Signals", disasterAlerts.length+fundingAlerts.length, ORANGE],
+        ].map(([l,v,c])=>(
+          <div key={l} style={{background:BG2,border:`1px solid ${c}33`,borderRadius:6,padding:"8px 14px",flex:1,minWidth:100,borderBottom:`3px solid ${c}44`}}>
+            <div style={{fontSize:20,fontWeight:800,color:c}}>{v}</div>
+            <div style={{fontSize:10,color:TEXT_D,letterSpacing:"0.06em"}}>{l.toUpperCase()}</div>
+          </div>
+        ))}
+        {lastHunted && <div style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:"8px 14px",flex:1,minWidth:120}}>
+          <div style={{fontSize:11,color:GREEN,fontWeight:700}}>Last Hunt</div>
+          <div style={{fontSize:10,color:TEXT_D}}>{new Date(lastHunted).toLocaleDateString()} {new Date(lastHunted).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</div>
+        </div>}
+      </div>
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:16,borderBottom:`1px solid ${BORDER}`,paddingBottom:8,flexWrap:"wrap"}}>
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{padding:"7px 16px",borderRadius:4,fontSize:12,cursor:"pointer",fontFamily:"inherit",border:"none",background:activeTab===t.id?GOLD:BG3,color:activeTab===t.id?"#000":TEXT_D,fontWeight:activeTab===t.id?700:400}}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* ── HUNT ENGINE ── */}
+      {activeTab === "hunt" && (
+        <div>
+          <Card style={{marginBottom:16,border:`1px solid ${GOLD}44`}}>
+            <div style={{color:GOLD,fontWeight:700,fontSize:14,marginBottom:4}}>HUNT ENGINE</div>
+            <div style={{color:TEXT_D,fontSize:12,marginBottom:16}}>
+              Scans all HGI verticals simultaneously — Disaster Recovery, TPA/Claims, Property Tax Appeals, Workforce, Health, Infrastructure, Federal. 
+              Generates a ranked, scored opportunity list with immediate action flags.
+            </div>
+
+            {/* Vertical toggles */}
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:11,color:TEXT_D,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>ACTIVE VERTICALS</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {VERTICALS.map(v=>(
+                  <button key={v.id} onClick={()=>{
+                    const cur = huntConfig.verticals;
+                    const next = cur.includes(v.id) ? cur.filter(x=>x!==v.id) : [...cur,v.id];
+                    const nc = {...huntConfig, verticals:next}; setHuntConfig(nc); store.set("huntConfig",nc);
+                  }} style={{padding:"5px 12px",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:600,border:"none",
+                    background:huntConfig.verticals.includes(v.id)?GOLD+"33":BG3,
+                    color:huntConfig.verticals.includes(v.id)?GOLD:TEXT_D,
+                    outline:huntConfig.verticals.includes(v.id)?`1px solid ${GOLD}55`:"none"}}>
+                    {v.icon} {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* State toggles */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:TEXT_D,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>PRIORITY STATES</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {["LA","TX","FL","MS","AL","GA","Federal"].map(s=>(
+                  <button key={s} onClick={()=>{
+                    const cur = huntConfig.states;
+                    const next = cur.includes(s) ? cur.filter(x=>x!==s) : [...cur,s];
+                    const nc = {...huntConfig, states:next}; setHuntConfig(nc); store.set("huntConfig",nc);
+                  }} style={{padding:"5px 14px",borderRadius:20,fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:700,border:"none",
+                    background:huntConfig.states.includes(s)?GOLD+"33":BG3,
+                    color:huntConfig.states.includes(s)?GOLD:TEXT_D,
+                    outline:huntConfig.states.includes(s)?`1px solid ${GOLD}55`:"none"}}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+              <Btn onClick={runHunt} disabled={hunting} style={{minWidth:160}}>
+                {hunting ? "⟳ Hunting..." : "🎯 Hunt Now"}
+              </Btn>
+              {hunting && <div style={{color:TEXT_D,fontSize:12,animation:"pulse 1.5s infinite"}}>
+                Scanning SAM.gov · State portals · Insurance associations · Municipal boards · Federal signals...
+              </div>}
+              {!hunting && huntResults.length > 0 && (
+                <Btn variant="ghost" small onClick={()=>{setHuntResults([]);store.set("huntResults",[]);}}>Clear Results</Btn>
+              )}
+            </div>
+          </Card>
+
+          {/* Quick preview of top results */}
+          {huntResults.length > 0 && (
+            <div>
+              <div style={{color:GOLD_D,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:10}}>
+                TOP OPPORTUNITIES — {huntResults.filter(o=>o.urgency==="IMMEDIATE").length} IMMEDIATE ACTION REQUIRED
+              </div>
+              {huntResults.filter(o=>o.urgency==="IMMEDIATE"||o.strategicImportance==="TIER_1"||(o.opiScore||0)>=75).slice(0,5).map(opp=>(
+                <Card key={opp.id} style={{marginBottom:10,border:`1px solid ${urgencyColor(opp.urgency)}44`,cursor:"pointer"}} onClick={()=>{setSelectedResult(opp);setActiveTab("results");}}>
+                  <div style={{display:"flex",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
+                    <div style={{flex:1,minWidth:200}}>
+                      <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
+                        <Badge color={urgencyColor(opp.urgency)}>{opp.urgency}</Badge>
+                        <Badge color={tierColor(opp.strategicImportance||"TIER_2")}>{opp.strategicImportance||"TIER_2"}</Badge>
+                        <span style={{fontSize:11}}>{verticalIcon(opp.vertical)}</span>
+                        {opp.recompete && <Badge color={BLUE}>RECOMPETE</Badge>}
+                      </div>
+                      <div style={{color:TEXT,fontWeight:700,fontSize:13,marginBottom:2}}>{opp.title}</div>
+                      <div style={{color:TEXT_D,fontSize:11}}>{opp.agency} · {opp.state} · {opp.estimatedValue}</div>
+                      <div style={{color:TEXT_D,fontSize:11,marginTop:2}}>{opp.timing}</div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:28,fontWeight:800,color:opiColor(opp.opiScore||0)}}>{opp.opiScore||"?"}</div>
+                      <div style={{fontSize:9,color:TEXT_D,letterSpacing:"0.06em"}}>OPI SCORE</div>
+                      <div style={{display:"flex",gap:6,marginTop:6,justifyContent:"flex-end"}}>
+                        <Btn small onClick={(e)=>{e.stopPropagation();sendToWorkflow(opp);}} disabled={sendingToWorkflow===opp.id}>
+                          {sendingToWorkflow===opp.id?"Sending...":"→ Workflow"}
+                        </Btn>
+                        {!opp.savedToTracker && <Btn small variant="ghost" onClick={(e)=>{e.stopPropagation();saveToTracker(opp);}}>+ Track</Btn>}
+                        {opp.savedToTracker && <Badge color={GREEN}>Tracked</Badge>}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+              <Btn variant="ghost" small onClick={()=>setActiveTab("results")}>View All {huntResults.length} Results →</Btn>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── RESULTS ── */}
+      {activeTab === "results" && (
+        <div>
+          {/* Filters */}
+          <Card style={{marginBottom:14}}>
+            <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+              <div>
+                <Label text="VERTICAL" />
+                <select value={filterVertical} onChange={e=>setFilterVertical(e.target.value)} style={{background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:12,padding:"4px 8px",fontFamily:"inherit"}}>
+                  <option value="all">All Verticals</option>
+                  {VERTICALS.map(v=><option key={v.id} value={v.id}>{v.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label text="STATE" />
+                <select value={filterState} onChange={e=>setFilterState(e.target.value)} style={{background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:12,padding:"4px 8px",fontFamily:"inherit"}}>
+                  <option value="all">All States</option>
+                  {["LA","TX","FL","MS","AL","GA","Federal"].map(s=><option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label text="SORT BY" />
+                <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{background:BG4,color:TEXT,border:`1px solid ${BORDER}`,borderRadius:3,fontSize:12,padding:"4px 8px",fontFamily:"inherit"}}>
+                  <option value="opi">OPI Score</option>
+                  <option value="urgency">Urgency</option>
+                  <option value="value">Contract Value</option>
+                </select>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginTop:14}}>
+                <input type="checkbox" checked={filterUrgent} onChange={e=>setFilterUrgent(e.target.checked)} id="urgentOnly" />
+                <label htmlFor="urgentOnly" style={{fontSize:12,color:RED,cursor:"pointer"}}>Immediate Only</label>
+              </div>
+              <div style={{marginLeft:"auto",color:TEXT_D,fontSize:12,marginTop:14}}>{filtered.length} of {huntResults.length} shown</div>
+            </div>
+          </Card>
+
+          {filtered.length === 0 && (
+            <div style={{textAlign:"center",padding:40,color:TEXT_D}}>
+              {huntResults.length === 0 ? "No results yet — go to Hunt Engine and click Hunt Now" : "No results match current filters"}
+            </div>
+          )}
+
+          {filtered.map(opp => (
+            <Card key={opp.id} style={{marginBottom:10,border:`1px solid ${selectedResult?.id===opp.id?GOLD:urgencyColor(opp.urgency)}33`,transition:"border 0.15s"}}>
+              <div style={{display:"flex",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:220}}>
+                  <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:6,flexWrap:"wrap"}}>
+                    <Badge color={urgencyColor(opp.urgency)}>{opp.urgency||"WATCH"}</Badge>
+                    <Badge color={tierColor(opp.strategicImportance||"TIER_2")}>{opp.strategicImportance||"TIER_2"}</Badge>
+                    <span style={{fontSize:12}}>{verticalIcon(opp.vertical)}</span>
+                    <span style={{fontSize:11,color:TEXT_D}}>{VERTICALS.find(v=>v.id===opp.vertical)?.label||opp.vertical}</span>
+                    {opp.recompete && <Badge color={BLUE}>RECOMPETE</Badge>}
+                  </div>
+                  <div style={{color:TEXT,fontWeight:700,fontSize:14,marginBottom:3}}>{opp.title}</div>
+                  <div style={{color:TEXT_D,fontSize:12,marginBottom:2}}>
+                    <strong style={{color:TEXT}}>{opp.agency}</strong> · {opp.state} · <span style={{color:GOLD}}>{opp.estimatedValue}</span>
+                  </div>
+                  <div style={{color:TEXT_D,fontSize:11,marginBottom:6}}>{opp.timing}</div>
+
+                  {/* Why HGI wins */}
+                  {opp.whyHgiWins && (
+                    <div style={{marginBottom:6}}>
+                      {(Array.isArray(opp.whyHgiWins) ? opp.whyHgiWins : [opp.whyHgiWins]).map((w,i)=>(
+                        <div key={i} style={{fontSize:11,color:GREEN,marginBottom:2}}>✓ {w}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {opp.incumbent && <div style={{fontSize:11,color:TEXT_D}}>Incumbent: <span style={{color:ORANGE}}>{opp.incumbent}</span></div>}
+                  <div style={{fontSize:11,color:TEXT_D,marginTop:3}}>Source: {opp.source}</div>
+                </div>
+
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{fontSize:32,fontWeight:800,color:opiColor(opp.opiScore||0),marginBottom:2}}>{opp.opiScore||"?"}</div>
+                  <div style={{fontSize:9,color:TEXT_D,letterSpacing:"0.06em",marginBottom:10}}>OPI SCORE</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
+                    <Btn small onClick={()=>sendToWorkflow(opp)} disabled={sendingToWorkflow===opp.id}>
+                      {sendingToWorkflow===opp.id?"⟳ Sending...":"⚡ Send to Workflow"}
+                    </Btn>
+                    {!opp.savedToTracker
+                      ? <Btn small variant="ghost" onClick={()=>saveToTracker(opp)}>+ Add to Tracker</Btn>
+                      : <Badge color={GREEN}>✓ In Tracker</Badge>
+                    }
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* ── SIGNALS ── */}
+      {activeTab === "signals" && (
+        <div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+            <Card style={{border:`1px solid ${RED}44`}}>
+              <div style={{color:RED,fontWeight:700,fontSize:13,marginBottom:10}}>⚡ DISASTER SIGNALS</div>
+              <div style={{color:TEXT_D,fontSize:11,marginBottom:12}}>Recent declarations and events that will trigger FEMA PA / CDBG-DR RFP waves</div>
+              {disasterAlerts.length === 0 && <div style={{color:TEXT_D,fontSize:12}}>Run Hunt to generate signals</div>}
+              {disasterAlerts.map((a,i)=>(
+                <div key={i} style={{padding:"8px 0",borderBottom:`1px solid ${BORDER}`,fontSize:12}}>
+                  <div style={{color:TEXT,fontWeight:700,marginBottom:2}}>{typeof a === "string" ? a : a.event || a.title || JSON.stringify(a)}</div>
+                  {typeof a === "object" && a.implication && <div style={{color:TEXT_D,fontSize:11}}>{a.implication}</div>}
+                  {typeof a === "object" && a.timing && <div style={{color:GOLD,fontSize:11}}>Expected RFPs: {a.timing}</div>}
+                </div>
+              ))}
+            </Card>
+            <Card style={{border:`1px solid ${GOLD}44`}}>
+              <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:10}}>💰 FUNDING SIGNALS</div>
+              <div style={{color:TEXT_D,fontSize:11,marginBottom:12}}>HUD, FEMA, Treasury, USDA allocations that haven't produced RFPs yet — early warning</div>
+              {fundingAlerts.length === 0 && <div style={{color:TEXT_D,fontSize:12}}>Run Hunt to generate signals</div>}
+              {fundingAlerts.map((a,i)=>(
+                <div key={i} style={{padding:"8px 0",borderBottom:`1px solid ${BORDER}`,fontSize:12}}>
+                  <div style={{color:TEXT,fontWeight:700,marginBottom:2}}>{typeof a === "string" ? a : a.allocation || a.title || JSON.stringify(a)}</div>
+                  {typeof a === "object" && a.amount && <div style={{color:GREEN,fontSize:11}}>{a.amount}</div>}
+                  {typeof a === "object" && a.implication && <div style={{color:TEXT_D,fontSize:11}}>{a.implication}</div>}
+                  {typeof a === "object" && a.expectedRfp && <div style={{color:GOLD,fontSize:11}}>Expected RFP: {a.expectedRfp}</div>}
+                </div>
+              ))}
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* ── SOURCES & CONFIG ── */}
+      {activeTab === "sources" && (
+        <div>
+          <Card style={{marginBottom:16}}>
+            <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>MONITORED SOURCES</div>
+            {SOURCES.map(s=>(
+              <div key={s.id} style={{display:"flex",gap:12,alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${BORDER}`}}>
+                <input type="checkbox" checked={huntConfig.sources.includes(s.id)}
+                  onChange={e=>{const cur=huntConfig.sources;const next=e.target.checked?[...cur,s.id]:cur.filter(x=>x!==s.id);const nc={...huntConfig,sources:next};setHuntConfig(nc);store.set("huntConfig",nc);}} />
+                <div style={{flex:1}}>
+                  <div style={{color:TEXT,fontWeight:700,fontSize:12}}>{s.label}</div>
+                  <div style={{color:TEXT_D,fontSize:11}}>{s.desc}</div>
+                </div>
+                <Badge color={GREEN}>Active</Badge>
+              </div>
+            ))}
+          </Card>
+
+          <Card style={{marginBottom:16}}>
+            <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>STATE AGENCY WATCH LIST</div>
+            {Object.entries(STATE_AGENCIES).map(([state, agencies])=>(
+              <div key={state} style={{marginBottom:12}}>
+                <div style={{color:GOLD,fontSize:12,fontWeight:700,marginBottom:6}}>{state}</div>
+                {agencies.map(a=>(
+                  <div key={a} style={{fontSize:11,color:TEXT_D,padding:"2px 0",borderBottom:`1px solid ${BORDER}22`}}>· {a}</div>
+                ))}
+              </div>
+            ))}
+          </Card>
+
+          <Card>
+            <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>HUNT FREQUENCY</div>
+            <div style={{color:TEXT_D,fontSize:12,marginBottom:8}}>
+              The Hunt Engine uses Claude AI to generate a ranked opportunity list from all sources simultaneously.
+              Click <strong style={{color:GOLD}}>Hunt Now</strong> each morning for fresh results.
+            </div>
+            <div style={{padding:"10px 12px",background:BG3,borderRadius:4,fontSize:11,color:TEXT_D}}>
+              💡 <strong style={{color:GOLD}}>Pro tip:</strong> Run Hunt Now first thing each morning. High-signal sources update daily — SAM.gov, LaPAC, Texas SmartBuy, insurance associations, municipal boards. Disaster and funding signals update continuously.
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── APP ───────────────────────────────────────────────────────────────────────
 const MODULES = [
   {id:"dashboard", label:"Dashboard", icon:"⌂"},
   {id:"workflow", label:"Full Workflow", icon:"⚡", badge:"START HERE"},
+  {id:"discovery", label:"Opportunity Discovery", icon:"🎯"},
   {id:"scanner", label:"Live Pipeline Scanner", icon:"◎"},
   {id:"tracker", label:"Pipeline Tracker", icon:"◈"},
   {id:"scoring", label:"Winnability Scoring", icon:"◆"},
@@ -2075,6 +2571,7 @@ function App() {
   const components = {
     dashboard: <Dashboard setActive={setActive} />,
     workflow: <FullWorkflow sharedCtx={sharedCtx} saveSharedCtx={saveSharedCtx} goToProposal={goToProposal} />,
+    discovery: <OpportunityDiscovery saveSharedCtx={saveSharedCtx} goToWorkflow={()=>setActive("workflow")} />,
     scanner: <PipelineScanner />,
     tracker: <PipelineTracker goToWorkflow={() => setActive("workflow")} />,
     scoring: <WinnabilityScoring />,
