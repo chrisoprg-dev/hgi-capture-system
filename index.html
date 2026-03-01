@@ -605,7 +605,7 @@ const STAGES = [
   {id:"lost", label:"Lost", color:RED},
 ];
 
-function PipelineTracker() {
+function PipelineTracker({ goToWorkflow }) {
   const [items, setItems] = useState(() => store.get("tracker") || []);
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -613,8 +613,11 @@ function PipelineTracker() {
   const [aiNotes, setAiNotes] = useState({});
   const [aiLoading, setAiLoading] = useState({});
   const [expanded, setExpanded] = useState({});
+  const [filterStage, setFilterStage] = useState("all");
+  const [selectedItem, setSelectedItem] = useState(null);
   const setF = (k,v) => setForm(f => ({...f, [k]:v}));
   const save = (d) => { setItems(d); store.set("tracker", d); };
+  const filtered = filterStage === "all" ? items : items.filter(i => i.stage === filterStage);
 
   const submit = () => {
     if (!form.title) return;
@@ -633,80 +636,134 @@ function PipelineTracker() {
     setAiLoading(a => ({...a, [item.id]:false}));
   };
 
+  const openItem = (item) => setSelectedItem(selectedItem && selectedItem.id === item.id ? null : item);
+  const editBtn = (item) => {
+    setForm({title:item.title,agency:item.agency||"",type:item.type||"",value:item.value||"",deadline:item.deadline||"",notes:item.notes||"",stage:item.stage,opiScore:item.opiScore||""});
+    setEditItem(item); setShowAdd(true);
+  };
+
   return (
     <div>
-      <div style={{display:"flex",alignItems:"center",marginBottom:20}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
         <div>
           <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Pipeline Tracker</h2>
-          <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>{items.length} opportunities · Workflow artifacts stored here</p>
+          <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>{items.length} opportunities tracked</p>
         </div>
-        <Btn style={{marginLeft:"auto"}} onClick={()=>{setShowAdd(!showAdd);setEditItem(null);}}>+ Add</Btn>
+        <Btn style={{marginLeft:"auto"}} onClick={()=>{setShowAdd(!showAdd);setEditItem(null);}}>+ Add Opportunity</Btn>
       </div>
+
+      {/* Stage filter pills */}
+      <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+        <button onClick={()=>setFilterStage("all")} style={{padding:"4px 12px",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:"inherit",border:"none",background:filterStage==="all"?GOLD:BG3,color:filterStage==="all"?"#000":TEXT_D,fontWeight:filterStage==="all"?700:400}}>All ({items.length})</button>
+        {STAGES.map(s => {
+          const ct = items.filter(i=>i.stage===s.id).length;
+          if(!ct) return null;
+          return <button key={s.id} onClick={()=>setFilterStage(s.id)} style={{padding:"4px 12px",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${s.color}44`,background:filterStage===s.id?s.color+"33":"transparent",color:filterStage===s.id?s.color:TEXT_D,fontWeight:filterStage===s.id?700:400}}>{s.label} ({ct})</button>;
+        })}
+      </div>
+
+      {/* Add/Edit form */}
       {showAdd && (
-        <Card style={{marginBottom:20,border:`1px solid ${GOLD}44`}}>
-          <h3 style={{color:GOLD,margin:"0 0 12px",fontSize:14}}>{editItem?"Edit":"New Opportunity"}</h3>
+        <Card style={{marginBottom:16,border:`1px solid ${GOLD}44`}}>
+          <h3 style={{color:GOLD,margin:"0 0 12px",fontSize:14}}>{editItem?"Edit Opportunity":"New Opportunity"}</h3>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <Input value={form.title} onChange={v=>setF("title",v)} placeholder="Title*" style={{gridColumn:"1/-1"}} />
-            <Input value={form.agency} onChange={v=>setF("agency",v)} placeholder="Agency" />
-            <Input value={form.type} onChange={v=>setF("type",v)} placeholder="Type (FEMA PA, TPA...)" />
-            <Input value={form.value} onChange={v=>setF("value",v)} placeholder="Est. Value" />
-            <Input value={form.deadline} onChange={v=>setF("deadline",v)} placeholder="Deadline YYYY-MM-DD" />
+            <Input value={form.title} onChange={v=>setF("title",v)} placeholder="Opportunity Title*" style={{gridColumn:"1/-1"}} />
+            <Input value={form.agency} onChange={v=>setF("agency",v)} placeholder="Agency / Client" />
+            <Input value={form.type} onChange={v=>setF("type",v)} placeholder="Type (FEMA PA, TPA, CDBG-DR...)" />
+            <Input value={form.value} onChange={v=>setF("value",v)} placeholder="Est. Value (e.g. $5M)" />
+            <Input value={form.deadline} onChange={v=>setF("deadline",v)} placeholder="Deadline (YYYY-MM-DD)" />
             <Input value={form.opiScore} onChange={v=>setF("opiScore",v)} placeholder="OPI Score (0-100)" />
             <Sel value={form.stage} onChange={v=>setF("stage",v)} options={STAGES.map(s=>({value:s.id,label:s.label}))} style={{gridColumn:"1/-1"}} />
-            <Textarea value={form.notes} onChange={v=>setF("notes",v)} placeholder="Notes..." rows={2} style={{gridColumn:"1/-1"}} />
+            <Textarea value={form.notes} onChange={v=>setF("notes",v)} placeholder="Notes, context, next actions..." rows={2} style={{gridColumn:"1/-1"}} />
           </div>
           <div style={{marginTop:12,display:"flex",gap:8}}>
-            <Btn onClick={submit}>{editItem?"Save":"Add"}</Btn>
+            <Btn onClick={submit}>{editItem?"Save Changes":"Add to Pipeline"}</Btn>
             <Btn variant="secondary" onClick={()=>{setShowAdd(false);setEditItem(null);}}>Cancel</Btn>
           </div>
         </Card>
       )}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
-        {STAGES.map(stage => {
-          const si = items.filter(i => i.stage === stage.id);
+
+      {/* Empty state */}
+      {!filtered.length && (
+        <Card style={{textAlign:"center",padding:48,border:`1px dashed ${BORDER}`}}>
+          <div style={{fontSize:32,marginBottom:12}}>◈</div>
+          <div style={{color:TEXT_D,fontSize:14,marginBottom:16}}>{filterStage==="all" ? "No opportunities tracked yet" : "No opportunities in this stage"}</div>
+          {filterStage==="all" && <Btn onClick={()=>setShowAdd(true)}>+ Add First Opportunity</Btn>}
+        </Card>
+      )}
+
+      {/* Opportunity list */}
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {filtered.map(item => {
+          const stage = STAGES.find(s=>s.id===item.stage) || STAGES[0];
+          const isOpen = selectedItem && selectedItem.id === item.id;
+          const decColor = item.decision==="GO"?GREEN:item.decision==="CONDITIONAL GO"?GOLD:item.decision==="NO-BID"?RED:TEXT_D;
           return (
-            <div key={stage.id} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6}}>
-              <div style={{padding:"10px 14px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:8}}>
-                <div style={{width:8,height:8,borderRadius:"50%",background:stage.color}} />
-                <span style={{color:stage.color,fontWeight:700,fontSize:11,letterSpacing:"0.08em"}}>{stage.label.toUpperCase()}</span>
-                <span style={{marginLeft:"auto",background:BG4,color:TEXT_D,borderRadius:10,padding:"1px 7px",fontSize:11}}>{si.length}</span>
+            <div key={item.id} style={{background:BG2,border:`1px solid ${isOpen?GOLD:BORDER}`,borderRadius:6,overflow:"hidden"}}>
+              {/* Row summary - always visible */}
+              <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",cursor:"pointer"}} onClick={()=>openItem(item)}>
+                <div style={{width:10,height:10,borderRadius:"50%",background:stage.color,flexShrink:0}} />
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:700,color:TEXT,fontSize:13,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.title}</div>
+                  <div style={{fontSize:11,color:TEXT_D}}>{item.agency}{item.type?" · "+item.type:""}{item.geography?" · "+item.geography:""}</div>
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                  {item.value && <span style={{color:GREEN,fontSize:12,fontWeight:700}}>{item.value}</span>}
+                  {item.deadline && <span style={{color:ORANGE,fontSize:11}}>Due: {item.deadline}</span>}
+                  {item.opiScore && <OPIBadge score={item.opiScore} />}
+                  {item.decision && <Badge color={decColor}>{item.decision}</Badge>}
+                  <Badge color={stage.color}>{stage.label}</Badge>
+                  <span style={{color:TEXT_D,fontSize:14}}>{isOpen?"▲":"▼"}</span>
+                </div>
               </div>
-              <div style={{padding:10,display:"flex",flexDirection:"column",gap:8}}>
-                {si.map(item => (
-                  <div key={item.id} style={{background:BG3,borderRadius:4,padding:10,border:`1px solid ${BORDER}`}}>
-                    <div style={{fontWeight:600,fontSize:12,color:TEXT,marginBottom:4}}>{item.title}</div>
-                    {item.agency && <div style={{fontSize:11,color:TEXT_D,marginBottom:2}}>{item.agency}</div>}
-                    {item.type && <div style={{fontSize:11,color:TEXT_D,marginBottom:2}}>{item.type}</div>}
-                    {item.geography && <div style={{fontSize:11,color:TEXT_D,marginBottom:2}}>{item.geography}</div>}
-                    {item.deadline && <div style={{fontSize:11,color:ORANGE,marginBottom:4}}>Due: {item.deadline}</div>}
-                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8,alignItems:"center"}}>
-                      {item.value && <span style={{color:GREEN,fontSize:11,fontWeight:700}}>{item.value}</span>}
-                      {item.opiScore && <OPIBadge score={item.opiScore} />}
-                      {item.decision && <Badge color={item.decision==="GO"?GREEN:item.decision==="CONDITIONAL GO"?GOLD:RED}>{item.decision}</Badge>}
+
+              {/* Expanded detail panel */}
+              {isOpen && (
+                <div style={{borderTop:`1px solid ${BORDER}`,padding:16,background:BG3}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+                    <div>
+                      <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>OPPORTUNITY DETAILS</div>
+                      {[["Agency",item.agency],["Type",item.type],["Value",item.value],["Deadline",item.deadline],["Geography",item.geography],["Decision",item.decision],["OPI Score",item.opiScore],["Added",item.addedDate?new Date(item.addedDate).toLocaleDateString():""]].map(([k,v])=>v?(
+                        <div key={k} style={{display:"flex",gap:8,marginBottom:4,fontSize:12}}>
+                          <span style={{color:TEXT_D,minWidth:80}}>{k}:</span>
+                          <span style={{color:TEXT}}>{v}</span>
+                        </div>
+                      ):null)}
                     </div>
-                    <Sel value={item.stage} onChange={v=>save(items.map(i=>i.id===item.id?{...i,stage:v}:i))}
-                      options={STAGES.map(s=>({value:s.id,label:s.label}))} style={{width:"100%",fontSize:11,marginBottom:6}} />
-                    <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                      <Btn small onClick={()=>getStrategy(item)} disabled={aiLoading[item.id]}>Strategy</Btn>
-                      {(item.decomposition||item.execBrief||item.proposal) &&
-                        <Btn small variant="ghost" onClick={()=>setExpanded(e=>({...e,[item.id]:!e[item.id]}))}>Artifacts</Btn>}
-                      <Btn small variant="secondary" onClick={()=>{
-                        setForm({title:item.title,agency:item.agency||"",type:item.type||"",value:item.value||"",deadline:item.deadline||"",notes:item.notes||"",stage:item.stage,opiScore:item.opiScore||""});
-                        setEditItem(item); setShowAdd(true);
-                      }}>Edit</Btn>
-                      <Btn small variant="danger" onClick={()=>save(items.filter(i=>i.id!==item.id))}>X</Btn>
+                    <div>
+                      <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>STAGE & NOTES</div>
+                      <Label text="MOVE TO STAGE" />
+                      <Sel value={item.stage} onChange={v=>save(items.map(i=>i.id===item.id?{...i,stage:v}:i))}
+                        options={STAGES.map(s=>({value:s.id,label:s.label}))} style={{width:"100%",marginBottom:10}} />
+                      {item.notes && <div style={{fontSize:12,color:TEXT_D,fontStyle:"italic",marginTop:4}}>{item.notes}</div>}
                     </div>
-                    {expanded[item.id] && (
-                      <div style={{marginTop:8,fontSize:11}}>
-                        {item.decomposition && <div style={{color:GOLD,marginBottom:2}}>Decomposition stored</div>}
-                        {item.execBrief && <div style={{color:GOLD,marginBottom:2}}>Executive Brief stored</div>}
-                        {item.proposal && <div style={{color:GREEN,marginBottom:2}}>Proposal Package stored</div>}
-                      </div>
-                    )}
-                    {(aiLoading[item.id]||aiNotes[item.id]) && <div style={{marginTop:8}}><AIOut content={aiNotes[item.id]} loading={aiLoading[item.id]} /></div>}
                   </div>
-                ))}
-              </div>
+
+                  {/* Artifacts */}
+                  {(item.decomposition||item.execBrief||item.proposal) && (
+                    <div style={{marginBottom:12,padding:"8px 12px",background:BG2,borderRadius:4,border:`1px solid ${BORDER}`}}>
+                      <div style={{color:GOLD,fontSize:11,fontWeight:700,marginBottom:6}}>STORED ARTIFACTS</div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                        {item.decomposition && <Badge color={GOLD}>RFP Decomposition</Badge>}
+                        {item.execBrief && <Badge color={GOLD}>Executive Brief</Badge>}
+                        {item.proposal && <Badge color={GREEN}>Proposal Package</Badge>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <Btn small onClick={()=>getStrategy(item)} disabled={aiLoading[item.id]}>{aiLoading[item.id]?"Getting Strategy...":"Get Capture Strategy"}</Btn>
+                    <Btn small variant="secondary" onClick={()=>editBtn(item)}>Edit</Btn>
+                    <Btn small variant="danger" onClick={()=>{save(items.filter(i=>i.id!==item.id));setSelectedItem(null);}}>Delete</Btn>
+                  </div>
+
+                  {(aiLoading[item.id]||aiNotes[item.id]) && (
+                    <div style={{marginTop:12}}><AIOut content={aiNotes[item.id]} loading={aiLoading[item.id]} label="CAPTURE STRATEGY" /></div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -1130,8 +1187,125 @@ function WeeklyDigest() {
   );
 }
 
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+function Dashboard({ setActive }) {
+  const tracker = store.get("tracker") || [];
+  const sharedCtx = store.get("sharedCtx") || {};
+  const t1 = tracker.filter(o => o.opiScore && parseInt(o.opiScore) >= 70);
+  const pursuing = tracker.filter(o => o.stage === "pursuing");
+  const proposal = tracker.filter(o => o.stage === "proposal");
+  const submitted = tracker.filter(o => o.stage === "submitted");
+  const recentOpps = tracker.slice(0,5);
+
+  const statBox = (label, value, color, module) => (
+    <div onClick={()=>setActive(module)} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:20,cursor:"pointer",flex:1,minWidth:140}}>
+      <div style={{fontSize:28,fontWeight:800,color:color||GOLD,marginBottom:4}}>{value}</div>
+      <div style={{fontSize:11,color:TEXT_D,letterSpacing:"0.08em"}}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{marginBottom:24}}>
+        <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:22,fontWeight:800}}>HGI Capture Dashboard</h2>
+        <p style={{color:TEXT_D,margin:0,fontSize:13}}>Hammerman & Gainer LLC · {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</p>
+      </div>
+
+      {/* Stats row */}
+      <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
+        {statBox("TOTAL TRACKED", tracker.length, GOLD, "tracker")}
+        {statBox("TIER 1 (OPI 70+)", t1.length, GREEN, "tracker")}
+        {statBox("PURSUING", pursuing.length, GOLD, "tracker")}
+        {statBox("IN PROPOSAL", proposal.length, ORANGE, "tracker")}
+        {statBox("SUBMITTED", submitted.length, BLUE, "tracker")}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+        {/* Recent pipeline */}
+        <Card>
+          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>RECENT PIPELINE</div>
+          {recentOpps.length ? recentOpps.map(o => {
+            const stage = STAGES.find(s=>s.id===o.stage);
+            return (
+              <div key={o.id} onClick={()=>setActive("tracker")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${BORDER}`,cursor:"pointer"}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:stage?stage.color:TEXT_D,flexShrink:0}} />
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,color:TEXT,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{o.title}</div>
+                  <div style={{fontSize:11,color:TEXT_D}}>{o.agency}</div>
+                </div>
+                {o.opiScore && <OPIBadge score={o.opiScore} />}
+              </div>
+            );
+          }) : <div style={{color:TEXT_D,fontSize:13,padding:"20px 0",textAlign:"center"}}>No opportunities yet</div>}
+          <div style={{marginTop:12}}><Btn small variant="ghost" onClick={()=>setActive("tracker")}>View All →</Btn></div>
+        </Card>
+
+        {/* Quick actions */}
+        <Card>
+          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>QUICK ACTIONS</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div onClick={()=>setActive("workflow")} style={{display:"flex",alignItems:"center",gap:12,padding:12,background:BG3,borderRadius:4,cursor:"pointer",border:`1px solid ${BORDER}`}}>
+              <span style={{fontSize:18}}>⚡</span>
+              <div>
+                <div style={{color:TEXT,fontWeight:600,fontSize:13}}>Run Full Workflow</div>
+                <div style={{color:TEXT_D,fontSize:11}}>Upload RFP → Decompose → Score → Propose</div>
+              </div>
+            </div>
+            <div onClick={()=>setActive("scanner")} style={{display:"flex",alignItems:"center",gap:12,padding:12,background:BG3,borderRadius:4,cursor:"pointer",border:`1px solid ${BORDER}`}}>
+              <span style={{fontSize:18}}>◎</span>
+              <div>
+                <div style={{color:TEXT,fontWeight:600,fontSize:13}}>Scan for New RFPs</div>
+                <div style={{color:TEXT_D,fontSize:11}}>Search SAM.gov, LaPAC, Gulf Coast portals</div>
+              </div>
+            </div>
+            <div onClick={()=>setActive("scoring")} style={{display:"flex",alignItems:"center",gap:12,padding:12,background:BG3,borderRadius:4,cursor:"pointer",border:`1px solid ${BORDER}`}}>
+              <span style={{fontSize:18}}>◆</span>
+              <div>
+                <div style={{color:TEXT,fontWeight:600,fontSize:13}}>Score an Opportunity</div>
+                <div style={{color:TEXT_D,fontSize:11}}>Quick Pwin + OPI before committing resources</div>
+              </div>
+            </div>
+            <div onClick={()=>setActive("digest")} style={{display:"flex",alignItems:"center",gap:12,padding:12,background:BG3,borderRadius:4,cursor:"pointer",border:`1px solid ${BORDER}`}}>
+              <span style={{fontSize:18}}>◇</span>
+              <div>
+                <div style={{color:TEXT,fontWeight:600,fontSize:13}}>Generate Weekly Digest</div>
+                <div style={{color:TEXT_D,fontSize:11}}>AI capture intelligence brief for leadership</div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Workflow guide */}
+      <Card style={{border:`1px solid ${GOLD}22`}}>
+        <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:12}}>RECOMMENDED WORKFLOW</div>
+        <div style={{display:"flex",gap:0,flexWrap:"wrap"}}>
+          {[
+            ["1","Find RFP","Scanner or upload"],
+            ["2","Run Full Workflow","Decompose → Score → Proposal skeleton"],
+            ["3","Expand Sections","Proposal Engine — one section at a time"],
+            ["4","Track & Manage","Pipeline Tracker — move through stages"],
+            ["5","Weekly Review","Digest — leadership intelligence brief"]
+          ].map(([num,title,sub],i,arr)=>(
+            <div key={num} style={{display:"flex",alignItems:"center"}}>
+              <div style={{textAlign:"center",padding:"0 16px"}}>
+                <div style={{width:32,height:32,borderRadius:"50%",background:GOLD,color:"#000",fontWeight:800,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 6px"}}>{num}</div>
+                <div style={{color:TEXT,fontSize:12,fontWeight:600,marginBottom:2}}>{title}</div>
+                <div style={{color:TEXT_D,fontSize:11}}>{sub}</div>
+              </div>
+              {i < arr.length-1 && <div style={{color:GOLD,fontSize:18,opacity:0.4}}>→</div>}
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // ── APP ───────────────────────────────────────────────────────────────────────
 const MODULES = [
+  {id:"dashboard", label:"Dashboard", icon:"⌂"},
   {id:"workflow", label:"Full Workflow", icon:"⚡", badge:"NEW"},
   {id:"scanner", label:"Live Pipeline Scanner", icon:"◎"},
   {id:"tracker", label:"Pipeline Tracker", icon:"◈"},
@@ -1143,7 +1317,7 @@ const MODULES = [
 ];
 
 function App() {
-  const [active, setActive] = useState("workflow");
+  const [active, setActive] = useState("dashboard");
   const [sideOpen, setSideOpen] = useState(true);
   const [sharedCtx, setSharedCtx] = useState(() => store.get("sharedCtx") || {rfpText:"", decomposition:"", execBrief:"", title:"", agency:""});
   const [proposalSection, setProposalSection] = useState("executive_summary");
@@ -1160,6 +1334,7 @@ function App() {
   };
 
   const components = {
+    dashboard: <Dashboard setActive={setActive} />,
     workflow: <FullWorkflow sharedCtx={sharedCtx} saveSharedCtx={saveSharedCtx} goToProposal={goToProposal} />,
     scanner: <PipelineScanner />,
     tracker: <PipelineTracker goToWorkflow={(opp) => { setActive("workflow"); }} />,
