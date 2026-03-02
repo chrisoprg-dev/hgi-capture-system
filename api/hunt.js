@@ -90,7 +90,7 @@ export default async function handler(req, res) {
           api_key: SAM_KEY, limit: "10",
           postedFrom: getDaysAgo(45), postedTo: getToday(), active: "true", ...search,
         });
-        const r = await fetch(`https://api.sam.gov/opportunities/v2/search?${params}`, { headers: { "Accept":"application/json" } });
+        const r = await fetch(`https://api.sam.gov/prod/opportunities/v2/search?${params}`, { headers: { "Accept":"application/json" } });
         if (!r.ok) { console.warn("SAM error:", r.status); continue; }
         const d = await r.json();
         if (d.opportunitiesData) results.push(...d.opportunitiesData);

@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   let samStatus = 0;
   let samBody = "";
   try {
-    const r = await fetch(`https://api.sam.gov/opportunities/v2/search?api_key=${SAM_KEY}&limit=2&postedFrom=01/01/2026&postedTo=03/02/2026`, {
+    const r = await fetch(`https://api.sam.gov/prod/opportunities/v2/search?api_key=${SAM_KEY}&limit=2&postedFrom=01/01/2026&postedTo=03/02/2026`, {
       headers: { "Accept": "application/json" }
     });
     samStatus = r.status;
