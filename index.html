@@ -2303,7 +2303,7 @@ Extract and return as JSON:
       if (data.success) {
         // After hunt completes, reload from DB
         await loadOpportunities();
-        alert(`✓ Hunt complete — ${data.found} opportunities found, ${data.saved} saved to database`);
+        alert(`✓ Hunt complete — ${data.fetched} opportunities fetched, ${data.analyzed} analyzed and scored`);
       } else {
         alert("Hunt encountered an error: " + (data.error || "Unknown error"));
       }
