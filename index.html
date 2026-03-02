@@ -2228,121 +2228,93 @@ Extract and return as JSON:
 
   const [expandedCard, setExpandedCard] = useState(null);
 
-  const runHunt = async () => {
+  // ── REAL DATA FROM SUPABASE ──
+  const loadOpportunities = async (filters = {}) => {
     setHunting(true);
-    const now = new Date().toISOString();
-
-    const huntPrompt = `You are HGI's institutional growth engine. Hunt for ALL procurement opportunities across HGI's full vertical scope.
-
-HGI PROFILE:
-${HGI_CONTEXT}
-
-ADDITIONAL VERTICALS:
-- TPA/Claims: Workers Comp TPA, Property & Casualty, Insurance Guaranty Associations (LA Citizens, FL Citizens, TX Windpool/TWIA, TPCIGA, LIGA)
-- Property Tax Appeals: 10+ year history with City of New Orleans. Replicable model for cities, parishes, counties, tax commissions
-- Health & Human Services: LDH, public health program administration, case processing, compliance monitoring
-- Infrastructure: Transit authorities (RTA-type), capital program oversight, construction management
-- Workforce: Louisiana Workforce Commission, unemployment adjudication, benefits administration, social services
-
-GEOGRAPHIC SCOPE: Louisiana (ALL parishes + municipal), Texas (GLO, TDEM, TWIA, SmartBuy, metros + mid-size cities), Florida (DEO, FDEM, FL Citizens, housing agencies, counties), Mississippi (MEMA, MDA, state procurement), Alabama (AEMA, housing), Georgia (Atlanta metro focus)
-
-FEDERAL: SAM.gov across NAICS codes relevant to HGI — program management, claims admin, disaster recovery, housing assistance, TPA, workforce services
-
-DEAL SIZE: No minimum — include everything from <$150K TPA contracts to $50M+ disaster recovery programs.
-
-GENERATE 15-20 specific, realistic procurement opportunities HGI should be pursuing RIGHT NOW.
-
-Return as JSON only. No markdown. Each opportunity must include ALL these fields:
-{
-  "title": "specific opportunity title",
-  "agency": "real agency name",
-  "state": "2-letter state code or Federal",
-  "vertical": "disaster|tpa|workforce|health|infrastructure|tax_appeals|federal",
-  "estimatedValue": "dollar range as string",
-  "timing": "specific timing description",
-  "source": "SAM.gov|LaPAC|Texas SmartBuy|agency website name",
-  "sourceUrl": "most likely direct URL to find this — e.g. https://sam.gov/search/?keywords=... or https://lapac.doa.louisiana.gov or https://smartbuy.hhs.texas.gov etc",
-  "opiScore": number 0-100,
-  "whyHgiWins": ["reason 1", "reason 2", "reason 3"],
-  "urgency": "IMMEDIATE|ACTIVE|PIPELINE|WATCH",
-  "strategicImportance": "TIER_1|TIER_2|TIER_3",
-  "recompete": true/false,
-  "incumbent": "name or empty string",
-  "description": "2-3 sentence plain English summary of what this contract is and why it exists",
-  "scopeOfWork": "4-6 bullet points describing the key deliverables and work scope — what the contractor will actually do",
-  "keyRequirements": "2-3 critical qualification requirements or past performance requirements",
-  "captureAction": "the single most important action HGI should take THIS WEEK to position for this opportunity"
-}
-
-Also generate disasterSignals and fundingSignals arrays.
-
-Full JSON structure:
-{
-  "opportunities": [...],
-  "disasterSignals": [{"event": "...", "implication": "...", "timing": "..."}],
-  "fundingSignals": [{"allocation": "...", "amount": "...", "implication": "...", "expectedRfp": "..."}]
-}`;
-
     try {
-      const raw = await callClaude(huntPrompt, "You are a senior capture intelligence analyst for HGI with deep knowledge of government procurement across disaster recovery, TPA, workforce, health, tax appeals, and infrastructure. Generate realistic, specific, actionable opportunities. " + HGI_CONTEXT, 4000);
-      
-      let data;
-      try {
-        const clean = raw.replace(/```json|```/g,"").trim();
-        const start = clean.indexOf("{");
-        const end = clean.lastIndexOf("}");
-        if (start >= 0 && end > start) {
-          data = JSON.parse(clean.slice(start, end+1));
-        }
-      } catch(e) {
-        console.warn("Full JSON parse failed, trying array extraction:", e.message);
+      const params = new URLSearchParams({
+        includeRuns: "true",
+        includeSignals: "true",
+        limit: "100",
+        sort: "opi_score.desc",
+        ...filters,
+      });
+      const res = await fetch(`/api/opportunities?${params}`);
+      const data = await res.json();
+      if (data.opportunities) {
+        // Map from snake_case DB fields to camelCase UI fields
+        const mapped = data.opportunities.map(o => ({
+          id: o.id,
+          title: o.title,
+          agency: o.agency,
+          state: o.state,
+          vertical: o.vertical,
+          estimatedValue: o.estimated_value,
+          timing: o.due_date ? `Due: ${o.due_date}` : o.timing || "See source",
+          source: o.source,
+          sourceUrl: o.source_url,
+          opiScore: o.opi_score,
+          urgency: o.urgency,
+          strategicImportance: o.strategic_importance,
+          recompete: o.recompete,
+          incumbent: o.incumbent,
+          description: o.description,
+          scopeOfWork: o.scope_of_work,
+          whyHgiWins: o.why_hgi_wins,
+          keyRequirements: o.key_requirements,
+          captureAction: o.capture_action,
+          hgiRelevance: o.hgi_relevance,
+          hgiFit: o.hgi_fit,
+          rfpText: o.rfp_text,
+          solicitationNumber: o.solicitation_number,
+          dueDate: o.due_date,
+          naics: o.naics,
+          setAside: o.set_aside,
+          documentLinks: o.documents || [],
+          documentsRetrieved: o.documents_fetched,
+          savedToTracker: o.saved_to_tracker,
+          discoveredAt: o.discovered_at,
+          analyzedAt: o.analyzed_at,
+        }));
+        setHuntResults(mapped);
+        store.set("huntResults", mapped);
       }
-      // Fallback: try extracting opportunities array directly
-      if (!data || !data.opportunities) {
-        try {
-          const arrMatch = raw.match(/"opportunities"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
-          if (arrMatch) data = { opportunities: JSON.parse(arrMatch[1]) };
-        } catch(e2) { console.warn("Array extraction failed:", e2.message); }
+      if (data.huntRuns?.length > 0) {
+        setLastHunted(data.huntRuns[0].run_at);
+        store.set("lastHunted", data.huntRuns[0].run_at);
       }
-      // Last resort: ask Claude to return simpler format
-      if (!data || !data.opportunities || data.opportunities.length === 0) {
-        console.warn("Retrying with simpler prompt...");
-        const simplePrompt = "List 12 specific government procurement opportunities HGI should pursue. HGI profile: " + HGI_CONTEXT + "\n\nFor each return JSON with these exact fields: title, agency, state, vertical (one of: disaster/tpa/workforce/health/infrastructure/tax_appeals/federal), estimatedValue, timing, source, opiScore (number 0-100), whyHgiWins (array of 2 strings), urgency (one of: IMMEDIATE/ACTIVE/PIPELINE/WATCH), strategicImportance (one of: TIER_1/TIER_2/TIER_3), recompete (boolean), incumbent.\n\nReturn ONLY a JSON array. No other text. Example: [{\"title\":\"...\",\"agency\":\"...\",...}]";
-        const raw2 = await callClaude(simplePrompt, "Return ONLY a valid JSON array. No markdown, no explanation, no backticks.", 3000);
-        try {
-          const c2 = raw2.replace(/```json|```/g,"").trim();
-          const a2 = c2.indexOf("["), b2 = c2.lastIndexOf("]");
-          if (a2 >= 0 && b2 > a2) {
-            data = { opportunities: JSON.parse(c2.slice(a2, b2+1)) };
-          }
-        } catch(e3) {
-          console.error("All parsing attempts failed:", e3.message, "\nRaw:", raw2.slice(0,500));
-          setHunting(false);
-          alert("Hunt returned data but couldn't parse it. Check console for details.");
-          return;
-        }
+      if (data.signals) {
+        const disaster = data.signals.filter(s => s.type === "disaster");
+        const funding = data.signals.filter(s => s.type === "funding");
+        setDisasterAlerts(disaster);
+        setFundingAlerts(funding);
       }
-
-      const opps = (data.opportunities || []).map((o, i) => ({
-        ...o,
-        id: "hunt-" + Date.now() + "-" + i,
-        discoveredAt: now,
-        savedToTracker: false,
-      }));
-
-      setHuntResults(opps);
-      store.set("huntResults", opps);
-      setLastHunted(now);
-      store.set("lastHunted", now);
-
-      if (data.disasterSignals) { setDisasterAlerts(data.disasterSignals); store.set("disasterAlerts", data.disasterSignals); }
-      if (data.fundingSignals) { setFundingAlerts(data.fundingSignals); store.set("fundingAlerts", data.fundingSignals); }
-
     } catch(err) {
-      console.error("Hunt error:", err);
+      console.error("Load opportunities error:", err);
     }
     setHunting(false);
   };
+
+  const triggerHunt = async () => {
+    setHunting(true);
+    try {
+      const res = await fetch("/api/hunt", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        // After hunt completes, reload from DB
+        await loadOpportunities();
+        alert(`✓ Hunt complete — ${data.found} opportunities found, ${data.saved} saved to database`);
+      } else {
+        alert("Hunt encountered an error: " + (data.error || "Unknown error"));
+      }
+    } catch(err) {
+      alert("Hunt failed: " + err.message);
+    }
+    setHunting(false);
+  };
+
+  // Load on mount
+  useEffect(() => { loadOpportunities(); }, []);
 
   const sendToWorkflow = (opp) => {
     setSendingToWorkflow(opp.id);
@@ -2481,15 +2453,18 @@ Full JSON structure:
             </div>
 
             <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-              <Btn onClick={runHunt} disabled={hunting} style={{minWidth:160}}>
-                {hunting ? "⟳ Hunting..." : "🎯 Hunt Now"}
+              <Btn onClick={triggerHunt} disabled={hunting} style={{minWidth:180}}>
+                {hunting ? "⟳ Hunting..." : "🎯 Run Full Hunt Now"}
+              </Btn>
+              <Btn variant="ghost" onClick={()=>loadOpportunities()} disabled={hunting}>
+                ⟳ Refresh from Database
               </Btn>
               {hunting && <div style={{color:TEXT_D,fontSize:12,animation:"pulse 1.5s infinite"}}>
-                Scanning SAM.gov · State portals · Insurance associations · Municipal boards · Federal signals...
+                Scanning SAM.gov · LaPAC · Analyzing with AI · Scoring against HGI profile...
               </div>}
-              {!hunting && huntResults.length > 0 && (
-                <Btn variant="ghost" small onClick={()=>{setHuntResults([]);store.set("huntResults",[]);}}>Clear Results</Btn>
-              )}
+            </div>
+            <div style={{marginTop:10,padding:"8px 12px",background:BG3,borderRadius:4,fontSize:11,color:TEXT_D}}>
+              💡 Hunt runs automatically every morning at 7am. Results are fully analyzed and scored before you see them — real RFP data, real documents, real OPI scores based on actual opportunity requirements vs HGI capabilities. Click <strong style={{color:GOLD}}>Refresh from Database</strong> to load latest results, or <strong style={{color:GOLD}}>Run Full Hunt Now</strong> to trigger an immediate scan.
             </div>
           </Card>
 
