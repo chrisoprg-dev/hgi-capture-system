@@ -1,61 +1,38 @@
 // api/knowledge.js — HGI Knowledge Base Engine
 // Upload → Extract → Chunk → Classify → Persist
-// Constraints: chunked storage, structured JSON doctrine, no single full_text field
 export const config = { maxDuration: 120 };
 
-const CHUNK_SIZE = 1500; // chars per chunk — fits cleanly into Claude context
-const CHUNK_OVERLAP = 150; // overlap between chunks for continuity
-
-const VERTICALS = ["disaster", "tpa", "appeals", "workforce", "health", "infrastructure", "federal", "construction", "general"];
-
-const DOC_CLASSES = [
-  "winning_proposal", "rfp", "amendment", "contract", "scoring_sheet",
-  "capabilities_statement", "corporate_profile", "resume", "rate_sheet",
-  "client_correspondence", "unsolicited_proposal", "past_performance", "other"
-];
+const CHUNK_SIZE = 1500;
+const CHUNK_OVERLAP = 150;
+// Max base64 size to send to Claude for PDF extraction (~4MB decoded = ~5.3MB base64)
+const MAX_PDF_BASE64 = 5000000;
 
 function safeId(s) {
   return (s || "").toString().replace(/[^a-zA-Z0-9\-_]/g, "-").slice(0, 80);
 }
 
-// Split text into overlapping chunks
 function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
   const chunks = [];
   let i = 0;
   while (i < text.length) {
     const end = Math.min(i + chunkSize, text.length);
-    chunks.push({
-      index: chunks.length,
-      text: text.slice(i, end),
-      char_start: i,
-      char_end: end,
-    });
+    chunks.push({ index: chunks.length, text: text.slice(i, end), char_start: i, char_end: end });
     if (end === text.length) break;
     i += chunkSize - overlap;
   }
   return chunks;
 }
 
-// Extract text from base64 content based on file type
 function extractTextFromContent(content, fileType) {
-  // For text-based files, decode directly
   if (fileType === "txt" || fileType === "md") {
-    try {
-      return Buffer.from(content, "base64").toString("utf-8");
-    } catch (e) {
-      return content;
-    }
+    try { return Buffer.from(content, "base64").toString("utf-8"); } catch(e) { return content; }
   }
-  // For HTML
   if (fileType === "html") {
     try {
       const html = Buffer.from(content, "base64").toString("utf-8");
       return html.replace(/<[^>]+>/g, " ").replace(/\s{3,}/g, " ").trim();
-    } catch (e) {
-      return "";
-    }
+    } catch(e) { return ""; }
   }
-  // PDF and DOCX require Claude to extract — return raw for Claude processing
   return null;
 }
 
@@ -74,7 +51,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Missing environment variables" });
   }
 
-  // Auth
   const secret = req.headers["x-intake-secret"] || req.body?.intake_secret;
   if (INTAKE_SECRET && secret !== INTAKE_SECRET) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -107,8 +83,7 @@ export default async function handler(req, res) {
 
   const dbDelete = async (table, params) => {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, {
-      method: "DELETE",
-      headers: dbHeaders,
+      method: "DELETE", headers: dbHeaders,
     });
     if (!r.ok) throw new Error(`DB DELETE ${table}: ${await r.text()}`);
   };
@@ -122,7 +97,7 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: maxTokens,
         system,
         messages: [{ role: "user", content: prompt }],
@@ -132,22 +107,21 @@ export default async function handler(req, res) {
     return d.content?.filter(b => b.type === "text").map(b => b.text).join("") || "";
   };
 
-  // ── GET — list documents ─────────────────────────────────────────────────
+  // ── GET ──────────────────────────────────────────────────────────────────
   if (req.method === "GET") {
     const { vertical, doc_class, limit = "50" } = req.query || {};
     let params = `?order=uploaded_at.desc&limit=${limit}&select=id,filename,file_type,document_class,vertical,client,contract_name,summary,chunk_count,uploaded_at,status`;
     if (vertical) params += `&vertical=eq.${vertical}`;
     if (doc_class) params += `&document_class=eq.${doc_class}`;
-
     try {
       const docs = await dbGet("knowledge_documents", params);
       return res.status(200).json({ documents: docs, total: docs.length });
-    } catch (e) {
+    } catch(e) {
       return res.status(500).json({ error: e.message });
     }
   }
 
-  // ── DELETE — remove document and its chunks ──────────────────────────────
+  // ── DELETE ───────────────────────────────────────────────────────────────
   if (req.method === "DELETE") {
     const { id } = req.query || {};
     if (!id) return res.status(400).json({ error: "id required" });
@@ -155,34 +129,29 @@ export default async function handler(req, res) {
       await dbDelete("knowledge_chunks", `?document_id=eq.${encodeURIComponent(id)}`);
       await dbDelete("knowledge_documents", `?id=eq.${encodeURIComponent(id)}`);
       return res.status(200).json({ success: true, deleted: id });
-    } catch (e) {
+    } catch(e) {
       return res.status(500).json({ error: e.message });
     }
   }
 
-  // ── POST — upload and process document ───────────────────────────────────
+  // ── POST ─────────────────────────────────────────────────────────────────
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const {
-    filename,
-    file_type, // pdf, docx, txt, html, md
-    content_base64, // base64 encoded file content
-    content_text, // plain text if already extracted (optional shortcut)
-    vertical: hintVertical,
-    document_class: hintDocClass,
-    client: hintClient,
-    contract_name: hintContractName,
+    filename, file_type, content_base64, content_text,
+    vertical: hintVertical, document_class: hintDocClass,
+    client: hintClient, contract_name: hintContractName,
   } = req.body || {};
 
   if (!filename || (!content_base64 && !content_text)) {
-    return res.status(400).json({ error: "filename and content_base64 or content_text required" });
+    return res.status(400).json({ error: "filename and content required" });
   }
 
   const ext = (file_type || filename.split(".").pop() || "txt").toLowerCase();
   const docId = `doc-${Date.now()}-${safeId(filename)}`;
   const now = new Date().toISOString();
 
-  // ── Step 1: Extract or receive text ─────────────────────────────────────
+  // ── Step 1: Extract text ─────────────────────────────────────────────────
   let rawText = "";
 
   if (content_text) {
@@ -192,8 +161,13 @@ export default async function handler(req, res) {
     if (directExtract !== null) {
       rawText = directExtract;
     } else {
-      // PDF/DOCX — use Claude vision to extract text
-      const mediaType = ext === "pdf" ? "application/pdf" : "application/octet-stream";
+      // PDF/DOCX — truncate large files before sending to Claude
+      const pdfData = content_base64.length > MAX_PDF_BASE64
+        ? content_base64.slice(0, MAX_PDF_BASE64)
+        : content_base64;
+
+      const isLarge = content_base64.length > MAX_PDF_BASE64;
+
       try {
         const extractResp = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
@@ -203,22 +177,20 @@ export default async function handler(req, res) {
             "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 4000,
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 3000,
             messages: [{
               role: "user",
               content: [
                 {
                   type: "document",
-                  source: {
-                    type: "base64",
-                    media_type: mediaType,
-                    data: content_base64,
-                  }
+                  source: { type: "base64", media_type: "application/pdf", data: pdfData }
                 },
                 {
                   type: "text",
-                  text: "Extract all text content from this document. Return the full text only, preserving section headers and structure. No commentary."
+                  text: isLarge
+                    ? "Extract the first 8000 words of text from this document. Preserve section headers. Return text only, no commentary."
+                    : "Extract all text from this document. Preserve section headers. Return text only, no commentary."
                 }
               ]
             }]
@@ -226,30 +198,48 @@ export default async function handler(req, res) {
         });
         const extractData = await extractResp.json();
         rawText = extractData.content?.filter(b => b.type === "text").map(b => b.text).join("") || "";
-      } catch (e) {
+        if (isLarge) rawText += "\n\n[Note: Document was truncated — first portion extracted]";
+      } catch(e) {
         console.warn("PDF extraction failed:", e.message);
-        rawText = `[Extraction failed for ${filename}]`;
+        rawText = `[Extraction failed for ${filename}: ${e.message}]`;
       }
     }
   }
 
-  rawText = rawText.slice(0, 150000); // cap at 150k chars
+  rawText = rawText.slice(0, 80000); // cap at 80k chars
 
-  // ── Step 2: Classify document ────────────────────────────────────────────
-  const classifyPrompt = `You are classifying a document for HGI Global (Hammerman & Gainer), a government contracting and claims administration firm.
-
-Document filename: ${filename}
-First 2000 characters of content:
-${rawText.slice(0, 2000)}
-
-Return ONLY valid JSON:
+  // ── Step 2: Classify + extract doctrine IN PARALLEL ──────────────────────
+  const classifyPrompt = `Classify this HGI document. Return ONLY valid JSON:
 {
-  "document_class": "${DOC_CLASSES.join("|")}",
-  "vertical": "${VERTICALS.join("|")}",
+  "document_class": "winning_proposal|rfp|capabilities_statement|corporate_profile|resume|rate_sheet|contract|past_performance|unsolicited_proposal|amendment|other",
+  "vertical": "disaster|tpa|appeals|workforce|health|infrastructure|federal|construction|general",
   "client": "client name or empty string",
-  "contract_name": "contract or program name or empty string",
-  "summary": "3-5 sentence plain English summary of what this document is and its key content"
-}`;
+  "contract_name": "contract name or empty string",
+  "summary": "3-4 sentence plain English summary of this document"
+}
+
+Filename: ${filename}
+Content sample: ${rawText.slice(0, 3000)}`;
+
+  const doctrinePrompt = `Extract structured knowledge from this HGI document. Return ONLY valid JSON:
+{
+  "past_performance": [{"client":"","program":"","scope":"","scale":"","outcome":""}],
+  "service_lines": ["service1","service2"],
+  "win_themes": ["theme1","theme2"],
+  "key_personnel_roles": ["role1","role2"],
+  "risk_mitigation_themes": ["theme1"],
+  "pricing_model": "T&M|fixed|cost-plus|per-claim|unknown",
+  "narrative_summary": "2 sentence summary of key doctrine extracted"
+}
+
+Filename: ${filename}
+Content: ${rawText.slice(0, 5000)}`;
+
+  // Run classify and doctrine extraction in parallel to save time
+  const [classRaw, docRaw] = await Promise.all([
+    askClaude(classifyPrompt, "Return ONLY valid JSON. No markdown backticks.", 600),
+    askClaude(doctrinePrompt, "Return ONLY valid JSON. No markdown backticks.", 1500),
+  ]);
 
   let classification = {
     document_class: hintDocClass || "other",
@@ -259,114 +249,52 @@ Return ONLY valid JSON:
     summary: "",
   };
 
-  try {
-    const classRaw = await askClaude(classifyPrompt, "Return ONLY valid JSON. No markdown.", 800);
-    const classClean = classRaw.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(classClean.slice(classClean.indexOf("{"), classClean.lastIndexOf("}") + 1));
-    classification = { ...classification, ...parsed };
-  } catch (e) {
-    console.warn("Classification failed:", e.message);
-  }
-
-  // ── Step 3: Chunk the text ───────────────────────────────────────────────
-  const chunks = chunkText(rawText);
-
-  // ── Step 4: Extract doctrine (structured JSON) ───────────────────────────
-  const doctrinePrompt = `You are extracting structured institutional knowledge from an HGI document for use in AI-powered proposal and opportunity analysis.
-
-Document: ${filename}
-Type: ${classification.document_class}
-Vertical: ${classification.vertical}
-Client: ${classification.client}
-
-Full text sample (first 6000 chars):
-${rawText.slice(0, 6000)}
-
-Extract ALL available structured information. Return ONLY valid JSON:
-{
-  "past_performance": [
-    {
-      "client": "string",
-      "program": "string", 
-      "scope": "string",
-      "scale": "string",
-      "period": "string",
-      "outcome": "string",
-      "relevance": "string"
-    }
-  ],
-  "service_lines": ["specific service 1", "specific service 2"],
-  "key_personnel_roles": ["role title 1", "role title 2"],
-  "evaluation_factor_patterns": {
-    "technical_approach": "how HGI typically responds to technical approach sections",
-    "management_approach": "how HGI structures management responses",
-    "past_performance": "how HGI presents past performance",
-    "price_cost": "HGI pricing approach pattern"
-  },
-  "compliance_matrix_items": ["requirement 1", "requirement 2"],
-  "risk_mitigation_themes": ["theme 1", "theme 2"],
-  "win_themes": ["theme 1", "theme 2", "theme 3"],
-  "pricing_model": "T&M|fixed|cost-plus|per-claim|hybrid|unknown",
-  "narrative_summary": "2-3 sentence summary of key doctrine extracted"
-}`;
-
   let doctrine = {
-    past_performance: [],
-    service_lines: [],
-    key_personnel_roles: [],
-    evaluation_factor_patterns: {},
-    compliance_matrix_items: [],
-    risk_mitigation_themes: [],
-    win_themes: [],
-    pricing_model: "unknown",
-    narrative_summary: classification.summary,
+    past_performance: [], service_lines: [], win_themes: [],
+    key_personnel_roles: [], risk_mitigation_themes: [],
+    pricing_model: "unknown", narrative_summary: "",
   };
 
   try {
-    const docRaw = await askClaude(doctrinePrompt, "Return ONLY valid JSON. No markdown.", 2000);
-    const docClean = docRaw.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(docClean.slice(docClean.indexOf("{"), docClean.lastIndexOf("}") + 1));
-    doctrine = { ...doctrine, ...parsed };
-  } catch (e) {
-    console.warn("Doctrine extraction failed:", e.message);
-  }
+    const c = JSON.parse(classRaw.replace(/```json|```/g,"").trim().slice(
+      classRaw.indexOf("{"), classRaw.lastIndexOf("}") + 1
+    ));
+    classification = { ...classification, ...c };
+  } catch(e) { console.warn("Classify parse failed"); }
 
-  // ── Step 5: Extract winning DNA (if proposal or capabilities) ────────────
+  try {
+    const d = JSON.parse(docRaw.replace(/```json|```/g,"").trim().slice(
+      docRaw.indexOf("{"), docRaw.lastIndexOf("}") + 1
+    ));
+    doctrine = { ...doctrine, ...d };
+  } catch(e) { console.warn("Doctrine parse failed"); }
+
+  // ── Step 3: Extract winning DNA for proposals ────────────────────────────
   let winningDna = null;
-  if (["winning_proposal", "capabilities_statement", "unsolicited_proposal"].includes(classification.document_class)) {
-    const dnaPrompt = `Extract winning DNA patterns from this HGI proposal/capabilities document.
-
-Document: ${filename}
-Vertical: ${classification.vertical}
-Text sample: ${rawText.slice(0, 5000)}
-
-Return ONLY valid JSON:
+  if (["winning_proposal","capabilities_statement","unsolicited_proposal"].includes(classification.document_class)) {
+    const dnaPrompt = `Extract winning proposal DNA from this HGI document. Return ONLY valid JSON:
 {
-  "win_themes": [
-    {"theme": "theme title", "pattern": "how this theme is expressed", "frequency": "high|medium|low"}
-  ],
-  "technical_approach_patterns": [
-    {"section": "section name", "pattern": "structural pattern used"}
-  ],
-  "staffing_patterns": [
-    {"role": "role title", "qualifications": "key quals", "responsibilities": "key responsibilities"}
-  ],
-  "pricing_narrative_tone": "description of pricing narrative style",
-  "capture_strategy_themes": ["theme 1", "theme 2"],
-  "differentiators": ["differentiator 1", "differentiator 2"],
-  "red_flags": ["weakness or gap identified in this proposal"]
-}`;
+  "win_themes": [{"theme":"","pattern":"","frequency":"high|medium|low"}],
+  "technical_approach_patterns": [{"section":"","pattern":""}],
+  "staffing_patterns": [{"role":"","qualifications":"","responsibilities":""}],
+  "pricing_narrative_tone": "description",
+  "differentiators": ["differentiator1"],
+  "red_flags": ["weakness1"]
+}
+
+Content: ${rawText.slice(0, 4000)}`;
 
     try {
-      const dnaRaw = await askClaude(dnaPrompt, "Return ONLY valid JSON. No markdown.", 2000);
-      const dnaClean = dnaRaw.replace(/```json|```/g, "").trim();
-      winningDna = JSON.parse(dnaClean.slice(dnaClean.indexOf("{"), dnaClean.lastIndexOf("}") + 1));
-    } catch (e) {
-      console.warn("DNA extraction failed:", e.message);
-    }
+      const dnaRaw = await askClaude(dnaPrompt, "Return ONLY valid JSON. No markdown backticks.", 1500);
+      winningDna = JSON.parse(dnaRaw.replace(/```json|```/g,"").trim().slice(
+        dnaRaw.indexOf("{"), dnaRaw.lastIndexOf("}") + 1
+      ));
+    } catch(e) { console.warn("DNA parse failed"); }
   }
 
-  // ── Step 6: Store document record ───────────────────────────────────────
+  // ── Step 4: Chunk and store ──────────────────────────────────────────────
+  const chunks = chunkText(rawText);
+
   try {
     await dbInsert("knowledge_documents", {
       id: docId,
@@ -379,18 +307,17 @@ Return ONLY valid JSON:
       summary: classification.summary,
       chunk_count: chunks.length,
       char_count: rawText.length,
-      doctrine: doctrine,
+      doctrine,
       winning_dna: winningDna,
       uploaded_at: now,
       processed_at: now,
       status: "processed",
     });
-  } catch (e) {
-    console.error("Failed to save document record:", e.message);
+  } catch(e) {
     return res.status(500).json({ error: "Database save failed", details: e.message });
   }
 
-  // ── Step 7: Store chunks ─────────────────────────────────────────────────
+  // Store chunks in batches of 20
   const chunkRecords = chunks.map(chunk => ({
     id: `${docId}-chunk-${chunk.index}`,
     document_id: docId,
@@ -403,11 +330,10 @@ Return ONLY valid JSON:
     filename,
   }));
 
-  // Insert chunks in batches of 20
   for (let i = 0; i < chunkRecords.length; i += 20) {
     try {
       await dbInsert("knowledge_chunks", chunkRecords.slice(i, i + 20));
-    } catch (e) {
+    } catch(e) {
       console.warn(`Chunk batch ${i} failed:`, e.message);
     }
   }
@@ -420,7 +346,7 @@ Return ONLY valid JSON:
     vertical: classification.vertical,
     client: classification.client,
     chunks_stored: chunks.length,
-    doctrine_extracted: Object.keys(doctrine).length > 0,
+    doctrine_extracted: doctrine.win_themes?.length > 0,
     winning_dna_extracted: winningDna !== null,
     summary: classification.summary,
   });
