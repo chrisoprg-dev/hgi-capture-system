@@ -3049,7 +3049,7 @@ function KnowledgeBase() {
       </div>
 
       <div style={{background:BG2,border:"2px dashed " + BORDER,borderRadius:8,padding:"28px 20px",textAlign:"center",marginBottom:16}}>
-        <div style={{color:TEXT_L,fontWeight:600,fontSize:14,marginBottom:8}}>
+        <div style={{color:TEXT,fontWeight:600,fontSize:14,marginBottom:8}}>
           {uploading ? "Processing document..." : "Upload PDF, DOCX, or TXT"}
         </div>
         <div style={{color:TEXT_D,fontSize:11,marginBottom:14}}>
@@ -3062,7 +3062,7 @@ function KnowledgeBase() {
       </div>
 
       {status && (
-        <div style={{background:BG2,border:"1px solid " + BORDER,borderRadius:6,padding:"10px 14px",marginBottom:16,fontSize:12,color:status.startsWith("Done")?GREEN:"#e74c3c" && status.startsWith("Could")?TEXT_D:TEXT_L}}>
+        <div style={{background:BG2,border:"1px solid " + BORDER,borderRadius:6,padding:"10px 14px",marginBottom:16,fontSize:12,color:status.startsWith("Done")?GREEN:status.startsWith("Failed")?RED:TEXT}}>
           {status}
         </div>
       )}
@@ -3091,7 +3091,7 @@ function KnowledgeBase() {
               <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
-                    <span style={{color:TEXT_L,fontWeight:600,fontSize:13}}>{doc.filename}</span>
+                    <span style={{color:TEXT,fontWeight:600,fontSize:13}}>{doc.filename}</span>
                     <span style={{background:GOLD,color:"#000",fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10}}>
                       {(doc.vertical||"general").toUpperCase()}
                     </span>
@@ -3100,7 +3100,7 @@ function KnowledgeBase() {
                     </span>
                     {doc.chunk_count > 0 && <span style={{color:TEXT_D,fontSize:10}}>{doc.chunk_count} chunks</span>}
                   </div>
-                  {doc.client && <div style={{color:TEXT_D,fontSize:11,marginBottom:3}}>Client: <span style={{color:TEXT_L}}>{doc.client}</span></div>}
+                  {doc.client && <div style={{color:TEXT_D,fontSize:11,marginBottom:3}}>Client: <span style={{color:TEXT}}>{doc.client}</span></div>}
                   {doc.summary && <div style={{color:TEXT_D,fontSize:11,lineHeight:1.5,marginTop:4}}>{doc.summary}</div>}
                 </div>
                 <button onClick={()=>deleteDoc(doc.id,doc.filename)} style={{
