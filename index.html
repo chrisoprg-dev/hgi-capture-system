@@ -2971,29 +2971,14 @@ const MODULES = [
 
 
 function KnowledgeBase() {
-  const [docs, setDocs] = React.useState([]);
-  const [loading, setLoading] = React.useState(false);
-  const [uploading, setUploading] = React.useState(false);
-  const [status, setStatus] = React.useState("");
-  const [filter, setFilter] = React.useState("all");
-  const [dragOver, setDragOver] = React.useState(false);
-  const fileRef = React.useRef();
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState("");
+  const [filter, setFilter] = useState("all");
 
   const INTAKE_SECRET = "hgi-intake-2026-secure";
   const API_BASE = window.location.origin;
-
-  const verticalColors = {
-    disaster: "#e74c3c", tpa: GOLD, appeals: "#3498db",
-    workforce: "#2ecc71", health: "#9b59b6", infrastructure: "#e67e22",
-    federal: "#1abc9c", construction: "#f39c12", general: BORDER
-  };
-
-  const docClassIcons = {
-    winning_proposal: "WIN", rfp: "RFP", capabilities_statement: "CAP",
-    corporate_profile: "CORP", resume: "BIO", rate_sheet: "RATE",
-    contract: "CTR", past_performance: "PP", unsolicited_proposal: "PROP",
-    amendment: "AMD", other: "DOC"
-  };
 
   const loadDocs = async () => {
     setLoading(true);
@@ -3005,186 +2990,132 @@ function KnowledgeBase() {
         const d = await r.json();
         setDocs(d.documents || []);
       }
-    } catch(e) { setStatus("Failed to load documents"); }
+    } catch(e) {
+      setStatus("Could not load documents");
+    }
     setLoading(false);
   };
 
-  React.useEffect(() => { loadDocs(); }, []);
+  useEffect(() => { loadDocs(); }, []);
 
-  const processFile = async (file) => {
+  const uploadFile = async (file) => {
     setUploading(true);
     setStatus("Reading " + file.name + "...");
-    try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64 = e.target.result.split(",")[1];
-        const ext = file.name.split(".").pop().toLowerCase();
-        setStatus("Uploading and processing " + file.name + " — Claude is extracting and classifying...");
-        try {
-          const r = await fetch(API_BASE + "/api/knowledge", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-intake-secret": INTAKE_SECRET },
-            body: JSON.stringify({
-              filename: file.name,
-              file_type: ext,
-              content_base64: base64,
-            })
-          });
-          const d = await r.json();
-          if (d.success) {
-            setStatus("✓ " + file.name + " processed — " + d.chunk_count + " chunks, classified as " + d.document_class + " [" + d.vertical + "]");
-            await loadDocs();
-          } else {
-            setStatus("✗ Failed: " + (d.error || "unknown error"));
-          }
-        } catch(err) {
-          setStatus("✗ Upload failed: " + err.message);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target.result.split(",")[1];
+      const ext = file.name.split(".").pop().toLowerCase();
+      setStatus("Processing " + file.name + " — extracting doctrine...");
+      try {
+        const r = await fetch(API_BASE + "/api/knowledge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-intake-secret": INTAKE_SECRET },
+          body: JSON.stringify({ filename: file.name, file_type: ext, content_base64: base64 })
+        });
+        const d = await r.json();
+        if (d.success) {
+          setStatus("Done: " + file.name + " — " + d.chunk_count + " chunks, " + d.document_class + " [" + d.vertical + "]");
+          loadDocs();
+        } else {
+          setStatus("Failed: " + (d.error || "unknown error"));
         }
-        setUploading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch(e) {
-      setStatus("✗ File read failed");
+      } catch(err) {
+        setStatus("Upload failed: " + err.message);
+      }
       setUploading(false);
-    }
-  };
-
-  const handleFiles = (files) => {
-    const file = files[0];
-    if (!file) return;
-    processFile(file);
+    };
+    reader.readAsDataURL(file);
   };
 
   const deleteDoc = async (id, filename) => {
     if (!confirm("Delete " + filename + "?")) return;
     try {
       await fetch(API_BASE + "/api/knowledge?id=" + encodeURIComponent(id), {
-        method: "DELETE",
-        headers: { "x-intake-secret": INTAKE_SECRET }
+        method: "DELETE", headers: { "x-intake-secret": INTAKE_SECRET }
       });
       setStatus("Deleted " + filename);
-      await loadDocs();
+      loadDocs();
     } catch(e) { setStatus("Delete failed"); }
   };
 
-  const verticals = ["all", "disaster", "tpa", "appeals", "workforce", "health", "infrastructure", "federal", "construction", "general"];
+  const verticals = ["all","disaster","tpa","appeals","workforce","health","infrastructure","federal","construction","general"];
   const filtered = filter === "all" ? docs : docs.filter(d => d.vertical === filter);
-
-  const docsByVertical = {};
-  docs.forEach(d => {
-    if (!docsByVertical[d.vertical]) docsByVertical[d.vertical] = 0;
-    docsByVertical[d.vertical]++;
-  });
 
   return (
     <div style={{padding:"0 0 40px"}}>
       <div style={{marginBottom:20}}>
         <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:20,fontWeight:800}}>Knowledge Base</h2>
-        <p style={{color:TEXT_D,margin:0,fontSize:12}}>Upload HGI documents — proposals, capabilities, contracts, past performance. Claude extracts doctrine and injects it into every analysis.</p>
+        <p style={{color:TEXT_D,margin:0,fontSize:12}}>Upload HGI documents — Claude extracts doctrine and injects it into every analysis automatically.</p>
       </div>
 
-      {/* Upload Zone */}
-      <div
-        onDragOver={e=>{e.preventDefault();setDragOver(true);}}
-        onDragLeave={()=>setDragOver(false)}
-        onDrop={e=>{e.preventDefault();setDragOver(false);handleFiles(e.dataTransfer.files);}}
-        onClick={()=>!uploading&&fileRef.current.click()}
-        style={{
-          border:"2px dashed #d4af37",
-          borderRadius:8,background:dragOver?"rgba(212,175,55,0.05)":BG2,
-          padding:"32px 20px",textAlign:"center",cursor:uploading?"wait":"pointer",
-          marginBottom:16,transition:"all 0.2s"
-        }}
-      >
-        <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,.md,.html" style={{display:"none"}}
-          onChange={e=>handleFiles(e.target.files)} />
-        <div style={{fontSize:32,marginBottom:8}}>⬡</div>
-        <div style={{color:uploading?GOLD:TEXT_L,fontWeight:600,fontSize:14}}>
-          {uploading ? "Processing document..." : "Drop PDF, DOCX, TXT, or click to upload"}
+      <div style={{background:BG2,border:"2px dashed " + BORDER,borderRadius:8,padding:"28px 20px",textAlign:"center",marginBottom:16}}>
+        <div style={{color:TEXT_L,fontWeight:600,fontSize:14,marginBottom:8}}>
+          {uploading ? "Processing document..." : "Upload PDF, DOCX, or TXT"}
         </div>
-        <div style={{color:TEXT_D,fontSize:11,marginTop:4}}>
-          Claude automatically extracts doctrine, past performance, win themes, and staffing patterns
+        <div style={{color:TEXT_D,fontSize:11,marginBottom:14}}>
+          Claude extracts past performance, win themes, staffing patterns, and doctrine from every document
         </div>
+        <label style={{display:"inline-block",background:GOLD,color:"#000",padding:"8px 20px",borderRadius:4,cursor:uploading?"not-allowed":"pointer",fontWeight:700,fontSize:13,opacity:uploading?0.6:1}}>
+          {uploading ? "Processing..." : "Choose File"}
+          <input type="file" accept=".pdf,.docx,.txt,.md" style={{display:"none"}} onChange={e=>{if(e.target.files[0])uploadFile(e.target.files[0]);}} disabled={uploading} />
+        </label>
       </div>
 
-      {/* Status */}
       {status && (
-        <div style={{background:BG2,border:"1px solid #333",borderRadius:6,padding:"10px 14px",marginBottom:16,fontSize:12,color:status.startsWith("✓")?GREEN:status.startsWith("✗")?"#e74c3c":TEXT_L}}>
+        <div style={{background:BG2,border:"1px solid " + BORDER,borderRadius:6,padding:"10px 14px",marginBottom:16,fontSize:12,color:status.startsWith("Done")?GREEN:"#e74c3c" && status.startsWith("Could")?TEXT_D:TEXT_L}}>
           {status}
         </div>
       )}
 
-      {/* Stats Row */}
-      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
-        {Object.entries(docsByVertical).map(([v, count]) => (
-          <div key={v} style={{background:BG2,border:"1px solid #333",borderRadius:6,padding:"6px 12px",fontSize:11}}>
-            <span style={{color:verticalColors[v]||TEXT_D,fontWeight:700}}>{v.toUpperCase()}</span>
-            <span style={{color:TEXT_D,marginLeft:6}}>{count} doc{count!==1?"s":""}</span>
-          </div>
-        ))}
-        {docs.length === 0 && !loading && (
-          <div style={{color:TEXT_D,fontSize:12}}>No documents yet — upload your first document above</div>
-        )}
-      </div>
-
-      {/* Filter */}
       <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
         {verticals.map(v => (
           <button key={v} onClick={()=>setFilter(v)} style={{
-            background:filter===v?GOLD:BG2,color:filter===v?"#000":TEXT_D,
-            border:"1px solid #333",borderRadius:4,
-            padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:filter===v?700:400
+            background:filter===v?GOLD:BG2, color:filter===v?"#000":TEXT_D,
+            border:"1px solid " + (filter===v?GOLD:BORDER), borderRadius:4,
+            padding:"4px 10px", fontSize:11, cursor:"pointer", fontWeight:filter===v?700:400
           }}>{v}</button>
         ))}
       </div>
 
-      {/* Document List */}
       {loading ? (
-        <div style={{color:TEXT_D,fontSize:13,padding:20,textAlign:"center"}}>Loading knowledge base...</div>
+        <div style={{color:TEXT_D,fontSize:13,padding:20,textAlign:"center"}}>Loading...</div>
+      ) : filtered.length === 0 ? (
+        <div style={{background:BG2,border:"1px solid " + BORDER,borderRadius:8,padding:"32px 20px",textAlign:"center"}}>
+          <div style={{color:TEXT_D,fontSize:13,marginBottom:6}}>No documents yet</div>
+          <div style={{color:TEXT_D,fontSize:11}}>Upload your first document above to seed the knowledge base</div>
+        </div>
       ) : (
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {filtered.map(doc => (
-            <div key={doc.id} style={{background:BG2,border:"1px solid #333",borderRadius:8,padding:"14px 16px"}}>
+            <div key={doc.id} style={{background:BG2,border:"1px solid " + BORDER,borderRadius:8,padding:"14px 16px"}}>
               <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
-                    <span style={{fontSize:16}}>{docClassIcons[doc.document_class]||"◇"}</span>
                     <span style={{color:TEXT_L,fontWeight:600,fontSize:13}}>{doc.filename}</span>
-                    <span style={{background:verticalColors[doc.vertical]||BORDER,color:doc.vertical==="tpa"?"#000":"#fff",fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10}}>
+                    <span style={{background:GOLD,color:"#000",fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10}}>
                       {(doc.vertical||"general").toUpperCase()}
                     </span>
-                    <span style={{color:TEXT_D,fontSize:10,border:"1px solid #333",padding:"2px 6px",borderRadius:4}}>
+                    <span style={{color:TEXT_D,fontSize:10,border:"1px solid " + BORDER,padding:"2px 6px",borderRadius:4}}>
                       {(doc.document_class||"other").replace(/_/g," ")}
                     </span>
-                    {doc.chunk_count > 0 && (
-                      <span style={{color:TEXT_D,fontSize:10}}>{doc.chunk_count} chunks</span>
-                    )}
+                    {doc.chunk_count > 0 && <span style={{color:TEXT_D,fontSize:10}}>{doc.chunk_count} chunks</span>}
                   </div>
-                  {doc.client && (
-                    <div style={{color:TEXT_D,fontSize:11,marginBottom:3}}>
-                      Client: <span style={{color:TEXT_L}}>{doc.client}</span>
-                      {doc.contract_name && <span style={{color:TEXT_D}}> — {doc.contract_name}</span>}
-                    </div>
-                  )}
-                  {doc.summary && (
-                    <div style={{color:TEXT_D,fontSize:11,lineHeight:1.5,marginTop:4}}>{doc.summary}</div>
-                  )}
+                  {doc.client && <div style={{color:TEXT_D,fontSize:11,marginBottom:3}}>Client: <span style={{color:TEXT_L}}>{doc.client}</span></div>}
+                  {doc.summary && <div style={{color:TEXT_D,fontSize:11,lineHeight:1.5,marginTop:4}}>{doc.summary}</div>}
                 </div>
-                <button onClick={()=>deleteDoc(doc.id, doc.filename)} style={{
-                  background:"transparent",border:"1px solid #333",color:TEXT_D,
+                <button onClick={()=>deleteDoc(doc.id,doc.filename)} style={{
+                  background:"transparent",border:"1px solid " + BORDER,color:TEXT_D,
                   borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",flexShrink:0
                 }}>Delete</button>
               </div>
             </div>
           ))}
-          {filtered.length === 0 && !loading && docs.length > 0 && (
-            <div style={{color:TEXT_D,fontSize:12,padding:20,textAlign:"center"}}>No documents for vertical: {filter}</div>
-          )}
         </div>
       )}
     </div>
   );
 }
+
 
 function App() {
   const [active, setActive] = useState("dashboard");
