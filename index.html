@@ -413,7 +413,7 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
             <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:8}}>
               <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"7px 14px",background:BG4,
                 border:`1px solid ${BORDER}`,borderRadius:4,cursor:"pointer",fontSize:12,color:TEXT_D}}>
-                <span>📎 Upload PDF / Word / TXT</span>
+                <span>[+] Upload PDF / Word / TXT</span>
                 <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleFileUpload} style={{display:"none"}} />
               </label>
               {fileLoading && <span style={{color:GOLD,fontSize:12,animation:"pulse 1.2s infinite"}}>Extracting text from file...</span>}
@@ -497,7 +497,7 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
                   </div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     <Btn onClick={runC}>Step 3: Build Proposal in Proposal Engine →</Btn>
-                    <Btn variant="secondary" onClick={saveNoProposal}>💾 Save to Tracker</Btn>
+                    <Btn variant="secondary" onClick={saveNoProposal}>[save] Save to Tracker</Btn>
                   </div>
                 </div>
               )}
@@ -1045,7 +1045,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
         {completedSections > 0 && <Btn small variant="ghost" onClick={()=>{setActiveView(activeView==="generate"?"workspace":"generate");setViewingSection(null);}}>
           {activeView==="generate"?"View Full Draft →":"← Back to Generator"}
         </Btn>}
-        {completedSections > 0 && <Btn small onClick={saveToTrackerFromProposal}>💾 Save to Tracker</Btn>}
+        {completedSections > 0 && <Btn small onClick={saveToTrackerFromProposal}>[save] Save to Tracker</Btn>}
         {completedSections > 0 && <Btn small variant="danger" onClick={clearDraft}>Clear Draft</Btn>}
       </div>
       <p style={{color:TEXT_D,margin:"0 0 12px",fontSize:12}}>Generate sections one at a time — each saves automatically</p>
@@ -2199,12 +2199,12 @@ Extract and return as JSON:
   };
 
   const VERTICALS = [
-    {id:"disaster", label:"Disaster Recovery / CDBG-DR", icon:"🔴"},
-    {id:"tpa", label:"TPA / Claims / Insurance", icon:"🔵"},
-    {id:"workforce", label:"Workforce & Social Services", icon:"🟡"},
-    {id:"health", label:"Health & Human Services", icon:"🟢"},
-    {id:"infrastructure", label:"Infrastructure & Capital", icon:"🟠"},
-    {id:"tax_appeals", label:"Property Tax Appeals", icon:"🟣"},
+    {id:"disaster", label:"Disaster Recovery / CDBG-DR", icon:"[R]"},
+    {id:"tpa", label:"TPA / Claims / Insurance", icon:"[B]"},
+    {id:"workforce", label:"Workforce & Social Services", icon:"[Y]"},
+    {id:"health", label:"Health & Human Services", icon:"[G]"},
+    {id:"infrastructure", label:"Infrastructure & Capital", icon:"[O]"},
+    {id:"tax_appeals", label:"Property Tax Appeals", icon:"[P]"},
     {id:"federal", label:"Federal Agencies", icon:"⚪"},
   ];
 
@@ -2363,11 +2363,11 @@ Extract and return as JSON:
   const opiColor = s => s>=75?GREEN:s>=55?GOLD:s>=35?ORANGE:RED;
 
   const TABS = [
-    {id:"hunt", label:"🎯 Hunt Engine"},
-    {id:"results", label:`📋 Results ${huntResults.length>0?"("+huntResults.length+")":""}`},
-    {id:"retrieve", label:`📥 Retrieve Docs ${retrievedDocs.length>0?"("+retrievedDocs.length+")":""}`},
+    {id:"hunt", label:"[>] Hunt Engine"},
+    {id:"results", label:`[doc] Results ${huntResults.length>0?"("+huntResults.length+")":""}`},
+    {id:"retrieve", label:`[dl] Retrieve Docs ${retrievedDocs.length>0?"("+retrievedDocs.length+")":""}`},
     {id:"signals", label:`⚡ Signals ${(disasterAlerts.length+fundingAlerts.length)>0?"("+(disasterAlerts.length+fundingAlerts.length)+")":""}`},
-    {id:"sources", label:"🗺 Sources & Config"},
+    {id:"sources", label:"[map] Sources & Config"},
   ];
 
   return (
@@ -2454,7 +2454,7 @@ Extract and return as JSON:
 
             <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
               <Btn onClick={triggerHunt} disabled={hunting} style={{minWidth:180}}>
-                {hunting ? "⟳ Hunting..." : "🎯 Run Full Hunt Now"}
+                {hunting ? "⟳ Hunting..." : "[>] Run Full Hunt Now"}
               </Btn>
               <Btn variant="ghost" onClick={()=>loadOpportunities()} disabled={hunting}>
                 ⟳ Refresh from Database
@@ -2464,7 +2464,7 @@ Extract and return as JSON:
               </div>}
             </div>
             <div style={{marginTop:10,padding:"8px 12px",background:BG3,borderRadius:4,fontSize:11,color:TEXT_D}}>
-              💡 Hunt runs automatically every morning at 7am. Results are fully analyzed and scored before you see them — real RFP data, real documents, real OPI scores based on actual opportunity requirements vs HGI capabilities. Click <strong style={{color:GOLD}}>Refresh from Database</strong> to load latest results, or <strong style={{color:GOLD}}>Run Full Hunt Now</strong> to trigger an immediate scan.
+              [i] Hunt runs automatically every morning at 7am. Results are fully analyzed and scored before you see them — real RFP data, real documents, real OPI scores based on actual opportunity requirements vs HGI capabilities. Click <strong style={{color:GOLD}}>Refresh from Database</strong> to load latest results, or <strong style={{color:GOLD}}>Run Full Hunt Now</strong> to trigger an immediate scan.
             </div>
           </Card>
 
@@ -2499,7 +2499,7 @@ Extract and return as JSON:
                         {opp.sourceUrl && (
                           <a href={opp.sourceUrl} target="_blank" rel="noopener noreferrer"
                             style={{padding:"4px 10px",borderRadius:4,fontSize:11,fontWeight:700,background:BLUE+"22",color:BLUE,border:`1px solid ${BLUE}44`,textDecoration:"none"}}
-                            onClick={e=>e.stopPropagation()}>🔗</a>
+                            onClick={e=>e.stopPropagation()}>[link]</a>
                         )}
                         {!opp.savedToTracker && <Btn small variant="ghost" onClick={(e)=>{e.stopPropagation();saveToTracker(opp);}}>+ Track</Btn>}
                         {opp.savedToTracker && <Badge color={GREEN}>Tracked</Badge>}
@@ -2638,7 +2638,7 @@ Extract and return as JSON:
                       <a href={opp.sourceUrl} target="_blank" rel="noopener noreferrer"
                         style={{padding:"4px 12px",borderRadius:4,fontSize:11,fontWeight:700,background:BLUE+"22",color:BLUE,border:`1px solid ${BLUE}44`,textDecoration:"none",cursor:"pointer"}}
                         onClick={e=>e.stopPropagation()}>
-                        🔗 Open Source →
+                        [link] Open Source →
                       </a>
                     )}
                     {/* SAM.gov search fallback */}
@@ -2646,7 +2646,7 @@ Extract and return as JSON:
                       <a href={`https://sam.gov/search/?keywords=${encodeURIComponent(opp.title)}&index=opp`} target="_blank" rel="noopener noreferrer"
                         style={{padding:"4px 12px",borderRadius:4,fontSize:11,fontWeight:700,background:BLUE+"22",color:BLUE,border:`1px solid ${BLUE}44`,textDecoration:"none"}}
                         onClick={e=>e.stopPropagation()}>
-                        🔗 Search SAM.gov →
+                        [link] Search SAM.gov →
                       </a>
                     )}
                   </div>
@@ -2679,7 +2679,7 @@ Extract and return as JSON:
                     <a href={opp.sourceUrl} target="_blank" rel="noopener noreferrer"
                       style={{padding:"4px 10px",borderRadius:4,fontSize:11,fontWeight:700,background:BLUE+"22",color:BLUE,border:`1px solid ${BLUE}44`,textDecoration:"none"}}
                       onClick={e=>e.stopPropagation()}>
-                      🔗 Source
+                      [link] Source
                     </a>
                   )}
                 </div>
@@ -2695,7 +2695,7 @@ Extract and return as JSON:
         <div>
           {/* URL Fetcher */}
           <Card style={{marginBottom:16,border:`1px solid ${GOLD}44`}}>
-            <div style={{color:GOLD,fontWeight:700,fontSize:14,marginBottom:4}}>📥 DOCUMENT RETRIEVAL ENGINE</div>
+            <div style={{color:GOLD,fontWeight:700,fontSize:14,marginBottom:4}}>[dl] DOCUMENT RETRIEVAL ENGINE</div>
             <div style={{color:TEXT_D,fontSize:12,marginBottom:14}}>
               Paste any RFP URL — SAM.gov, LaPAC, Texas SmartBuy, agency website, or direct PDF link. 
               The system fetches the page, extracts all documents, analyzes the full scope, and sends it to Full Workflow ready for decomposition.
@@ -2709,7 +2709,7 @@ Extract and return as JSON:
                 style={{flex:1,background:BG3,border:`1px solid ${BORDER}`,borderRadius:4,padding:"8px 12px",color:TEXT,fontSize:12,fontFamily:"inherit"}}
               />
               <Btn onClick={()=>fetchRfp(fetchUrl)} disabled={fetchLoading||!fetchUrl}>
-                {fetchLoading ? "⟳ Retrieving..." : "📥 Retrieve"}
+                {fetchLoading ? "⟳ Retrieving..." : "[dl] Retrieve"}
               </Btn>
             </div>
             <div style={{fontSize:11,color:TEXT_D}}>
@@ -2768,7 +2768,7 @@ Extract and return as JSON:
                     <div style={{fontSize:11,color:TEXT_D,fontWeight:700,marginBottom:6}}>DOCUMENTS FOUND ({fetchResult.analyzed.documentLinks.length})</div>
                     {fetchResult.analyzed.documentLinks.slice(0,6).map((d,i)=>(
                       <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
-                        <span style={{fontSize:10,color:GOLD}}>📄</span>
+                        <span style={{fontSize:10,color:GOLD}}>[f]</span>
                         <span style={{fontSize:11,color:TEXT_D,flex:1}}>{d.name}</span>
                         <a href={d.url} target="_blank" rel="noopener noreferrer"
                           style={{fontSize:10,color:BLUE,textDecoration:"none",padding:"2px 8px",border:`1px solid ${BLUE}44`,borderRadius:3}}>
@@ -2817,12 +2817,12 @@ Extract and return as JSON:
                     {!opp.documentsRetrieved && oppFetchStatus[opp.id] !== "done" && (
                       <Btn small onClick={()=>fetchRfp(opp.sourceUrl, opp.id)}
                         disabled={oppFetchStatus[opp.id]==="fetching"||oppFetchStatus[opp.id]==="analyzing"}>
-                        📥 Retrieve
+                        [dl] Retrieve
                       </Btn>
                     )}
                     <a href={opp.sourceUrl} target="_blank" rel="noopener noreferrer"
                       style={{fontSize:11,color:BLUE,textDecoration:"none",padding:"4px 8px",border:`1px solid ${BLUE}44`,borderRadius:3}}>
-                      🔗
+                      [link]
                     </a>
                   </div>
                 </div>
@@ -2854,7 +2854,7 @@ Extract and return as JSON:
                           {doc.documentLinks.length} document{doc.documentLinks.length>1?"s":""} found ·
                           {doc.documentLinks.slice(0,3).map((d,i)=>(
                             <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
-                              style={{color:BLUE,marginLeft:6,textDecoration:"none"}}>📄 {d.name}</a>
+                              style={{color:BLUE,marginLeft:6,textDecoration:"none"}}>[f] {d.name}</a>
                           ))}
                         </div>
                       )}
@@ -2891,7 +2891,7 @@ Extract and return as JSON:
               ))}
             </Card>
             <Card style={{border:`1px solid ${GOLD}44`}}>
-              <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:10}}>💰 FUNDING SIGNALS</div>
+              <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:10}}>[$] FUNDING SIGNALS</div>
               <div style={{color:TEXT_D,fontSize:11,marginBottom:12}}>HUD, FEMA, Treasury, USDA allocations that haven't produced RFPs yet — early warning</div>
               {fundingAlerts.length === 0 && <div style={{color:TEXT_D,fontSize:12}}>Run Hunt to generate signals</div>}
               {fundingAlerts.map((a,i)=>(
@@ -2944,7 +2944,7 @@ Extract and return as JSON:
               Click <strong style={{color:GOLD}}>Hunt Now</strong> each morning for fresh results.
             </div>
             <div style={{padding:"10px 12px",background:BG3,borderRadius:4,fontSize:11,color:TEXT_D}}>
-              💡 <strong style={{color:GOLD}}>Pro tip:</strong> Run Hunt Now first thing each morning. High-signal sources update daily — SAM.gov, LaPAC, Texas SmartBuy, insurance associations, municipal boards. Disaster and funding signals update continuously.
+              [i] <strong style={{color:GOLD}}>Pro tip:</strong> Run Hunt Now first thing each morning. High-signal sources update daily — SAM.gov, LaPAC, Texas SmartBuy, insurance associations, municipal boards. Disaster and funding signals update continuously.
             </div>
           </Card>
         </div>
@@ -2957,7 +2957,7 @@ Extract and return as JSON:
 const MODULES = [
   {id:"dashboard", label:"Dashboard", icon:"⌂"},
   {id:"workflow", label:"Full Workflow", icon:"⚡", badge:"START HERE"},
-  {id:"discovery", label:"Opportunity Discovery", icon:"🎯"},
+  {id:"discovery", label:"Opportunity Discovery", icon:"[>]"},
   {id:"scanner", label:"Live Pipeline Scanner", icon:"◎"},
   {id:"tracker", label:"Pipeline Tracker", icon:"◈"},
   {id:"scoring", label:"Winnability Scoring", icon:"◆"},
@@ -2966,7 +2966,225 @@ const MODULES = [
   {id:"financial", label:"Financial & Pricing", icon:"$"},
   {id:"recruiting", label:"Recruiting & Bench", icon:"◐"},
   {id:"digest", label:"Weekly Digest", icon:"◇"},
+  {id:"knowledge", label:"Knowledge Base", icon:"⬡"},
 ];
+
+
+function KnowledgeBase() {
+  const [docs, setDocs] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const [status, setStatus] = React.useState("");
+  const [filter, setFilter] = React.useState("all");
+  const [dragOver, setDragOver] = React.useState(false);
+  const fileRef = React.useRef();
+
+  const INTAKE_SECRET = "hgi-intake-2026-secure";
+  const API_BASE = window.location.origin;
+
+  const verticalColors = {
+    disaster: "#e74c3c", tpa: GOLD, appeals: "#3498db",
+    workforce: "#2ecc71", health: "#9b59b6", infrastructure: "#e67e22",
+    federal: "#1abc9c", construction: "#f39c12", general: BORDER
+  };
+
+  const docClassIcons = {
+    winning_proposal: "WIN", rfp: "RFP", capabilities_statement: "CAP",
+    corporate_profile: "CORP", resume: "BIO", rate_sheet: "RATE",
+    contract: "CTR", past_performance: "PP", unsolicited_proposal: "PROP",
+    amendment: "AMD", other: "DOC"
+  };
+
+  const loadDocs = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(API_BASE + "/api/knowledge?limit=100", {
+        headers: { "x-intake-secret": INTAKE_SECRET }
+      });
+      if (r.ok) {
+        const d = await r.json();
+        setDocs(d.documents || []);
+      }
+    } catch(e) { setStatus("Failed to load documents"); }
+    setLoading(false);
+  };
+
+  React.useEffect(() => { loadDocs(); }, []);
+
+  const processFile = async (file) => {
+    setUploading(true);
+    setStatus("Reading " + file.name + "...");
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = e.target.result.split(",")[1];
+        const ext = file.name.split(".").pop().toLowerCase();
+        setStatus("Uploading and processing " + file.name + " — Claude is extracting and classifying...");
+        try {
+          const r = await fetch(API_BASE + "/api/knowledge", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-intake-secret": INTAKE_SECRET },
+            body: JSON.stringify({
+              filename: file.name,
+              file_type: ext,
+              content_base64: base64,
+            })
+          });
+          const d = await r.json();
+          if (d.success) {
+            setStatus("✓ " + file.name + " processed — " + d.chunk_count + " chunks, classified as " + d.document_class + " [" + d.vertical + "]");
+            await loadDocs();
+          } else {
+            setStatus("✗ Failed: " + (d.error || "unknown error"));
+          }
+        } catch(err) {
+          setStatus("✗ Upload failed: " + err.message);
+        }
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch(e) {
+      setStatus("✗ File read failed");
+      setUploading(false);
+    }
+  };
+
+  const handleFiles = (files) => {
+    const file = files[0];
+    if (!file) return;
+    processFile(file);
+  };
+
+  const deleteDoc = async (id, filename) => {
+    if (!confirm("Delete " + filename + "?")) return;
+    try {
+      await fetch(API_BASE + "/api/knowledge?id=" + encodeURIComponent(id), {
+        method: "DELETE",
+        headers: { "x-intake-secret": INTAKE_SECRET }
+      });
+      setStatus("Deleted " + filename);
+      await loadDocs();
+    } catch(e) { setStatus("Delete failed"); }
+  };
+
+  const verticals = ["all", "disaster", "tpa", "appeals", "workforce", "health", "infrastructure", "federal", "construction", "general"];
+  const filtered = filter === "all" ? docs : docs.filter(d => d.vertical === filter);
+
+  const docsByVertical = {};
+  docs.forEach(d => {
+    if (!docsByVertical[d.vertical]) docsByVertical[d.vertical] = 0;
+    docsByVertical[d.vertical]++;
+  });
+
+  return (
+    <div style={{padding:"0 0 40px"}}>
+      <div style={{marginBottom:20}}>
+        <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:20,fontWeight:800}}>Knowledge Base</h2>
+        <p style={{color:TEXT_D,margin:0,fontSize:12}}>Upload HGI documents — proposals, capabilities, contracts, past performance. Claude extracts doctrine and injects it into every analysis.</p>
+      </div>
+
+      {/* Upload Zone */}
+      <div
+        onDragOver={e=>{e.preventDefault();setDragOver(true);}}
+        onDragLeave={()=>setDragOver(false)}
+        onDrop={e=>{e.preventDefault();setDragOver(false);handleFiles(e.dataTransfer.files);}}
+        onClick={()=>!uploading&&fileRef.current.click()}
+        style={{
+          border:`2px dashed ${dragOver?GOLD:BORDER}`,
+          borderRadius:8,background:dragOver?"rgba(212,175,55,0.05)":BG2,
+          padding:"32px 20px",textAlign:"center",cursor:uploading?"wait":"pointer",
+          marginBottom:16,transition:"all 0.2s"
+        }}
+      >
+        <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,.md,.html" style={{display:"none"}}
+          onChange={e=>handleFiles(e.target.files)} />
+        <div style={{fontSize:32,marginBottom:8}}>⬡</div>
+        <div style={{color:uploading?GOLD:TEXT_L,fontWeight:600,fontSize:14}}>
+          {uploading ? "Processing document..." : "Drop PDF, DOCX, TXT, or click to upload"}
+        </div>
+        <div style={{color:TEXT_D,fontSize:11,marginTop:4}}>
+          Claude automatically extracts doctrine, past performance, win themes, and staffing patterns
+        </div>
+      </div>
+
+      {/* Status */}
+      {status && (
+        <div style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:"10px 14px",marginBottom:16,fontSize:12,color:status.startsWith("✓")?GREEN:status.startsWith("✗")?"#e74c3c":TEXT_L}}>
+          {status}
+        </div>
+      )}
+
+      {/* Stats Row */}
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+        {Object.entries(docsByVertical).map(([v, count]) => (
+          <div key={v} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:6,padding:"6px 12px",fontSize:11}}>
+            <span style={{color:verticalColors[v]||TEXT_D,fontWeight:700}}>{v.toUpperCase()}</span>
+            <span style={{color:TEXT_D,marginLeft:6}}>{count} doc{count!==1?"s":""}</span>
+          </div>
+        ))}
+        {docs.length === 0 && !loading && (
+          <div style={{color:TEXT_D,fontSize:12}}>No documents yet — upload your first document above</div>
+        )}
+      </div>
+
+      {/* Filter */}
+      <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+        {verticals.map(v => (
+          <button key={v} onClick={()=>setFilter(v)} style={{
+            background:filter===v?GOLD:BG2,color:filter===v?"#000":TEXT_D,
+            border:`1px solid ${BORDER}`,borderRadius:4,
+            padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:filter===v?700:400
+          }}>{v}</button>
+        ))}
+      </div>
+
+      {/* Document List */}
+      {loading ? (
+        <div style={{color:TEXT_D,fontSize:13,padding:20,textAlign:"center"}}>Loading knowledge base...</div>
+      ) : (
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {filtered.map(doc => (
+            <div key={doc.id} style={{background:BG2,border:`1px solid ${BORDER}`,borderRadius:8,padding:"14px 16px"}}>
+              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
+                    <span style={{fontSize:16}}>{docClassIcons[doc.document_class]||"◇"}</span>
+                    <span style={{color:TEXT_L,fontWeight:600,fontSize:13}}>{doc.filename}</span>
+                    <span style={{background:verticalColors[doc.vertical]||BORDER,color:doc.vertical==="tpa"?"#000":"#fff",fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10}}>
+                      {(doc.vertical||"general").toUpperCase()}
+                    </span>
+                    <span style={{color:TEXT_D,fontSize:10,border:`1px solid ${BORDER}`,padding:"2px 6px",borderRadius:4}}>
+                      {(doc.document_class||"other").replace(/_/g," ")}
+                    </span>
+                    {doc.chunk_count > 0 && (
+                      <span style={{color:TEXT_D,fontSize:10}}>{doc.chunk_count} chunks</span>
+                    )}
+                  </div>
+                  {doc.client && (
+                    <div style={{color:TEXT_D,fontSize:11,marginBottom:3}}>
+                      Client: <span style={{color:TEXT_L}}>{doc.client}</span>
+                      {doc.contract_name && <span style={{color:TEXT_D}}> — {doc.contract_name}</span>}
+                    </div>
+                  )}
+                  {doc.summary && (
+                    <div style={{color:TEXT_D,fontSize:11,lineHeight:1.5,marginTop:4}}>{doc.summary}</div>
+                  )}
+                </div>
+                <button onClick={()=>deleteDoc(doc.id, doc.filename)} style={{
+                  background:"transparent",border:`1px solid ${BORDER}`,color:TEXT_D,
+                  borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",flexShrink:0
+                }}>Delete</button>
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && !loading && docs.length > 0 && (
+            <div style={{color:TEXT_D,fontSize:12,padding:20,textAlign:"center"}}>No documents for vertical: {filter}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function App() {
   const [active, setActive] = useState("dashboard");
@@ -3000,6 +3218,7 @@ function App() {
     financial: <FinancialPricing sharedCtx={sharedCtx} />,
     recruiting: <RecruitingBench sharedCtx={sharedCtx} />,
     digest: <WeeklyDigest />,
+    knowledge: <KnowledgeBase />,
   };
 
   return (
