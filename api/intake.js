@@ -171,6 +171,45 @@ export default async function handler(req, res) {
   // ── Claude analysis ──────────────────────────────────────────────────────
   const fullText = (description + " " + stripScripts(raw_html)).slice(0, 6000);
 
+  // ── Dynamic knowledge injection ──────────────────────────────────────────
+  // Detect vertical from content for knowledge retrieval
+  const verticalHint = (() => {
+    const t = (title + " " + description).toLowerCase();
+    if (t.match(/disaster|cdbg|fema|flood|hurricane|recovery|grant/)) return "disaster";
+    if (t.match(/workers.comp|tpa|claims.admin|guaranty|insurance|liability/)) return "tpa";
+    if (t.match(/tax.appeal|property.tax|ad.valorem|billing.dispute|utility/)) return "appeals";
+    if (t.match(/workforce|unemployment|job.training|wioa|career/)) return "workforce";
+    if (t.match(/health|medicaid|public.health|hhs|nursing/)) return "health";
+    if (t.match(/construction|infrastructure|transit|capital.program/)) return "construction";
+    if (t.match(/federal|pbgc|pension|trust.admin/)) return "federal";
+    return "general";
+  })();
+
+  let hgiKnowledge = "";
+  try {
+    const kqResp = await fetch(`${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "https://hgi-capture-system.vercel.app"}/api/knowledge-query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vertical: verticalHint, max_chunks: 4 }),
+    });
+    if (kqResp.ok) {
+      const kqData = await kqResp.json();
+      hgiKnowledge = kqData.prompt_injection || "";
+    }
+  } catch (e) {
+    console.warn("Knowledge query failed, using core doctrine:", e.message);
+  }
+
+  // Fallback to embedded core doctrine if knowledge query fails
+  if (!hgiKnowledge) {
+    hgiKnowledge = `HGI Global / Hammerman & Gainer LLC — 95 years. Crisis response, fiduciary, program administration, claims management.
+Past performance: Road Home $12B, Restore Louisiana, BP GCCF 1M+ claims, TPCIGA 28yrs Texas, LIGA Louisiana, PBGC 34M beneficiaries, City of New Orleans WC TPA ($283K/mo), SWBNO Billing Appeals ($200K/mo), Property Tax Appeals 15yrs New Orleans.
+Verticals: Disaster Recovery (CDBG-DR/FEMA PA), TPA/Claims, Appeals/Dispute, Construction Management, Workforce, Health, Federal.
+Geography: Louisiana all parishes, Texas, Florida, Mississippi, Alabama, Georgia, Federal.
+NAICS: 541611, 541690, 561110, 561990, 524291, 923120, 921190.
+Wins through: relationships, recompetes, crisis-triggered programs, replicable recurring models.`;
+  }
+
   const analysisPrompt = `Analyze this procurement opportunity for HGI. Return JSON only.
 
 OPPORTUNITY DATA:
@@ -186,7 +225,7 @@ Response Deadline: ${response_deadline || "Unknown"}
 Full Text: ${fullText}
 
 HGI PROFILE:
-${HGI_CONTEXT}
+${hgiKnowledge}
 
 SCORING INSTRUCTIONS:
 - OPI score 0-100 based on actual match between opportunity requirements and HGI capabilities
