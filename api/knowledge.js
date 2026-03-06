@@ -478,11 +478,22 @@ Content: ${rawText.slice(0, 8000)}`,
 
     if (content_text) {
       rawText = content_text;
-    } else if (isPlainText) {
+    } else if (isPlainText && content_base64) {
       rawText = Buffer.from(content_base64, "base64").toString("utf-8");
-    } else {
-      // For PDFs and DOCX — process from storage or inline
+    } else if (uploadedToStorage && storagePath) {
+      // Browser uploaded directly to storage — download and extract
+      try {
+        const buffer = await storageDownload(storagePath);
+        const base64 = Buffer.from(buffer).toString("base64");
+        rawText = await extractTextFromFile(base64, mimeType, filename);
+      } catch(e) {
+        throw new Error("Storage download failed: " + e.message);
+      }
+    } else if (content_base64) {
+      // Inline upload fallback
       rawText = await extractTextFromFile(content_base64, mimeType, filename);
+    } else {
+      throw new Error("No content available — file may not have uploaded to storage correctly");
     }
 
     rawText = rawText.slice(0, 200000);
