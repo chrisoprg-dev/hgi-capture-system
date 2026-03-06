@@ -404,9 +404,12 @@
 
 <script>
   // ── CONFIG ──────────────────────────────────────────────────────────────
-  const UPLOAD_PASSWORD = "hgi-docs-2026";
-  const INTAKE_SECRET   = "hgi-intake-2026-secure";
-  const API_BASE        = ""; // same origin
+  const UPLOAD_PASSWORD  = "hgi-docs-2026";
+  const INTAKE_SECRET    = "hgi-intake-2026-secure";
+  const API_BASE         = ""; // same origin
+  const SUPABASE_URL     = "https://mfvfbeyjpwllndeuhldi.supabase.co";
+  const SUPABASE_ANON    = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mdmZiZXlqcHdsbG5kZXVobGRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MDM0NjQsImV4cCI6MjA4Nzk3OTQ2NH0.V-p5WqM8uwJWRcndiQZJcXw7mz9vBcCVsCrfI6Jz0qs";
+  const STORAGE_BUCKET   = "knowledge-docs";
 
   // ── AUTH ────────────────────────────────────────────────────────────────
   document.getElementById('password').addEventListener('keydown', e => {
@@ -483,7 +486,55 @@
   }
 
   // ── UPLOAD ───────────────────────────────────────────────────────────────
+  // Architecture: Browser → Supabase Storage directly (no Vercel, no size limit)
+  //               Then → Vercel /api/knowledge to register + process
   let uploading = false;
+
+  function getMimeType(file, ext) {
+    if (file.type) return file.type;
+    const map = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc: 'application/msword', txt: 'text/plain', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' };
+    return map[ext] || 'application/octet-stream';
+  }
+
+  async function uploadToStorage(file, storagePath, mimeType) {
+    const resp = await fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${storagePath}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_ANON}`,
+        'Content-Type': mimeType,
+        'x-upsert': 'true',
+      },
+      body: file,
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error('Storage upload failed: ' + err);
+    }
+    return `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${storagePath}`;
+  }
+
+  async function registerWithVercel(filename, ext, mimeType, storagePath, fileSize) {
+    const resp = await fetch(`${API_BASE}/api/knowledge`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-intake-secret': INTAKE_SECRET,
+      },
+      body: JSON.stringify({
+        filename,
+        file_type: ext,
+        mime_type: mimeType,
+        storage_path: storagePath,
+        file_size: fileSize,
+        content_base64: null,
+      }),
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error('Processing failed: ' + err);
+    }
+    return resp.json();
+  }
 
   async function uploadAll() {
     if (uploading) return;
@@ -497,36 +548,24 @@
       renderQueue();
 
       try {
-        const base64 = await toBase64(item.file);
         const ext = item.file.name.split('.').pop().toLowerCase();
+        const mimeType = getMimeType(item.file, ext);
+        const docId = 'doc-' + Date.now() + '-' + item.file.name.replace(/[^a-zA-Z0-9.-]/g, '-').slice(0, 60);
+        const storagePath = docId + '/' + item.file.name;
 
-        const resp = await fetch(`${API_BASE}/api/knowledge`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-intake-secret': INTAKE_SECRET,
-          },
-          body: JSON.stringify({
-            filename: item.file.name,
-            file_type: ext,
-            mime_type: item.file.type || (ext === 'pdf' ? 'application/pdf' : ext === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/octet-stream'),
-            content_base64: base64,
-          }),
-        });
+        // Step 1: Upload directly to Supabase Storage — no size limit
+        await uploadToStorage(item.file, storagePath, mimeType);
 
-        if (!resp.ok) {
-          const err = await resp.text();
-          throw new Error(err);
-        }
+        // Step 2: Tell Vercel to register and process
+        const data = await registerWithVercel(item.file.name, ext, mimeType, storagePath, item.file.size);
 
-        const data = await resp.json();
         item.status = 'done';
         item.result = data;
-        showToast(`${item.file.name} — uploaded and indexed`, 'success');
+        showToast(`${item.file.name} — stored & processing`, 'success');
       } catch(e) {
         item.status = 'error';
         item.error = e.message;
-        showToast(`${item.file.name} — upload failed`, 'error');
+        showToast(`${item.file.name} — ${e.message.slice(0,80)}`, 'error');
       }
 
       renderQueue();
