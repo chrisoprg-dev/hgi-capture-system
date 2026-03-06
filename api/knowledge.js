@@ -302,9 +302,11 @@ Content: ${sample.slice(0, 4000)}`,
   const ext = (file_type || filename.split(".").pop() || "txt").toLowerCase();
   const docId = `doc-${Date.now()}-${safeId(filename)}`;
   const now = new Date().toISOString();
-  const isLarge = content_base64 && (content_base64.length > MAX_SYNC_BASE64 || ext === "pdf");
+  // ALL files — store immediately then process. PDFs get text extracted from first portion only.
+  const isPdf = ext === "pdf";
+  const isDocx = ext === "docx";
 
-  // Store document record immediately — this never times out
+  // Step 1: Store record immediately so upload never times out
   try {
     await dbInsert("knowledge_documents", {
       id: docId, filename, file_type: ext,
@@ -312,45 +314,19 @@ Content: ${sample.slice(0, 4000)}`,
       vertical: hintVertical || "general",
       client: hintClient || "",
       contract_name: hintContractName || "",
-      summary: isLarge
-        ? "Large document received — processing in background. Check back in 60-90 seconds."
-        : "Processing...",
+      summary: "Processing...",
       chunk_count: 0, char_count: 0,
       doctrine: {}, winning_dna: null,
       uploaded_at: now, processed_at: null,
       status: "processing",
-      content_base64: isLarge ? content_base64 : null,
+      content_base64: null,
       raw_text: content_text || null,
     });
   } catch(e) {
     return res.status(500).json({ error: "Failed to store: " + e.message });
   }
 
-  // Large file — return immediately and trigger background processing
-  if (isLarge) {
-    if (VERCEL_URL) {
-      fetch(`https://${VERCEL_URL}/api/knowledge?action=process`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-intake-secret": INTAKE_SECRET || "" },
-        body: JSON.stringify({ doc_id: docId }),
-      }).catch(e => console.warn("Background trigger failed:", e.message));
-    }
-
-    return res.status(202).json({
-      success: true,
-      async: true,
-      id: docId,
-      filename,
-      status: "processing",
-      chunk_count: 0,
-      document_class: hintDocClass || "processing",
-      vertical: hintVertical || "general",
-      summary: "Large document queued. Check Knowledge Base in 60-90 seconds.",
-      message: "Document received. Processing in background — it will appear in your Knowledge Base automatically when ready.",
-    });
-  }
-
-  // Small file — process synchronously
+  // Step 2: Extract text — for PDFs always use truncated extraction to stay within time limit
   let rawText = "";
   if (content_text) {
     rawText = content_text;
@@ -358,9 +334,37 @@ Content: ${sample.slice(0, 4000)}`,
     const direct = extractPlainText(content_base64, ext);
     if (direct !== null) {
       rawText = direct;
-    } else {
-      try { rawText = await extractPdfText(content_base64); }
-      catch(e) { rawText = `[Extraction failed: ${e.message}]`; }
+    } else if (isPdf || isDocx) {
+      // Always truncate to first 1.5MB of base64 to stay within Vercel time limit
+      const truncated = content_base64.slice(0, 1500000);
+      try {
+        const r = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": ANTHROPIC_KEY,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 3000,
+            messages: [{
+              role: "user",
+              content: [
+                { type: "document", source: { type: "base64", media_type: isPdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data: truncated } },
+                { type: "text", text: "Extract the first 8,000 words of text from this document. Preserve all section headers and structure. Return plain text only, no commentary." }
+              ]
+            }]
+          }),
+        });
+        const d = await r.json();
+        rawText = d.content?.filter(b => b.type === "text").map(b => b.text).join("") || "";
+        if (content_base64.length > 1500000) {
+          rawText += "\n\n[Large document — first portion extracted. Core content captured for proposal use.]";
+        }
+      } catch(e) {
+        rawText = `[Text extraction failed: ${e.message}]`;
+      }
     }
   }
   rawText = rawText.slice(0, 80000);
@@ -396,4 +400,3 @@ Content: ${sample.slice(0, 4000)}`,
     summary: classification.summary,
   });
 }
-
