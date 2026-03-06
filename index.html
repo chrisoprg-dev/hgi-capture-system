@@ -3573,7 +3573,7 @@ function KnowledgeBase() {
                     </div>
                     <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
                       <span style={{fontSize:10,color:TEXT_D}}>{expandedDoc===doc.id?"▲":"▼"}</span>
-                      {needsReprocess && hasStorage && !isProcessing && (
+                      {needsReprocess && !isProcessing && (
                         <button onClick={e=>{e.stopPropagation();reprocessDoc(doc.id,doc.filename);}} style={{
                           background:GOLD,border:"none",color:"#000",
                           borderRadius:4,padding:"3px 10px",fontSize:11,cursor:"pointer",fontWeight:700
@@ -3595,15 +3595,13 @@ function KnowledgeBase() {
                           </div>
                           <div style={{color:TEXT_D,marginBottom:8}}>
                             {hasStorage
-                              ? "File is safely stored in Supabase Storage. Click Reprocess to extract text now."
-                              : "File was not saved to storage. Please re-upload the document."}
+                              ? "File is safely stored in Supabase Storage. Click Reprocess to extract full text."
+                              : "Click Reprocess to attempt extraction from stored content, or re-upload for best results."}
                           </div>
-                          {hasStorage && (
-                            <button onClick={()=>reprocessDoc(doc.id,doc.filename)} style={{
-                              background:GOLD,border:"none",color:"#000",borderRadius:4,
-                              padding:"5px 16px",fontSize:12,cursor:"pointer",fontWeight:700
-                            }}>⟳ Reprocess Now</button>
-                          )}
+                          <button onClick={()=>reprocessDoc(doc.id,doc.filename)} style={{
+                            background:GOLD,border:"none",color:"#000",borderRadius:4,
+                            padding:"5px 16px",fontSize:12,cursor:"pointer",fontWeight:700
+                          }}>⟳ Reprocess Now</button>
                         </div>
                       )}
                       {/* Win themes */}
