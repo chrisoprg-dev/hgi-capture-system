@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HGI Document Upload</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Mono:wght@300;400&display=swap');
+
+    :root {
+      --gold: #C9A84C;
+      --gold-dim: #8B6E2E;
+      --bg: #0D0B08;
+      --bg2: #141209;
+      --bg3: #1C1910;
+      --border: #2C2618;
+      --text: #E8E0D0;
+      --text-dim: #7A7060;
+      --text-mid: #B0A890;
+      --green: #4A8C5C;
+      --red: #8C3A3A;
+      --orange: #8C6A3A;
+      --blue: #3A628C;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    /* Subtle grain texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; padding: 60px 32px 80px; }
+
+    /* Header */
+    .header { margin-bottom: 52px; }
+    .header-rule { width: 40px; height: 2px; background: var(--gold); margin-bottom: 24px; }
+    .header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 38px;
+      font-weight: 300;
+      color: var(--text);
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+    .header h1 span { color: var(--gold); }
+    .header p {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* Auth gate */
+    #auth-gate {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 40px;
+      margin-bottom: 32px;
+    }
+    #auth-gate label {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+    .auth-row { display: flex; gap: 12px; align-items: stretch; }
+    #auth-gate input[type="password"] {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+      letter-spacing: 0.1em;
+    }
+    #auth-gate input[type="password"]:focus { border-color: var(--gold-dim); }
+    .btn-gold {
+      background: transparent;
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 12px 24px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-gold:hover { background: var(--gold-dim); color: var(--bg); }
+    .auth-error { margin-top: 12px; font-size: 11px; color: #8C3A3A; letter-spacing: 0.08em; display: none; }
+
+    /* Main content — hidden until authed */
+    #main { display: none; }
+
+    /* Instructions */
+    .instructions {
+      border-left: 2px solid var(--gold-dim);
+      padding: 16px 20px;
+      margin-bottom: 36px;
+      background: var(--bg2);
+    }
+    .instructions p {
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.8;
+      letter-spacing: 0.04em;
+    }
+    .instructions strong { color: var(--gold); font-weight: 400; }
+
+    /* Drop zone */
+    #dropzone {
+      border: 1px dashed var(--border);
+      background: var(--bg2);
+      padding: 52px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s;
+      margin-bottom: 32px;
+      position: relative;
+    }
+    #dropzone.drag-over {
+      border-color: var(--gold-dim);
+      background: #1C1910;
+    }
+    #dropzone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon {
+      width: 40px; height: 40px; margin: 0 auto 16px;
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold-dim); font-size: 20px;
+    }
+    .drop-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px;
+      font-weight: 300;
+      color: var(--text-mid);
+      margin-bottom: 8px;
+    }
+    .drop-sub {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .drop-limit {
+      margin-top: 16px;
+      font-size: 10px;
+      color: var(--orange);
+      letter-spacing: 0.1em;
+    }
+
+    /* Upload queue */
+    #queue { margin-bottom: 40px; }
+    .queue-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      font-size: 11px;
+    }
+    .queue-item:last-child { border-bottom: 1px solid var(--border); }
+    .queue-name { flex: 1; color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .queue-size { color: var(--text-dim); font-size: 10px; min-width: 60px; text-align: right; }
+    .queue-status {
+      font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+      min-width: 90px; text-align: right;
+    }
+    .queue-status.pending { color: var(--text-dim); }
+    .queue-status.uploading { color: var(--gold); animation: pulse 1s infinite; }
+    .queue-status.done { color: var(--green); }
+    .queue-status.error { color: var(--red); }
+    .queue-remove {
+      background: none; border: none; color: var(--text-dim);
+      cursor: pointer; font-size: 14px; padding: 0 4px;
+      transition: color 0.2s;
+    }
+    .queue-remove:hover { color: var(--red); }
+
+    .btn-upload {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 52px;
+    }
+    .btn-upload:hover:not(:disabled) { background: var(--gold-dim); color: var(--bg); }
+    .btn-upload:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* Document library */
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #doc-list { }
+    .doc-item {
+      display: grid;
+      grid-template-columns: 1fr 100px 100px 120px;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      font-size: 11px;
+      transition: background 0.15s;
+    }
+    .doc-item:last-child { border-bottom: 1px solid var(--border); }
+    .doc-item:hover { background: var(--bg3); }
+    .doc-name { color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .doc-class {
+      font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-dim); text-align: center;
+    }
+    .doc-vertical {
+      font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--gold-dim); text-align: center;
+    }
+    .doc-date { color: var(--text-dim); font-size: 10px; text-align: right; }
+
+    .doc-list-header {
+      display: grid;
+      grid-template-columns: 1fr 100px 100px 120px;
+      gap: 12px;
+      padding: 8px 16px;
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-bottom: none;
+    }
+    .doc-list-header span:not(:first-child) { text-align: center; }
+    .doc-list-header span:last-child { text-align: right; }
+
+    .empty-state {
+      padding: 40px;
+      text-align: center;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+
+    .doc-count {
+      margin-top: 12px;
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-align: right;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+    }
+    .footer-brand span { color: var(--gold-dim); }
+    .footer-note {
+      font-size: 9px;
+      color: var(--text-dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      padding: 14px 20px;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--text-mid);
+      z-index: 100;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      max-width: 320px;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: var(--green); color: #6AB882; }
+    .toast.error { border-color: var(--red); color: #B86A6A; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="header-rule"></div>
+    <h1>Hammerman <span>&</span> Gainer<br>Document Upload</h1>
+    <p>Knowledge Base &mdash; Secure Document Intake</p>
+  </div>
+
+  <!-- Auth Gate -->
+  <div id="auth-gate">
+    <label>Access Password</label>
+    <div class="auth-row">
+      <input type="password" id="password" placeholder="Enter password to continue" />
+      <button class="btn-gold" onclick="checkAuth()">Enter</button>
+    </div>
+    <div class="auth-error" id="auth-error">Incorrect password. Please try again.</div>
+  </div>
+
+  <!-- Main Upload Interface -->
+  <div id="main">
+
+    <div class="instructions">
+      <p>
+        Upload HGI documents directly to the knowledge base. Any file type is accepted —
+        <strong>PDF, Word, or text</strong>. Documents are automatically read, classified, and indexed.<br><br>
+        <strong>No size limit.</strong> Full documents processed — proposals, contracts, any length
+        before uploading. Uploading a 500-page document as one file will fail.
+        Multiple files can be added at once.
+      </p>
+    </div>
+
+    <!-- Drop Zone -->
+    <div id="dropzone">
+      <input type="file" id="file-input" multiple accept=".pdf,.doc,.docx,.txt,.md" onchange="addFiles(this.files)" />
+      <div class="drop-icon">&#8679;</div>
+      <div class="drop-title">Drop files here</div>
+      <div class="drop-sub">or click to browse</div>
+      <div class="drop-limit">&#9888;&nbsp; Maximum 50 pages per file#10003;&#9888;&nbsp; Maximum 50 pages per filenbsp; Full document extraction — no page limit</div>
+    </div>
+
+    <!-- Queue -->
+    <div id="queue"></div>
+    <button class="btn-upload" id="upload-btn" onclick="uploadAll()" disabled>Upload All Documents</button>
+
+    <!-- Document Library -->
+    <div class="section-label">Documents in Knowledge Base</div>
+    <div class="doc-list-header">
+      <span>Filename</span>
+      <span>Type</span>
+      <span>Vertical</span>
+      <span>Uploaded</span>
+    </div>
+    <div id="doc-list"><div class="empty-state">Loading documents&hellip;</div></div>
+    <div class="doc-count" id="doc-count"></div>
+
+    <div class="footer">
+      <div class="footer-brand">Hammerman <span>&</span> Gainer LLC</div>
+      <div class="footer-note">Confidential &mdash; Internal Use Only</div>
+    </div>
+
+  </div><!-- /main -->
+
+</div><!-- /wrap -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── CONFIG ──────────────────────────────────────────────────────────────
+  const UPLOAD_PASSWORD = "hgi-docs-2026";
+  const INTAKE_SECRET   = "hgi-intake-2026-secure";
+  const API_BASE        = ""; // same origin
+
+  // ── AUTH ────────────────────────────────────────────────────────────────
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkAuth();
+  });
+
+  function checkAuth() {
+    const val = document.getElementById('password').value;
+    if (val === UPLOAD_PASSWORD) {
+      document.getElementById('auth-gate').style.display = 'none';
+      document.getElementById('main').style.display = 'block';
+      loadDocuments();
+    } else {
+      document.getElementById('auth-error').style.display = 'block';
+    }
+  }
+
+  // ── DRAG & DROP ──────────────────────────────────────────────────────────
+  const dropzone = document.getElementById('dropzone');
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    addFiles(e.dataTransfer.files);
+  });
+
+  // ── QUEUE ────────────────────────────────────────────────────────────────
+  let queue = [];
+
+  function addFiles(files) {
+    for (const f of files) {
+      if (!queue.find(q => q.file.name === f.name && q.file.size === f.size)) {
+        queue.push({ file: f, status: 'pending', id: Date.now() + Math.random() });
+      }
+    }
+    renderQueue();
+  }
+
+  function removeFromQueue(id) {
+    queue = queue.filter(q => q.id !== id);
+    renderQueue();
+  }
+
+  function renderQueue() {
+    const el = document.getElementById('queue');
+    const btn = document.getElementById('upload-btn');
+    if (queue.length === 0) { el.innerHTML = ''; btn.disabled = true; return; }
+
+    const pending = queue.filter(q => q.status === 'pending');
+    btn.disabled = pending.length === 0;
+    btn.textContent = pending.length > 0
+      ? `Upload ${pending.length} Document${pending.length > 1 ? 's' : ''}`
+      : 'All Uploaded';
+
+    el.innerHTML = queue.map(q => `
+      <div class="queue-item">
+        <span class="queue-name" title="${q.file.name}">${q.file.name}</span>
+        <span class="queue-size">${formatSize(q.file.size)}</span>
+        <span class="queue-status ${q.status}">${statusLabel(q.status)}</span>
+        ${q.status === 'pending' ? `<button class="queue-remove" onclick="removeFromQueue(${q.id})">&#10005;</button>` : '<span style="width:26px"></span>'}
+      </div>
+    `).join('');
+  }
+
+  function statusLabel(s) {
+    return { pending: 'Ready', uploading: 'Uploading...', done: 'Done', error: 'Failed' }[s] || s;
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  // ── UPLOAD ───────────────────────────────────────────────────────────────
+  let uploading = false;
+
+  async function uploadAll() {
+    if (uploading) return;
+    uploading = true;
+    document.getElementById('upload-btn').disabled = true;
+
+    const pending = queue.filter(q => q.status === 'pending');
+
+    for (const item of pending) {
+      item.status = 'uploading';
+      renderQueue();
+
+      try {
+        const base64 = await toBase64(item.file);
+        const ext = item.file.name.split('.').pop().toLowerCase();
+
+        const resp = await fetch(`${API_BASE}/api/knowledge`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-intake-secret': INTAKE_SECRET,
+          },
+          body: JSON.stringify({
+            filename: item.file.name,
+            file_type: ext,
+            mime_type: item.file.type || (ext === 'pdf' ? 'application/pdf' : ext === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/octet-stream'),
+            content_base64: base64,
+          }),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.text();
+          throw new Error(err);
+        }
+
+        const data = await resp.json();
+        item.status = 'done';
+        item.result = data;
+        showToast(`${item.file.name} — uploaded and indexed`, 'success');
+      } catch(e) {
+        item.status = 'error';
+        item.error = e.message;
+        showToast(`${item.file.name} — upload failed`, 'error');
+      }
+
+      renderQueue();
+    }
+
+    uploading = false;
+    loadDocuments();
+  }
+
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── DOCUMENT LIST ─────────────────────────────────────────────────────────
+  async function loadDocuments() {
+    const el = document.getElementById('doc-list');
+    const count = document.getElementById('doc-count');
+    try {
+      const resp = await fetch(`${API_BASE}/api/knowledge?limit=100`, {
+        headers: { 'x-intake-secret': INTAKE_SECRET }
+      });
+      if (!resp.ok) throw new Error('Failed to load');
+      const data = await resp.json();
+      const docs = data.documents || [];
+
+      if (docs.length === 0) {
+        el.innerHTML = '<div class="empty-state">No documents uploaded yet.</div>';
+        count.textContent = '';
+        return;
+      }
+
+      el.innerHTML = docs.map(d => `
+        <div class="doc-item">
+          <span class="doc-name" title="${d.filename}">${d.filename}</span>
+          <span class="doc-class">${(d.document_class || '').replace(/_/g, ' ')}</span>
+          <span class="doc-vertical">${d.vertical || '—'}</span>
+          <span class="doc-date">${formatDate(d.uploaded_at)}</span>
+        </div>
+      `).join('');
+
+      count.textContent = `${docs.length} document${docs.length !== 1 ? 's' : ''} in knowledge base`;
+    } catch(e) {
+      el.innerHTML = '<div class="empty-state">Could not load document list.</div>';
+    }
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // ── TOAST ────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show ' + type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = 'toast'; }, 3500);
+  }
+</script>
+</body>
+</html>
