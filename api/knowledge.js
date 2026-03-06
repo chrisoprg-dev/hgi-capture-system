@@ -406,25 +406,36 @@ Content: ${rawText.slice(0, 8000)}`,
     filename, file_type, content_base64, content_text,
     vertical: hintVertical, document_class: hintDocClass,
     client: hintClient, contract_name: hintContractName,
-    mime_type: hintMime,
+    mime_type: hintMime, storage_path: hintStoragePath,
+    file_size: hintFileSize,
   } = req.body || {};
 
-  if (!filename || (!content_base64 && !content_text)) {
-    return res.status(400).json({ error: "filename and content required" });
+  if (!filename) {
+    return res.status(400).json({ error: "filename required" });
+  }
+  // Allow upload with just storage_path (browser direct upload flow)
+  const hasContent = content_base64 || content_text || hintStoragePath;
+  if (!hasContent) {
+    return res.status(400).json({ error: "content or storage_path required" });
   }
 
   const ext = (file_type || filename.split(".").pop() || "txt").toLowerCase();
   const mimeType = hintMime || (ext === "pdf" ? "application/pdf" : ext === "docx" ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : ext === "txt" ? "text/plain" : "application/octet-stream");
   const docId = `doc-${Date.now()}-${safeId(filename)}`;
   const now = new Date().toISOString();
-  const storagePath = `${docId}/${filename}`;
 
-  // ── Step 1: Upload raw file to Supabase Storage ───────────────────────────
-  let uploadedToStorage = false;
-  if (content_base64) {
+  // If browser already uploaded directly to storage, use that path
+  // Otherwise generate a new path and upload ourselves
+  let storagePath = hintStoragePath || null;
+  let uploadedToStorage = !!hintStoragePath;
+
+  // ── Step 1: Upload raw file to Supabase Storage (if not already there) ───
+  if (!uploadedToStorage && content_base64) {
+    const sp = `${docId}/${filename}`;
     try {
       const fileBuffer = Buffer.from(content_base64, "base64");
-      await storageUpload(storagePath, fileBuffer, mimeType);
+      await storageUpload(sp, fileBuffer, mimeType);
+      storagePath = sp;
       uploadedToStorage = true;
     } catch(e) {
       console.warn("Storage upload failed, will use inline:", e.message);
