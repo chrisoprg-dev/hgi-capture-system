@@ -3273,6 +3273,34 @@ function KnowledgeBase() {
     } catch(e) {}
   };
 
+  const reprocessDoc = async (id, filename) => {
+    setDocs(prev => prev.map(d => d.id === id ? {...d, status:"processing", summary:"Reprocessing — extracting full text from storage..."} : d));
+    try {
+      const r = await fetch(API_BASE + "/api/knowledge?action=reprocess", {
+        method: "POST",
+        headers: { "Content-Type":"application/json", "x-intake-secret": INTAKE_SECRET },
+        body: JSON.stringify({ doc_id: id }),
+      });
+      const data = await r.json();
+      if (data.success) {
+        setDocs(prev => prev.map(d => d.id === id ? {
+          ...d,
+          status:"processed",
+          chunk_count: data.chunkCount,
+          document_class: data.classification?.document_class || d.document_class,
+          vertical: data.classification?.vertical || d.vertical,
+          summary: data.classification?.summary || d.summary,
+          doctrine: data.doctrine || d.doctrine,
+        } : d));
+      } else {
+        setDocs(prev => prev.map(d => d.id === id ? {...d, status:"error", summary:"Reprocess failed: " + (data.error||"unknown error")} : d));
+      }
+    } catch(e) {
+      setDocs(prev => prev.map(d => d.id === id ? {...d, status:"error", summary:"Reprocess failed: " + e.message} : d));
+    }
+    loadDocs();
+  };
+
   // Gmail search via Claude AI
   const searchGmail = async () => {
     if (!gmailQuery.trim()) return;
@@ -3504,36 +3532,84 @@ function KnowledgeBase() {
             </div>
           ) : (
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {filtered.map(doc => (
-                <div key={doc.id} style={{background:BG2,border:"1px solid "+BORDER,borderRadius:6}}>
+              {filtered.map(doc => {
+                const isProcessing = doc.status === "processing";
+                const isError = doc.status === "error";
+                const hasChunks = (doc.chunk_count || 0) > 0;
+                const hasStorage = !!doc.storage_path;
+                const needsReprocess = !hasChunks || isError;
+                const statusDot = isProcessing ? GOLD : isError ? RED : hasChunks ? GREEN : TEXT_D;
+                const chunkColor = doc.chunk_count >= 10 ? GREEN : doc.chunk_count > 0 ? GOLD : RED;
+                return (
+                <div key={doc.id} style={{background:BG2,border:`1px solid ${isError?RED:isProcessing?GOLD:BORDER}`,borderRadius:6}}>
                   <div style={{padding:"12px 14px",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,cursor:"pointer"}}
                     onClick={()=>setExpandedDoc(expandedDoc===doc.id?null:doc.id)}>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
-                        <span style={{color:TEXT,fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:300}}>{doc.filename}</span>
+                        {/* Status dot */}
+                        <span title={doc.status||"processed"} style={{width:7,height:7,borderRadius:"50%",background:statusDot,flexShrink:0,marginTop:1}}/>
+                        <span style={{color:TEXT,fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:260}}>{doc.filename}</span>
                         <span style={{background:GOLD,color:"#000",fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:10,flexShrink:0}}>
                           {(doc.vertical||"general").toUpperCase()}
                         </span>
                         <span style={{color:TEXT_D,fontSize:10,border:"1px solid "+BORDER,padding:"2px 6px",borderRadius:4,flexShrink:0}}>
                           {(doc.document_class||"other").replace(/_/g," ")}
                         </span>
-                        {doc.chunk_count > 0 && <span style={{color:TEXT_D,fontSize:10,flexShrink:0}}>{doc.chunk_count} chunks</span>}
+                        <span style={{color:chunkColor,fontSize:10,fontWeight:600,flexShrink:0}}>
+                          {isProcessing ? "⟳ processing..." : `${doc.chunk_count||0} chunks`}
+                        </span>
+                        {hasStorage && (
+                          <span title="File stored in Supabase Storage — can always reprocess" style={{fontSize:9,color:GREEN,border:`1px solid ${GREEN}`,padding:"1px 5px",borderRadius:3,flexShrink:0}}>
+                            ✓ stored
+                          </span>
+                        )}
+                        {doc.char_count > 0 && (
+                          <span style={{color:TEXT_D,fontSize:10,flexShrink:0}}>
+                            {doc.char_count > 1000 ? Math.round(doc.char_count/1000) + "k chars" : doc.char_count + " chars"}
+                          </span>
+                        )}
                       </div>
-                      {doc.summary && <div style={{color:TEXT_D,fontSize:11,lineHeight:1.5}}>{doc.summary}</div>}
+                      {doc.summary && <div style={{color:isError?RED:TEXT_D,fontSize:11,lineHeight:1.5}}>{doc.summary}</div>}
                     </div>
                     <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
                       <span style={{fontSize:10,color:TEXT_D}}>{expandedDoc===doc.id?"▲":"▼"}</span>
+                      {needsReprocess && hasStorage && !isProcessing && (
+                        <button onClick={e=>{e.stopPropagation();reprocessDoc(doc.id,doc.filename);}} style={{
+                          background:GOLD,border:"none",color:"#000",
+                          borderRadius:4,padding:"3px 10px",fontSize:11,cursor:"pointer",fontWeight:700
+                        }}>Reprocess</button>
+                      )}
                       <button onClick={e=>{e.stopPropagation();deleteDoc(doc.id,doc.filename);}} style={{
                         background:"transparent",border:"1px solid "+BORDER,color:TEXT_D,
                         borderRadius:4,padding:"3px 8px",fontSize:11,cursor:"pointer"
                       }}>Delete</button>
                     </div>
                   </div>
-                  {expandedDoc===doc.id && doc.doctrine && (
-                    <div style={{padding:"0 14px 12px",borderTop:`1px solid ${BORDER}`}}>
-                      {doc.doctrine.win_themes?.length > 0 && (
-                        <div style={{marginTop:10}}>
-                          <div style={{fontSize:10,color:GOLD,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}}>Win Themes Extracted</div>
+                  {expandedDoc===doc.id && (
+                    <div style={{padding:"0 14px 14px",borderTop:`1px solid ${BORDER}`}}>
+                      {/* Reprocess prompt for zero-chunk docs */}
+                      {needsReprocess && !isProcessing && (
+                        <div style={{marginTop:12,padding:"10px 12px",background:isError?"rgba(220,50,50,0.08)":"rgba(180,140,0,0.08)",border:`1px solid ${isError?RED:GOLD}`,borderRadius:6,fontSize:12}}>
+                          <div style={{color:isError?RED:GOLD,fontWeight:700,marginBottom:4}}>
+                            {isError ? "⚠ Processing failed" : "⚠ No text extracted"}
+                          </div>
+                          <div style={{color:TEXT_D,marginBottom:8}}>
+                            {hasStorage
+                              ? "File is safely stored in Supabase Storage. Click Reprocess to extract text now."
+                              : "File was not saved to storage. Please re-upload the document."}
+                          </div>
+                          {hasStorage && (
+                            <button onClick={()=>reprocessDoc(doc.id,doc.filename)} style={{
+                              background:GOLD,border:"none",color:"#000",borderRadius:4,
+                              padding:"5px 16px",fontSize:12,cursor:"pointer",fontWeight:700
+                            }}>⟳ Reprocess Now</button>
+                          )}
+                        </div>
+                      )}
+                      {/* Win themes */}
+                      {doc.doctrine?.win_themes?.length > 0 && (
+                        <div style={{marginTop:12}}>
+                          <div style={{fontSize:10,color:GOLD,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}}>Win Themes</div>
                           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                             {doc.doctrine.win_themes.map((t,i)=>(
                               <span key={i} style={{fontSize:11,color:TEXT_D,background:BG3,padding:"3px 8px",borderRadius:3,border:`1px solid ${BORDER}`}}>{t}</span>
@@ -3541,21 +3617,55 @@ function KnowledgeBase() {
                           </div>
                         </div>
                       )}
-                      {doc.doctrine.service_lines?.length > 0 && (
+                      {/* Past performance */}
+                      {doc.doctrine?.past_performance?.length > 0 && (
+                        <div style={{marginTop:12}}>
+                          <div style={{fontSize:10,color:GOLD,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}}>Past Performance</div>
+                          {doc.doctrine.past_performance.slice(0,3).map((p,i)=>(
+                            <div key={i} style={{fontSize:11,color:TEXT_D,marginBottom:4,paddingLeft:8,borderLeft:`2px solid ${GOLD}`}}>
+                              <span style={{color:TEXT,fontWeight:600}}>{p.client || p.program}</span>
+                              {p.scope && " — " + p.scope}
+                              {p.outcome && <span style={{color:GREEN}}> · {p.outcome}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Key stats */}
+                      {doc.doctrine?.key_stats?.length > 0 && (
+                        <div style={{marginTop:12}}>
+                          <div style={{fontSize:10,color:TEXT_D,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}}>Key Stats</div>
+                          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                            {doc.doctrine.key_stats.map((s,i)=>(
+                              <span key={i} style={{fontSize:11,color:GREEN,background:BG3,padding:"3px 8px",borderRadius:3,border:`1px solid ${BORDER}`}}>{s}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Service lines */}
+                      {doc.doctrine?.service_lines?.length > 0 && (
                         <div style={{marginTop:10}}>
-                          <div style={{fontSize:10,color:TEXT_D,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}}>Service Lines</div>
+                          <div style={{fontSize:10,color:TEXT_D,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Service Lines</div>
                           <div style={{color:TEXT_D,fontSize:11}}>{doc.doctrine.service_lines.join(" · ")}</div>
                         </div>
                       )}
-                      {doc.doctrine.narrative_summary && (
+                      {/* Narrative summary */}
+                      {doc.doctrine?.narrative_summary && (
                         <div style={{marginTop:10,padding:"8px 10px",background:BG3,borderRadius:4,fontSize:11,color:TEXT_D,lineHeight:1.6}}>
                           {doc.doctrine.narrative_summary}
+                        </div>
+                      )}
+                      {/* Key personnel */}
+                      {doc.doctrine?.key_personnel?.length > 0 && (
+                        <div style={{marginTop:10}}>
+                          <div style={{fontSize:10,color:TEXT_D,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Key Personnel</div>
+                          <div style={{color:TEXT_D,fontSize:11}}>{doc.doctrine.key_personnel.join(" · ")}</div>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
