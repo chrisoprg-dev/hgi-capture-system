@@ -302,7 +302,7 @@ Content: ${sample.slice(0, 4000)}`,
   const ext = (file_type || filename.split(".").pop() || "txt").toLowerCase();
   const docId = `doc-${Date.now()}-${safeId(filename)}`;
   const now = new Date().toISOString();
-  const isLarge = content_base64 && content_base64.length > MAX_SYNC_BASE64;
+  const isLarge = content_base64 && (content_base64.length > MAX_SYNC_BASE64 || ext === "pdf");
 
   // Store document record immediately — this never times out
   try {
@@ -396,3 +396,4 @@ Content: ${sample.slice(0, 4000)}`,
     summary: classification.summary,
   });
 }
+
