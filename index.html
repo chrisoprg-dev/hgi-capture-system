@@ -27,6 +27,20 @@ const TEXT="#E8E0D0",TEXT_D="#888070",BORDER="#2A2520",RED="#C0392B",GREEN="#27A
 
 const HGI_CONTEXT = "Hammerman & Gainer LLC (HGI) — 95 years. Disaster Recovery, CDBG-DR, TPA/Claims, Housing, Construction Management. Past performance: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 20yrs Texas, Restore Louisiana, Terrebonne Parish, Jefferson Parish FEMA PA. Geography: Louisiana, Gulf Coast, Texas.";
 
+// ── KB QUERY — fetches extracted institutional knowledge from Supabase ──────
+async function queryKB(vertical) {
+  try {
+    const v = vertical || "disaster_recovery";
+    const r = await fetch("/api/knowledge-query?vertical=" + encodeURIComponent(v));
+    if (!r.ok) return "";
+    const data = await r.json();
+    return data.prompt_injection || "";
+  } catch(e) {
+    console.warn("KB query failed, using static context:", e.message);
+    return "";
+  }
+}
+
 const store = {
   get(k){try{const v=localStorage.getItem('hgi_'+k);return v?JSON.parse(v):null}catch{return null}},
   set(k,v){try{localStorage.setItem('hgi_'+k,JSON.stringify(v))}catch{}}
@@ -961,15 +975,18 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     setSection(defaultSection);
   }, [defaultSection, sharedCtx]);
 
-  const buildPrompt = (sLabel, activeRfp) => {
+  const buildPrompt = (sLabel, activeRfp, kbInjection) => {
     const decomp = sharedCtx.decomposition ? "\n\nRFP DECOMPOSITION:\n" + sharedCtx.decomposition.slice(0, 1200) : "";
     const research = sharedCtx.research ? "\n\nCOMPETITIVE RESEARCH:\n" + sharedCtx.research.slice(0, 800) : "";
     const brief = sharedCtx.execBrief ? "\n\nEXECUTIVE BRIEF SUMMARY:\n" + sharedCtx.execBrief.slice(0, 800) : "";
-    return "Write a complete, detailed " + sLabel + " section for HGI proposal.\nRFP Context: " + (activeRfp||"General disaster recovery TPA services") + "\nAdditional Context: " + context + decomp + brief + research + "\n\nWrite the full section. Be thorough and specific. At least 600 words.";
+    const kb = kbInjection ? "\n\nHGI INSTITUTIONAL KNOWLEDGE BASE:\n" + kbInjection.slice(0, 3000) : "";
+    return "Write a complete, detailed " + sLabel + " section for HGI proposal.\nRFP Context: " + (activeRfp||"General disaster recovery TPA services") + "\nAdditional Context: " + context + decomp + brief + research + kb + "\n\nWrite the full section. Be thorough and specific. Use real HGI past performance, staff credentials, and rates from the institutional knowledge base above. At least 600 words.";
   };
 
-  const buildSys = (sLabel) =>
-    "You are a senior proposal writer for Hammerman & Gainer (HGI). Write a complete, submission-ready " + sLabel + " section. Be specific, detailed, and evaluator-aligned. Integrate HGI past performance heavily — Road Home $13B, Restore Louisiana, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 20+ years. Use [TBD:...] for unknowns needing client input. Write at least 600 words. " + HGI_CONTEXT;
+  const buildSys = (sLabel, kbInjection) => {
+    const kb = kbInjection ? kbInjection.slice(0, 2000) : HGI_CONTEXT;
+    return "You are a senior proposal writer for Hammerman & Gainer (HGI). Write a complete, submission-ready " + sLabel + " section. Be specific, detailed, and evaluator-aligned. Use ONLY verified past performance data — Road Home $13B, Restore Louisiana, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 20+ years. For staff names and rates, use only what is explicitly provided in the institutional knowledge base — do not invent names or rates. Use [TBD: confirm current staff availability] for any staff placeholders. Write at least 600 words. " + kb;
+  };
 
   const generate = async () => {
     setLoading(true);
@@ -977,7 +994,10 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     const sLabel = SECTIONS.find(s => s.value === section)?.label || section;
     setCurrentlyGenerating(sLabel);
     const activeRfp = rfpText || sharedCtx.rfpText || "";
-    const txt = await callClaude(buildPrompt(sLabel, activeRfp), buildSys(sLabel), 4000);
+    // Query KB for institutional knowledge before generating
+    const vertical = sharedCtx.vertical || "disaster_recovery";
+    const kbInjection = await queryKB(vertical);
+    const txt = await callClaude(buildPrompt(sLabel, activeRfp, kbInjection), buildSys(sLabel, kbInjection), 4000);
     setResult(txt);
     saveSection(section, txt);
     setCurrentlyGenerating("");
@@ -995,6 +1015,10 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     const activeRfp = rfpText || sharedCtx.rfpText || "";
     const currentDraft = {...proposalDraft};
 
+    // Query KB once before generating all sections
+    const vertical = sharedCtx.vertical || "disaster_recovery";
+    const kbInjection = await queryKB(vertical);
+
     for (let i = 0; i < selectedKeys.length; i++) {
       if (abortRef.current) break;
       const key = selectedKeys[i];
@@ -1003,7 +1027,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
       setAutoProgress(prev => prev.map((p,idx) => idx===i ? {...p,status:"generating"} : p));
 
       try {
-        const txt = await callClaude(buildPrompt(sLabel, activeRfp), buildSys(sLabel), 4000);
+        const txt = await callClaude(buildPrompt(sLabel, activeRfp, kbInjection), buildSys(sLabel, kbInjection), 4000);
         currentDraft[key] = txt;
         setProposalDraft({...currentDraft});
         store.set("proposalDraft", {...currentDraft});
