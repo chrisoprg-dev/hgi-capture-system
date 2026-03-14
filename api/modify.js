@@ -53,7 +53,7 @@ const pushFile = async (path, content, sha, message) => {
   return r.json();
 };
 
-// Ask Claude to make the modification
+// Ask Claude to make the modification (full file approach)
 const claudeModify = async (instruction, currentCode, filename) => {
   const prompt = `You are the AI engine for the HGI AI Capture System. You have been given an instruction to modify the system.
 
@@ -97,6 +97,54 @@ CRITICAL RULES:
   return data.content[0].text;
 };
 
+// Ask Claude for surgical string replacement (large file approach)
+const claudeSurgicalModify = async (instruction, currentCode, filename) => {
+  const prompt = `You are the AI engine for the HGI AI Capture System. You have been given an instruction to modify the system.
+
+INSTRUCTION FROM CHRISTOPHER ONEY (President, HGI Global):
+${instruction}
+
+CURRENT FILE: ${filename}
+CURRENT CODE:
+${currentCode.slice(0, 80000)}
+
+This file is large (>50KB). You must use a surgical string replacement approach.
+
+Your job:
+1. Understand exactly what Christopher wants
+2. Identify the EXACT string to find and replace
+3. Return ONLY a JSON object with two fields: "find" and "replace"
+4. The "find" string must match EXACTLY what exists in the file
+5. The "replace" string should be the exact replacement
+
+Example response format:
+{"find": "exact string to find", "replace": "exact string to replace it with"}
+
+CRITICAL RULES:
+- Return ONLY valid JSON - no markdown, backticks, or explanation
+- The "find" string must be an exact match from the existing code
+- Never remove existing features or break functionality
+- Make the smallest possible change to fulfill the instruction`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Claude API error: ${response.status}`);
+  const data = await response.json();
+  return JSON.parse(data.content[0].text);
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -122,14 +170,41 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: `File not found: ${filename}` });
     }
 
-    // Step 2: Send to Claude for modification
-    console.log(`Sending to Claude for modification...`);
-    const modifiedCode = await claudeModify(instruction, file.content, filename);
+    const fileSizeKB = Buffer.byteLength(file.content, 'utf8') / 1024;
+    console.log(`File size: ${fileSizeKB.toFixed(2)}KB`);
+
+    let modifiedContent;
+
+    if (fileSizeKB > 50) {
+      // Large file: Use surgical string replacement
+      console.log(`Using surgical string replacement for large file...`);
+      const replacement = await claudeSurgicalModify(instruction, file.content, filename);
+      
+      if (!replacement.find || !replacement.replace) {
+        throw new Error('Claude did not return valid find/replace JSON');
+      }
+
+      // Perform the string replacement
+      if (!file.content.includes(replacement.find)) {
+        throw new Error('Find string not found in file content');
+      }
+
+      modifiedContent = file.content.replace(replacement.find, replacement.replace);
+
+      if (modifiedContent === file.content) {
+        throw new Error('No changes were made - find and replace strings may be identical');
+      }
+
+    } else {
+      // Small file: Use full file approach
+      console.log(`Using full file approach for small file...`);
+      modifiedContent = await claudeModify(instruction, file.content, filename);
+    }
 
     // Step 3: Push modified file back to GitHub
     console.log(`Pushing modified ${filename} to GitHub...`);
     const commitMessage = `AI modification: ${instruction.slice(0, 72)}`;
-    await pushFile(filename, modifiedCode, file.sha, commitMessage);
+    await pushFile(filename, modifiedContent, file.sha, commitMessage);
 
     return res.status(200).json({
       success: true,
@@ -137,6 +212,8 @@ export default async function handler(req, res) {
       instruction,
       filename,
       commit_message: commitMessage,
+      approach: fileSizeKB > 50 ? 'surgical' : 'full-file',
+      file_size_kb: Math.round(fileSizeKB * 100) / 100,
     });
 
   } catch (e) {
