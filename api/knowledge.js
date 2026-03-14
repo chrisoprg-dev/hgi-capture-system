@@ -373,40 +373,43 @@ Content: ${rawText.slice(0, 8000)}`,
   // ── DELETE ────────────────────────────────────────────────────────────────
   if (req.method === "DELETE") {
     const { ids } = req.body || {};
+    const { id } = req.query || {};
     
-    // Bulk DELETE by ID array
+    // Bulk DELETE by ID array in request body
     if (ids && Array.isArray(ids)) {
       let deleted = 0;
-      for (const id of ids) {
+      for (const docId of ids) {
         try {
           // Get doc to find storage path
-          const docs = await dbGet("knowledge_documents", `?id=eq.${encodeURIComponent(id)}&select=storage_path`);
+          const docs = await dbGet("knowledge_documents", `?id=eq.${encodeURIComponent(docId)}&select=storage_path`);
           if (docs[0]?.storage_path) {
             await storageDelete(docs[0].storage_path).catch(() => {});
           }
-          await dbDelete("knowledge_chunks", `?document_id=eq.${encodeURIComponent(id)}`);
-          await dbDelete("knowledge_documents", `?id=eq.${encodeURIComponent(id)}`);
+          await dbDelete("knowledge_chunks", `?document_id=eq.${encodeURIComponent(docId)}`);
+          await dbDelete("knowledge_documents", `?id=eq.${encodeURIComponent(docId)}`);
           deleted++;
         } catch(e) {
-          console.warn(`Failed to delete document ${id}:`, e.message);
+          console.warn(`Failed to delete document ${docId}:`, e.message);
         }
       }
       return res.status(200).json({ deleted });
     }
     
-    // Single DELETE by query param
-    const { id } = req.query || {};
-    if (!id) return res.status(400).json({ error: "id required" });
-    try {
-      // Get doc to find storage path
-      const docs = await dbGet("knowledge_documents", `?id=eq.${encodeURIComponent(id)}&select=storage_path`);
-      if (docs[0]?.storage_path) {
-        await storageDelete(docs[0].storage_path).catch(() => {});
-      }
-      await dbDelete("knowledge_chunks", `?document_id=eq.${encodeURIComponent(id)}`);
-      await dbDelete("knowledge_documents", `?id=eq.${encodeURIComponent(id)}`);
-      return res.status(200).json({ success: true });
-    } catch(e) { return res.status(500).json({ error: e.message }); }
+    // Single DELETE by query parameter
+    if (id) {
+      try {
+        // Get doc to find storage path
+        const docs = await dbGet("knowledge_documents", `?id=eq.${encodeURIComponent(id)}&select=storage_path`);
+        if (docs[0]?.storage_path) {
+          await storageDelete(docs[0].storage_path).catch(() => {});
+        }
+        await dbDelete("knowledge_chunks", `?document_id=eq.${encodeURIComponent(id)}`);
+        await dbDelete("knowledge_documents", `?id=eq.${encodeURIComponent(id)}`);
+        return res.status(200).json({ success: true });
+      } catch(e) { return res.status(500).json({ error: e.message }); }
+    }
+
+    return res.status(400).json({ error: "Either 'id' query parameter or 'ids' array in body required" });
   }
 
   // ── POST: REPROCESS — reprocess an existing document ─────────────────────
