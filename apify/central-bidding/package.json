@@ -1,0 +1,14 @@
+{
+  "name": "hgi-central-bidding-scraper",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/main.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "apify": "^3.0.0",
+    "crawlee": "^3.0.0",
+    "playwright": "^1.40.0"
+  }
+}
