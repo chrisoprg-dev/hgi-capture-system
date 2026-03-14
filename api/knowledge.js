@@ -1,6 +1,52 @@
 // api/knowledge.js — HGI Knowledge Base Engine v3
 // Architecture: Upload to Supabase Storage → Process in pages → Never times out
 // Handles: PDF, DOCX, TXT, images (OCR), any size
+
+// One-time startup cleanup script
+(async () => {
+  const CLEANUP_IDS = [
+    'doc-1772790201895-WORD------HGI-Proposal------SWBNO------Appeal-Management-Services-------08-Decem',
+    'doc-1772831317625-Restore-PA-Management-9-24-2021-email-pdf-url',
+    'doc-1772831329017-Homeowners-Assistance-Program-pdf-url',
+    'doc-1772833559581-DSS-Deepwater-Horizon-Oil-Spill-Claims-Analysis-Final-Submitted-pdf-url',
+    'doc-1772833563376-Final-Draft---TPCIGA-2024-0102-Proposal-Response---Hammerman-and-Gainer--LLC-pdf',
+    'doc-1772833566965-RFP-for-Program-Management-of-Disaster-Response-and-Recovery-Housing-Programs-FI',
+    'doc-1772833569256-HGI-Response-to-RFP-2024-19-FEMA-Public-Assistance-Services---FINAL-pdf-url',
+    'doc-1772833572692-HGI-GOHSEP-Technical-Proposal-4-23-25-FINAL-pdf-url',
+    'doc-1772833576950-HGI-Response-to-RFP-2024-19-FEMA-Public-Assistance-Services---FINAL-pdf-url',
+    'doc-1772833580803-TPG-Proposal-Final-pdf-url',
+    'doc-1772833582697-WORD------HGI-Proposal------SWBNO------Appeal-Management-Services-------08-Decem',
+    'doc-1772833805264-LWC-Rapid-Response-RFP--October-28--2021--docx-url'
+  ];
+
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+  if (SUPABASE_URL && SUPABASE_KEY) {
+    try {
+      for (const id of CLEANUP_IDS) {
+        await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents?id=eq.${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+          },
+        });
+        await fetch(`${SUPABASE_URL}/rest/v1/knowledge_chunks?document_id=eq.${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+          },
+        });
+      }
+      console.log('Startup cleanup completed: deleted', CLEANUP_IDS.length, 'records');
+    } catch (e) {
+      console.warn('Startup cleanup failed:', e.message);
+    }
+  }
+})();
+
 export const config = { maxDuration: 120 };
 
 const CHUNK_SIZE = 1500;
@@ -549,30 +595,4 @@ Content: ${rawText.slice(0, 8000)}`,
       document_class: classification.document_class,
       vertical: classification.vertical,
       client: classification.client,
-      chunk_count: chunkCount,
-      char_count: rawText.length,
-      storage_path: uploadedToStorage ? storagePath : null,
-      doctrine_extracted: doctrine.win_themes?.length > 0,
-      winning_dna_extracted: winningDna !== null,
-      summary: classification.summary,
-    });
-
-  } catch(e) {
-    // Processing failed but file is stored — mark as error so user can retry
-    await dbPatch("knowledge_documents", docId, {
-      status: "error",
-      summary: `Upload saved to storage. Processing failed: ${e.message}. Use Reprocess to retry.`,
-    }).catch(() => {});
-
-    return res.status(202).json({
-      success: true,
-      partial: true,
-      id: docId,
-      filename,
-      status: "error",
-      storage_path: uploadedToStorage ? storagePath : null,
-      message: "File saved to storage but text extraction failed. Click Reprocess in the Knowledge Base to retry.",
-      error: e.message,
-    });
-  }
-}
+      chunk_count: ch
