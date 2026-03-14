@@ -1,11 +1,28 @@
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ setActive }) {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString("en-US", { hour: 'numeric', minute: '2-digit' }));
+  const [hthaCountdown, setHthaCountdown] = useState({ days: 0, hours: 0 });
   
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date().toLocaleTimeString("en-US", { hour: 'numeric', minute: '2-digit' }));
-    }, 60000);
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString("en-US", { hour: 'numeric', minute: '2-digit' }));
+      
+      // HTHA deadline: March 19, 2026 at 2:00 PM CST
+      const hthaDeadline = new Date('2026-03-19T14:00:00-06:00');
+      const timeDiff = hthaDeadline - now;
+      
+      if (timeDiff > 0) {
+        const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        setHthaCountdown({ days, hours });
+      } else {
+        setHthaCountdown({ days: 0, hours: 0 });
+      }
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 60000);
     
     return () => clearInterval(interval);
   }, []);
@@ -24,6 +41,10 @@ function Dashboard({ setActive }) {
     </div>
   );
 
+  const isUrgent = hthaCountdown.days < 3;
+  const alertColor = isUrgent ? "#dc2626" : "#ea580c";
+  const alertBg = isUrgent ? "#fef2f2" : "#fff7ed";
+
   return (
     <div>
       <div style={{marginBottom:24}}>
@@ -36,6 +57,23 @@ function Dashboard({ setActive }) {
         {statBox("PURSUING", pursuing.length, GOLD, "tracker")}
         {statBox("IN PROPOSAL", proposal.length, ORANGE, "tracker")}
         {statBox("SUBMITTED", submitted.length, BLUE, "tracker")}
+      </div>
+      <div style={{
+        background: alertBg,
+        border: `2px solid ${alertColor}`,
+        borderRadius: 8,
+        padding: 16,
+        marginBottom: 20,
+        textAlign: "center"
+      }}>
+        <div style={{
+          color: alertColor,
+          fontSize: 16,
+          fontWeight: 800,
+          letterSpacing: "0.05em"
+        }}>
+          HTHA PROPOSAL DUE — {hthaCountdown.days} days, {hthaCountdown.hours} hours remaining — submit to procurement@hthousing.com
+        </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
         <Card>
