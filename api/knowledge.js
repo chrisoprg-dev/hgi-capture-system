@@ -46,69 +46,21 @@ export default async function handler(req, res) {
     }
   }
 
-  // POST - Upload file
+  // POST - Create new document record
   if (req.method === "POST") {
-    const { filename, file_type, content_base64 } = req.body;
-
-    if (!filename || !file_type || !content_base64) {
-      return res.status(400).json({ error: "filename, file_type, and content_base64 are required" });
-    }
-
     try {
-      // Generate document ID and storage path
-      const docId = `doc-${Date.now()}-${filename.replace(/[^a-zA-Z0-9.-]/g, '-')}`;
-      const storagePath = `${docId}/${filename}`;
-
-      // Upload to Supabase Storage
-      const fileBuffer = Buffer.from(content_base64, 'base64');
-      const mimeType = file_type === 'pdf' ? 'application/pdf' :
-                      file_type === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
-                      file_type === 'txt' ? 'text/plain' : 'application/octet-stream';
-
-      const storageResponse = await fetch(`${SUPABASE_URL}/storage/v1/object/knowledge-docs/${storagePath}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': mimeType,
-          'x-upsert': 'true',
-        },
-        body: fileBuffer
-      });
-
-      if (!storageResponse.ok) {
-        throw new Error(`Storage upload failed: ${await storageResponse.text()}`);
-      }
-
-      // Create knowledge_documents record
-      const documentRecord = {
-        id: docId,
-        filename,
-        file_type,
-        mime_type: mimeType,
-        storage_path: storagePath,
-        status: 'uploaded',
-        uploaded_at: new Date().toISOString(),
-        document_class: 'other',
-        vertical: 'general',
-        chunk_count: 0,
-        char_count: 0
-      };
-
-      const dbResponse = await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents`, {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents`, {
         method: 'POST',
         headers: dbHeaders,
-        body: JSON.stringify(documentRecord)
+        body: JSON.stringify(req.body)
       });
 
-      if (!dbResponse.ok) {
-        throw new Error(`Database insert failed: ${await dbResponse.text()}`);
+      if (!response.ok) {
+        throw new Error(`Database insert failed: ${await response.text()}`);
       }
 
-      return res.status(200).json({
-        success: true,
-        document_id: docId,
-        storage_path: storagePath
-      });
+      const result = await response.json();
+      return res.status(200).json({ success: true, data: result });
 
     } catch (error) {
       return res.status(500).json({ error: error.message });
@@ -124,31 +76,6 @@ export default async function handler(req, res) {
     }
 
     try {
-      // Get document to find storage path
-      const getResponse = await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents?id=eq.${encodeURIComponent(id)}&select=storage_path`, {
-        headers: dbHeaders
-      });
-
-      if (getResponse.ok) {
-        const docs = await getResponse.json();
-        if (docs.length > 0 && docs[0].storage_path) {
-          // Delete from storage
-          await fetch(`${SUPABASE_URL}/storage/v1/object/knowledge-docs/${encodeURIComponent(docs[0].storage_path)}`, {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${SUPABASE_KEY}`
-            }
-          });
-        }
-      }
-
-      // Delete chunks
-      await fetch(`${SUPABASE_URL}/rest/v1/knowledge_chunks?document_id=eq.${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: dbHeaders
-      });
-
-      // Delete document record
       const deleteResponse = await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents?id=eq.${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: dbHeaders
