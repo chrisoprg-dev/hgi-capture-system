@@ -19,14 +19,18 @@ function KnowledgeBase() {
   const loadDocs = async () => {
     setLoading(true);
     try {
-      const r = await fetch(API_BASE + "/api/knowledge?limit=100&status=not.eq.deleted", {
+      const r = await fetch(API_BASE + "/api/knowledge?limit=100", {
         headers: { "x-intake-secret": INTAKE_SECRET }
       });
       if (r.ok) {
         const d = await r.json();
-        setDocs(d.documents || []);
+        setDocs(d.documents || d || []);
+      } else {
+        console.error("KB load failed:", r.status);
       }
-    } catch(e) {}
+    } catch(e) {
+      console.error("KB load error:", e);
+    }
     setLoading(false);
   };
 
@@ -491,10 +495,3 @@ function KnowledgeBase() {
                 );
               })}
             </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-```
