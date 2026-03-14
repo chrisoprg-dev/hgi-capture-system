@@ -141,6 +141,29 @@ ${docText.slice(0, 12000)}`;
   return JSON.parse(clean);
 };
 
+const checkAndReprocessDocuments = async () => {
+  const targetDocs = [
+    "doc-1772824650781-HGI-Response-to-SJBSB----RFP-Disaster-Management-Service-1-17-25--1--docx",
+    "doc-1772824767279-BP-Capabilities-Statement-Draft---S--Moore-06_02_10-docx"
+  ];
+  
+  for (const docId of targetDocs) {
+    try {
+      const docs = await dbGet("knowledge_documents", `?id=eq.${docId}&select=id,chunk_count`);
+      if (docs.length > 0 && docs[0].chunk_count === 0) {
+        console.log(`Triggering reprocess for ${docId}`);
+        const response = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/api/extract`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ doc_id: docId, reprocess: true })
+        });
+      }
+    } catch (e) {
+      console.error(`Failed to check/reprocess ${docId}:`, e.message);
+    }
+  }
+};
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -150,6 +173,8 @@ export default async function handler(req, res) {
   if (!SUPABASE_URL || !SUPABASE_KEY || !ANTHROPIC_KEY) {
     return res.status(500).json({ error: "Missing environment variables" });
   }
+
+  await checkAndReprocessDocuments();
 
   const { doc_id, reprocess = false } = req.method === "POST"
     ? (req.body || {})
