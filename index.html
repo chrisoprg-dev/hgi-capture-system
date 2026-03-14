@@ -377,7 +377,7 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
       execBrief: outB,
       proposal: proposalSections ? Object.entries(proposalSections).map(([k,v]) => "=== " + k.toUpperCase().replace(/_/g," ") + " ===\n" + v).join("\n\n") : "",
       addedDate: new Date().toISOString(),
-      notes: (sectionCount > 0 ? sectionCount + " proposal sections drafted · " : "") + "Full workflow · " + new Date().toLocaleDateString()
+      notes: (sectionCount > 0 ? sectionCount + " proposal sections drafted · " : "") + "Full workflow · " + new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString()
     };
   };
 
