@@ -92,19 +92,15 @@ export default async function handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-  const INTAKE_SECRET = process.env.INTAKE_SECRET;
+  const INTAKE_SECRET = process.env.INTAKE_SECRET || "hgi-intake-2026-secure";
 
   if (!SUPABASE_URL || !SUPABASE_KEY || !ANTHROPIC_KEY) {
     return res.status(500).json({ error: "Missing environment variables" });
   }
 
   const secret = req.headers["x-intake-secret"] || req.body?.intake_secret;
-  if (req.method === "GET") {
-    // GET requests do not require the secret header at all
-  } else if (req.method === "POST" || req.method === "DELETE") {
-    if (INTAKE_SECRET && secret !== INTAKE_SECRET) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+  if (secret !== INTAKE_SECRET) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   const dbHeaders = {
@@ -593,4 +589,10 @@ Content: ${rawText.slice(0, 8000)}`,
     });
 
     return res.status(200).json({
-      
+      success: true,
+      document_id: docId,
+      chunk_count: chunkCount,
+      char_count: rawText.length,
+      classification,
+      doctrine
+    });
