@@ -19,17 +19,19 @@ function KnowledgeBase() {
   const loadDocs = async () => {
     setLoading(true);
     try {
-      const r = await fetch(API_BASE + "/api/knowledge?limit=100", {
-        headers: { "x-intake-secret": INTAKE_SECRET }
+      const r = await fetch('/api/knowledge?limit=100', {
+        headers: { 'x-intake-secret': 'hgi-intake-2026-secure' }
       });
-      if (r.ok) {
-        const d = await r.json();
-        setDocs(d.documents || d || []);
-      } else {
-        console.error("KB load failed:", r.status);
+      const text = await r.text();
+      try {
+        const d = JSON.parse(text);
+        const docs = d.documents || d.data || (Array.isArray(d) ? d : []);
+        setDocs(docs);
+      } catch(e) {
+        console.error('KB parse error:', text.slice(0,200));
       }
     } catch(e) {
-      console.error("KB load error:", e);
+      console.error('KB fetch error:', e.message);
     }
     setLoading(false);
   };
@@ -486,12 +488,4 @@ function KnowledgeBase() {
                         {doc.doctrine?.key_personnel?.length > 0 && (
                           <div style={{marginTop:10}}>
                             <div style={{fontSize:10,color:TEXT_D,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Key Personnel</div>
-                            <div style={{color:TEXT_D,fontSize:11}}>{doc.doctrine.key_personnel.join(" · ")}</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                            <div style={{color:TEXT_D,fontSize:11}}>{doc.doctrine.key_personnel.join(" · ")}</div
