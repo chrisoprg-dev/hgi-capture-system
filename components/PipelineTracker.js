@@ -32,6 +32,15 @@ function PipelineTracker({ goToWorkflow }) {
     setShowAdd(false); setEditItem(null);
   };
 
+  const clearTestData = () => {
+    const filtered = items.filter(item => 
+      !item.title.includes("Untitled") && 
+      !item.id.startsWith("t-") && 
+      !item.id.startsWith("wf-")
+    );
+    save(filtered);
+  };
+
   const getStrategy = async (item) => {
     setAiLoading(a => ({...a, [item.id]:true}));
     const txt = await callClaude("Capture strategy for HGI — stage: " + item.stage + ":\nTitle: " + item.title + "\nAgency: " + item.agency + "\nValue: " + item.value + "\nDecision: " + (item.decision||"N/A") + "\nOPI: " + (item.opiScore||"N/A") + "\n\nProvide: 3 actions this week, key intel to gather, teaming considerations, Pwin estimate.");
@@ -52,7 +61,10 @@ function PipelineTracker({ goToWorkflow }) {
           <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Pipeline Tracker</h2>
           <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>{items.length} opportunities tracked</p>
         </div>
-        <Btn style={{marginLeft:"auto"}} onClick={()=>{setShowAdd(!showAdd);setEditItem(null);}}>+ Add Opportunity</Btn>
+        <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+          <Btn variant="secondary" onClick={clearTestData}>Clear Test Data</Btn>
+          <Btn onClick={()=>{setShowAdd(!showAdd);setEditItem(null);}}>+ Add Opportunity</Btn>
+        </div>
       </div>
       <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
         <button onClick={()=>setFilterStage("all")} style={{padding:"4px 12px",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:"inherit",border:"none",background:filterStage==="all"?GOLD:BG3,color:filterStage==="all"?"#000":TEXT_D,fontWeight:filterStage==="all"?700:400}}>All ({items.length})</button>
