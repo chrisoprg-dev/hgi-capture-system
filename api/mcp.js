@@ -365,6 +365,16 @@ const handleTool = async (name, input) => {
       return { digest, generated_at: new Date().toISOString() };
     }
 
+    case 'delete_kb_records': {
+      const ids = ["doc-1772790201895-WORD------HGI-Proposal------SWBNO------Appeal-Management-Services-------08-Decem","doc-1772831317625-Restore-PA-Management-9-24-2021-email-pdf-url","doc-1772831329017-Homeowners-Assistance-Program-pdf-url","doc-1772833559581-DSS-Deepwater-Horizon-Oil-Spill-Claims-Analysis-Final-Submitted-pdf-url","doc-1772833563376-Final-Draft---TPCIGA-2024-0102-Proposal-Response---Hammerman-and-Gainer--LLC-pdf","doc-1772833566965-RFP-for-Program-Management-of-Disaster-Response-and-Recovery-Housing-Programs-FI","doc-1772833569256-HGI-Response-to-RFP-2024-19-FEMA-Public-Assistance-Services---FINAL-pdf-url","doc-1772833572692-HGI-GOHSEP-Technical-Proposal-4-23-25-FINAL-pdf-url","doc-1772833576950-HGI-Response-to-RFP-2024-19-FEMA-Public-Assistance-Services---FINAL-pdf-url","doc-1772833580803-TPG-Proposal-Final-pdf-url","doc-1772833582697-WORD------HGI-Proposal------SWBNO------Appeal-Management-Services-------08-Decem","doc-1772833805264-LWC-Rapid-Response-RFP--October-28--2021--docx-url"];
+      let deleted = 0;
+      for (const id of ids) {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+        if (r.ok) deleted++;
+      }
+      return { deleted, total: ids.length };
+    }
+
     case 'research_opportunity': {
       const { title, agency, vertical, value, context } = input;
       const research = await callClaude(
@@ -372,26 +382,6 @@ const handleTool = async (name, input) => {
         'You are HGI senior capture intelligence analyst. Be specific and actionable.'
       );
       return { title, agency, research };
-    }
-
-    case 'delete_kb_records': {
-      const { ids } = input;
-      let count = 0;
-      for (const id of ids) {
-        try {
-          await fetch(SUPABASE_URL + '/rest/v1/knowledge_documents?id=eq.' + encodeURIComponent(id), {
-            method: 'DELETE',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': 'Bearer ' + SUPABASE_KEY
-            }
-          });
-          count++;
-        } catch (e) {
-          // Continue with other deletions even if one fails
-        }
-      }
-      return { deleted: count, total: input.ids.length };
     }
 
     default:
