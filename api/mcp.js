@@ -333,22 +333,25 @@ const handleTool = async (name, input) => {
 
     case 'delete_records': {
       const { table, ids } = input;
-      let count = 0;
+      let deleted = 0;
+      const errors = [];
       for (const id of ids) {
         try {
-          await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
             method: 'DELETE',
             headers: {
               'apikey': SUPABASE_KEY,
-              'Authorization': 'Bearer ' + SUPABASE_KEY
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json'
             }
           });
-          count++;
-        } catch (e) {
-          // Continue with other deletions even if one fails
+          if (r.ok) deleted++;
+          else errors.push(`${id}: ${r.status}`);
+        } catch(e) {
+          errors.push(`${id}: ${e.message}`);
         }
       }
-      return { deleted: count, total: ids.length };
+      return { deleted, total: ids.length, errors };
     }
 
     case 'generate_weekly_digest': {
