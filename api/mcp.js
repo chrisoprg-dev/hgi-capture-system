@@ -201,7 +201,7 @@ const TOOLS = [
   },
   {
     name: 'delete_kb_records',
-    description: 'Delete knowledge base records by ID array. Use to remove broken .url shortcut records.',
+    description: 'Delete knowledge base records by ID. Use to remove broken .url shortcut placeholder records.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -346,7 +346,14 @@ const handleTool = async (name, input) => {
       
       for (const id of ids) {
         try {
-          await sb(`knowledge_documents?id=eq.${id}`, { method: 'DELETE' });
+          await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents?id=eq.${id}`, {
+            method: 'DELETE',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json'
+            }
+          });
           deletedIds.push(id);
           deletedCount++;
         } catch (error) {
