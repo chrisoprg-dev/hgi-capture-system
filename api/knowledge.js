@@ -372,6 +372,29 @@ Content: ${rawText.slice(0, 8000)}`,
 
   // ── DELETE ────────────────────────────────────────────────────────────────
   if (req.method === "DELETE") {
+    const { ids } = req.body || {};
+    
+    // Bulk DELETE by ID array
+    if (ids && Array.isArray(ids)) {
+      let deleted = 0;
+      for (const id of ids) {
+        try {
+          // Get doc to find storage path
+          const docs = await dbGet("knowledge_documents", `?id=eq.${encodeURIComponent(id)}&select=storage_path`);
+          if (docs[0]?.storage_path) {
+            await storageDelete(docs[0].storage_path).catch(() => {});
+          }
+          await dbDelete("knowledge_chunks", `?document_id=eq.${encodeURIComponent(id)}`);
+          await dbDelete("knowledge_documents", `?id=eq.${encodeURIComponent(id)}`);
+          deleted++;
+        } catch(e) {
+          console.warn(`Failed to delete document ${id}:`, e.message);
+        }
+      }
+      return res.status(200).json({ deleted });
+    }
+    
+    // Single DELETE by query param
     const { id } = req.query || {};
     if (!id) return res.status(400).json({ error: "id required" });
     try {
