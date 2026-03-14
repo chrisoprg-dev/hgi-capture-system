@@ -375,26 +375,6 @@ Content: ${rawText.slice(0, 8000)}`,
     const { ids } = req.body || {};
     const { id } = req.query || {};
     
-    // Bulk DELETE by ID array in request body
-    if (ids && Array.isArray(ids)) {
-      let deleted = 0;
-      for (const docId of ids) {
-        try {
-          // Get doc to find storage path
-          const docs = await dbGet("knowledge_documents", `?id=eq.${encodeURIComponent(docId)}&select=storage_path`);
-          if (docs[0]?.storage_path) {
-            await storageDelete(docs[0].storage_path).catch(() => {});
-          }
-          await dbDelete("knowledge_chunks", `?document_id=eq.${encodeURIComponent(docId)}`);
-          await dbDelete("knowledge_documents", `?id=eq.${encodeURIComponent(docId)}`);
-          deleted++;
-        } catch(e) {
-          console.warn(`Failed to delete document ${docId}:`, e.message);
-        }
-      }
-      return res.status(200).json({ deleted });
-    }
-    
     // Single DELETE by query parameter
     if (id) {
       try {
@@ -407,6 +387,26 @@ Content: ${rawText.slice(0, 8000)}`,
         await dbDelete("knowledge_documents", `?id=eq.${encodeURIComponent(id)}`);
         return res.status(200).json({ success: true });
       } catch(e) { return res.status(500).json({ error: e.message }); }
+    }
+
+    // Bulk DELETE by ID array in request body
+    if (ids && Array.isArray(ids)) {
+      let deleted = 0;
+      for (const docId of ids) {
+        try {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents?id=eq.${encodeURIComponent(docId)}`, {
+            method: "DELETE",
+            headers: {
+              "apikey": SUPABASE_KEY,
+              "Authorization": `Bearer ${SUPABASE_KEY}`,
+            },
+          });
+          if (r.ok) deleted++;
+        } catch(e) {
+          console.warn(`Failed to delete document ${docId}:`, e.message);
+        }
+      }
+      return res.status(200).json({ deleted, total: ids.length });
     }
 
     return res.status(400).json({ error: "Either 'id' query parameter or 'ids' array in body required" });
