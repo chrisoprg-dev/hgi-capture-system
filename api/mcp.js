@@ -341,18 +341,20 @@ const handleTool = async (name, input) => {
 
     case 'delete_kb_records': {
       const { ids } = input;
+      const deletedIds = [];
       let deletedCount = 0;
       
       for (const id of ids) {
         try {
           await sb(`knowledge_documents?id=eq.${id}`, { method: 'DELETE' });
+          deletedIds.push(id);
           deletedCount++;
         } catch (error) {
           console.error(`Failed to delete record ${id}:`, error.message);
         }
       }
       
-      return { success: true, deleted_count: deletedCount, total_requested: ids.length };
+      return { deleted: deletedCount, ids: deletedIds };
     }
 
     default:
