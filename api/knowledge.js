@@ -1,4 +1,3 @@
-```javascript
 // api/knowledge.js — HGI Knowledge Base Engine v3
 // Architecture: Upload to Supabase Storage → Process in pages → Never times out
 // Handles: PDF, DOCX, TXT, images (OCR), any size
@@ -101,10 +100,8 @@ export default async function handler(req, res) {
 
   const secret = req.headers["x-intake-secret"] || req.body?.intake_secret;
   if (req.method === "GET") {
-    if (INTAKE_SECRET && secret && secret !== INTAKE_SECRET) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-  } else {
+    // GET requests do not require the secret header at all
+  } else if (req.method === "POST" || req.method === "DELETE") {
     if (INTAKE_SECRET && secret !== INTAKE_SECRET) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -594,3 +591,6 @@ Content: ${rawText.slice(0, 8000)}`,
       status: "processed",
       content_base64: null,
     });
+
+    return res.status(200).json({
+      
