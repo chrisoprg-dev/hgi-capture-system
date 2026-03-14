@@ -1,3 +1,4 @@
+// Bridge test successful
 // api/knowledge-query.js — Dynamic Knowledge Retrieval for Prompt Injection
 export const config = { maxDuration: 30 };
 
