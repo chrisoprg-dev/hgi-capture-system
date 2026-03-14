@@ -377,6 +377,22 @@ const handleTool = async (name, input) => {
       return { digest, generated_at: new Date().toISOString() };
     }
 
+    case 'restore_file_from_git': {
+      const { filename, commit_sha } = input;
+      const commitsR = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?path=${encodeURIComponent(filename)}&per_page=20`, { headers: ghHeaders });
+      const commits = await commitsR.json();
+      const goodCommit = commits.find(c => !c.commit.message.startsWith('MCP:') && !c.commit.message.startsWith('AI modification:'));
+      if (!goodCommit) return { error: 'No pre-MCP commits found for this file' };
+      const sha = commit_sha || goodCommit.sha;
+      const fileR = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filename}?ref=${sha}`, { headers: ghHeaders });
+      const fileData = await fileR.json();
+      const restoredContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+      const currentFile = await getFile(filename);
+      if (!currentFile) return { error: 'Current file not found' };
+      await pushFile(filename, restoredContent, currentFile.sha, `MCP: Restore ${filename} to pre-MCP state`);
+      return { restored: true, filename, from_commit: goodCommit.commit.message, sha };
+    }
+
     case 'delete_kb_records': {
       const ids = ["doc-1772790201895-WORD------HGI-Proposal------SWBNO------Appeal-Management-Services-------08-Decem","doc-1772831317625-Restore-PA-Management-9-24-2021-email-pdf-url","doc-1772831329017-Homeowners-Assistance-Program-pdf-url","doc-1772833559581-DSS-Deepwater-Horizon-Oil-Spill-Claims-Analysis-Final-Submitted-pdf-url","doc-1772833563376-Final-Draft---TPCIGA-2024-0102-Proposal-Response---Hammerman-and-Gainer--LLC-pdf","doc-1772833566965-RFP-for-Program-Management-of-Disaster-Response-and-Recovery-Housing-Programs-FI","doc-1772833569256-HGI-Response-to-RFP-2024-19-FEMA-Public-Assistance-Services---FINAL-pdf-url","doc-1772833572692-HGI-GOHSEP-Technical-Proposal-4-23-25-FINAL-pdf-url","doc-1772833576950-HGI-Response-to-RFP-2024-19-FEMA-Public-Assistance-Services---FINAL-pdf-url","doc-1772833580803-TPG-Proposal-Final-pdf-url","doc-1772833582697-WORD------HGI-Proposal------SWBNO------Appeal-Management-Services-------08-Decem","doc-1772833805264-LWC-Rapid-Response-RFP--October-28--2021--docx-url"];
       let deleted = 0;
@@ -385,41 +401,6 @@ const handleTool = async (name, input) => {
         if (r.ok) deleted++;
       }
       return { deleted, total: ids.length };
-    }
-
-    case 'restore_file_from_git': {
-      const { filename, commit_sha } = input;
-      
-      let targetSha = commit_sha;
-      let targetMessage;
-      
-      if (!targetSha) {
-        const commitsR = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?path=${encodeURIComponent(filename)}&per_page=10`, { headers: ghHeaders });
-        if (!commitsR.ok) throw new Error(`Failed to fetch commits: ${commitsR.status}`);
-        const commits = await commitsR.json();
-        
-        const goodCommit = commits.find(commit => !commit.commit.message.startsWith('MCP:'));
-        if (!goodCommit) throw new Error('No good commit found');
-        
-        targetSha = goodCommit.sha;
-        targetMessage = goodCommit.commit.message;
-      }
-      
-      const fileR = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${encodeURIComponent(filename)}?ref=${targetSha}`, { headers: ghHeaders });
-      if (!fileR.ok) throw new Error(`Failed to fetch file: ${fileR.status}`);
-      const fileData = await fileR.json();
-      const restoredContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
-      
-      const currentFile = await getFile(filename);
-      if (!currentFile) throw new Error('Current file not found');
-      
-      await pushFile(filename, restoredContent, currentFile.sha, `MCP: Restore ${filename} from ${targetSha.slice(0, 7)}`);
-      
-      return {
-        restored: true,
-        from_commit: targetMessage || 'Specified commit',
-        sha: targetSha
-      };
     }
 
     case 'research_opportunity': {
