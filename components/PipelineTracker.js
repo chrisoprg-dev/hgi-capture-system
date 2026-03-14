@@ -10,7 +10,7 @@ const STAGES = [
 ];
 
 function PipelineTracker({ goToWorkflow }) {
-  const [items, setItems] = useState(() => store.get("tracker") || []);
+  const [items, setItems] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({title:"",agency:"",type:"",value:"",deadline:"",notes:"",stage:"identified",opiScore:""});
@@ -19,36 +19,182 @@ function PipelineTracker({ goToWorkflow }) {
   const [filterStage, setFilterStage] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
   const setF = (k,v) => setForm(f => ({...f, [k]:v}));
-  const save = (d) => { setItems(d); store.set("tracker", d); };
   const filtered = filterStage === "all" ? items : items.filter(i => i.stage === filterStage);
 
-  const submit = () => {
+  // Fetch opportunities on mount
+  useEffect(() => {
+    const fetchOpportunities = async () => {
+      try {
+        const response = await fetch('/api/opportunities');
+        if (response.ok) {
+          const data = await response.json();
+          // Map Supabase columns to frontend field names
+          const mappedData = data.map(item => ({
+            id: item.id,
+            title: item.title,
+            agency: item.agency,
+            type: item.vertical,
+            value: item.estimated_value,
+            deadline: item.due_date,
+            notes: item.description,
+            stage: item.stage,
+            opiScore: item.opi_score,
+            addedDate: item.created_at
+          }));
+          setItems(mappedData);
+        }
+      } catch (error) {
+        console.error('Failed to fetch opportunities:', error);
+      }
+    };
+    
+    fetchOpportunities();
+  }, []);
+
+  const submit = async () => {
     if (!form.title) return;
-    const updated = editItem
-      ? items.map(i => i.id === editItem.id ? {...i,...form} : i)
-      : [{id:"t-"+Date.now(),...form,addedDate:new Date().toISOString()}, ...items];
-    save(updated);
-    setForm({title:"",agency:"",type:"",value:"",deadline:"",notes:"",stage:"identified",opiScore:""});
-    setShowAdd(false); setEditItem(null);
+    
+    try {
+      if (editItem) {
+        // Update existing opportunity
+        const response = await fetch(`/api/opportunities/${editItem.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: form.title,
+            agency: form.agency,
+            vertical: form.type,
+            estimated_value: form.value,
+            due_date: form.deadline,
+            description: form.notes,
+            stage: form.stage,
+            opi_score: form.opiScore
+          })
+        });
+        
+        if (response.ok) {
+          const updatedItem = await response.json();
+          const mapped = {
+            id: updatedItem.id,
+            title: updatedItem.title,
+            agency: updatedItem.agency,
+            type: updatedItem.vertical,
+            value: updatedItem.estimated_value,
+            deadline: updatedItem.due_date,
+            notes: updatedItem.description,
+            stage: updatedItem.stage,
+            opiScore: updatedItem.opi_score,
+            addedDate: updatedItem.created_at
+          };
+          setItems(items.map(i => i.id === editItem.id ? mapped : i));
+        }
+      } else {
+        // Create new opportunity
+        const response = await fetch('/api/opportunities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: form.title,
+            agency: form.agency,
+            vertical: form.type,
+            estimated_value: form.value,
+            due_date: form.deadline,
+            description: form.notes,
+            stage: form.stage,
+            opi_score: form.opiScore
+          })
+        });
+        
+        if (response.ok) {
+          const newItem = await response.json();
+          const mapped = {
+            id: newItem.id,
+            title: newItem.title,
+            agency: newItem.agency,
+            type: newItem.vertical,
+            value: newItem.estimated_value,
+            deadline: newItem.due_date,
+            notes: newItem.description,
+            stage: newItem.stage,
+            opiScore: newItem.opi_score,
+            addedDate: newItem.created_at
+          };
+          setItems([mapped, ...items]);
+        }
+      }
+      
+      setForm({title:"",agency:"",type:"",value:"",deadline:"",notes:"",stage:"identified",opiScore:""});
+      setShowAdd(false);
+      setEditItem(null);
+    } catch (error) {
+      console.error('Failed to submit opportunity:', error);
+    }
   };
 
   const clearTestData = () => {
     const filtered = items.filter(item => 
       !item.title.includes("Untitled") && 
-      !item.id.startsWith("t-") && 
-      !item.id.startsWith("wf-")
+      !item.id.toString().startsWith("t-") && 
+      !item.id.toString().startsWith("wf-")
     );
-    save(filtered);
+    setItems(filtered);
   };
 
-  const cleanTestData = () => {
+  const cleanTestData = async () => {
     if (window.confirm("This will remove all entries with no title or titled 'Untitled'. Real opportunities will be kept. Continue?")) {
+      const toDelete = items.filter(item => 
+        !item.title || 
+        item.title.trim() === "" || 
+        item.title.trim() === "Untitled"
+      );
+      
+      for (const item of toDelete) {
+        try {
+          await fetch(`/api/opportunities/${item.id}`, {
+            method: 'DELETE'
+          });
+        } catch (error) {
+          console.error('Failed to delete opportunity:', error);
+        }
+      }
+      
       const filtered = items.filter(item => 
         item.title && 
         item.title.trim() !== "" && 
         item.title.trim() !== "Untitled"
       );
-      save(filtered);
+      setItems(filtered);
+    }
+  };
+
+  const updateStage = async (itemId, newStage) => {
+    try {
+      const response = await fetch(`/api/opportunities/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stage: newStage })
+      });
+      
+      if (response.ok) {
+        setItems(items.map(i => i.id === itemId ? {...i, stage: newStage} : i));
+      }
+    } catch (error) {
+      console.error('Failed to update stage:', error);
+    }
+  };
+
+  const deleteItem = async (itemId) => {
+    try {
+      const response = await fetch(`/api/opportunities/${itemId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        setItems(items.filter(i => i.id !== itemId));
+        setSelectedItem(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete opportunity:', error);
     }
   };
 
@@ -148,7 +294,7 @@ function PipelineTracker({ goToWorkflow }) {
                     <div>
                       <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>STAGE</div>
                       <Label text="MOVE TO STAGE" />
-                      <Sel value={item.stage} onChange={v=>save(items.map(i=>i.id===item.id?{...i,stage:v}:i))}
+                      <Sel value={item.stage} onChange={v=>updateStage(item.id,v)}
                         options={STAGES.map(s=>({value:s.id,label:s.label}))} style={{width:"100%",marginBottom:10}} />
                       {item.notes && <div style={{fontSize:12,color:TEXT_D,fontStyle:"italic",marginTop:4}}>{item.notes}</div>}
                     </div>
@@ -165,7 +311,7 @@ function PipelineTracker({ goToWorkflow }) {
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     <Btn small onClick={()=>getStrategy(item)} disabled={aiLoading[item.id]}>{aiLoading[item.id]?"Getting Strategy...":"Get Capture Strategy"}</Btn>
                     <Btn small variant="secondary" onClick={()=>editBtn(item)}>Edit</Btn>
-                    <Btn small variant="danger" onClick={()=>{save(items.filter(i=>i.id!==item.id));setSelectedItem(null);}}>Delete</Btn>
+                    <Btn small variant="danger" onClick={()=>deleteItem(item.id)}>Delete</Btn>
                   </div>
                   {(aiLoading[item.id]||aiNotes[item.id]) && (
                     <div style={{marginTop:12}}><AIOut content={aiNotes[item.id]} loading={aiLoading[item.id]} label="CAPTURE STRATEGY" /></div>
