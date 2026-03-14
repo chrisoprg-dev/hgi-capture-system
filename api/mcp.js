@@ -198,6 +198,17 @@ const TOOLS = [
       },
       required: ['title', 'agency']
     }
+  },
+  {
+    name: 'delete_kb_records',
+    description: 'Delete knowledge base records by ID array. Use to remove broken .url shortcut records.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ids: { type: 'array', items: { type: 'string' }, description: 'Array of knowledge document IDs to delete' }
+      },
+      required: ['ids']
+    }
   }
 ];
 
@@ -326,6 +337,22 @@ const handleTool = async (name, input) => {
         'You are HGI senior capture intelligence analyst. Be specific and actionable.'
       );
       return { title, agency, research };
+    }
+
+    case 'delete_kb_records': {
+      const { ids } = input;
+      let deletedCount = 0;
+      
+      for (const id of ids) {
+        try {
+          await sb(`knowledge_documents?id=eq.${id}`, { method: 'DELETE' });
+          deletedCount++;
+        } catch (error) {
+          console.error(`Failed to delete record ${id}:`, error.message);
+        }
+      }
+      
+      return { success: true, deleted_count: deletedCount, total_requested: ids.length };
     }
 
     default:
