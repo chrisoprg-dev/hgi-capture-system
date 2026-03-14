@@ -11,6 +11,9 @@ const REPO_OWNER = 'chrisoprg-dev';
 const REPO_NAME = 'hgi-capture-system';
 const BRANCH = 'main';
 
+// Global variable to store original content for restoration
+let lastGoodVersion = {};
+
 const githubHeaders = {
   'Authorization': `Bearer ${GITHUB_TOKEN}`,
   'Accept': 'application/vnd.github.v3+json',
@@ -51,6 +54,22 @@ const pushFile = async (path, content, sha, message) => {
     throw new Error(`GitHub push failed: ${err}`);
   }
   return r.json();
+};
+
+// Check for broken patterns after surgical replacement
+const checkForBrokenPatterns = (content) => {
+  const brokenPatterns = [
+    /const\s+\/\//,
+    /var\s+\/\//,
+    /let\s+\/\//
+  ];
+  
+  for (const pattern of brokenPatterns) {
+    if (pattern.test(content)) {
+      return true;
+    }
+  }
+  return false;
 };
 
 // Ask Claude to make the modification (full file approach)
@@ -175,6 +194,9 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: `File not found: ${filename}` });
     }
 
+    // Step 2: Save original content to global variable
+    lastGoodVersion[filename] = file.content;
+
     const fileSizeKB = Buffer.byteLength(file.content, 'utf8') / 1024;
     console.log(`File size: ${fileSizeKB.toFixed(2)}KB`);
 
@@ -198,6 +220,15 @@ export default async function handler(req, res) {
 
       if (modifiedContent === file.content) {
         throw new Error('No changes were made - find and replace strings may be identical');
+      }
+
+      // Step 2a: Check for broken patterns after surgical replacement
+      if (checkForBrokenPatterns(modifiedContent)) {
+        return res.status(500).json({
+          error: 'Surgical replacement created broken patterns (const //, var //, or let //). Aborting push.',
+          instruction,
+          filename,
+        });
       }
 
     } else {
