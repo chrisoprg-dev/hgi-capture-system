@@ -53,6 +53,27 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     setSection(defaultSection);
   }, [defaultSection, sharedCtx]);
 
+  const getPastPerformance = async (vertical) => {
+    try {
+      const response = await fetch(`/api/knowledge-query?vertical=${vertical}`);
+      const data = await response.json();
+      
+      // Extract top 3 past performance entries
+      if (data && data.entries) {
+        return data.entries.slice(0, 3).map(entry => ({
+          client: entry.client || "N/A",
+          scope: entry.scope || "N/A", 
+          value: entry.value || "N/A",
+          outcome: entry.outcome || "N/A"
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error("Error fetching past performance:", error);
+      return [];
+    }
+  };
+
   const buildPrompt = (sLabel, activeRfp, kbInjection) => {
     const decomp = sharedCtx.decomposition ? "\n\nRFP DECOMPOSITION:\n" + sharedCtx.decomposition.slice(0, 1200) : "";
     const research = sharedCtx.research ? "\n\nCOMPETITIVE RESEARCH:\n" + sharedCtx.research.slice(0, 800) : "";
@@ -61,9 +82,18 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     return "Write a complete, detailed " + sLabel + " section for HGI proposal.\nRFP Context: " + (activeRfp||"General disaster recovery TPA services") + "\nAdditional Context: " + context + decomp + brief + research + kb + "\n\nWrite the full section. Be thorough and specific. Use real HGI past performance, staff credentials, and rates from the institutional knowledge base above. At least 600 words.";
   };
 
-  const buildSys = (sLabel, kbInjection) => {
+  const buildSys = (sLabel, kbInjection, pastPerformance) => {
     const kb = kbInjection ? kbInjection.slice(0, 2000) : HGI_CONTEXT;
-    return "You are a senior proposal writer for Hammerman & Gainer (HGI). Write a complete, submission-ready " + sLabel + " section. Be specific, detailed, and evaluator-aligned. Use ONLY verified past performance data — Road Home $13B, Restore Louisiana, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 20+ years. For staff names and rates, use only what is explicitly provided in the institutional knowledge base — do not invent names or rates. Use [TBD: confirm current staff availability] for any staff placeholders. Write at least 600 words. " + kb;
+    let pastPerfSection = "";
+    
+    if (pastPerformance && pastPerformance.length > 0) {
+      pastPerfSection = "\n\nTOP RELEVANT PAST PERFORMANCE:\n" + 
+        pastPerformance.map((perf, idx) => 
+          `${idx + 1}. Client: ${perf.client}, Scope: ${perf.scope}, Value: ${perf.value}, Outcome: ${perf.outcome}`
+        ).join("\n");
+    }
+
+    return "You are a senior proposal writer for Hammerman & Gainer (HGI). Write a complete, submission-ready " + sLabel + " section. Be specific, detailed, and evaluator-aligned. Use ONLY verified past performance data — Road Home $13B, Restore Louisiana, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 20+ years. For staff names and rates, use only what is explicitly provided in the institutional knowledge base — do not invent names or rates. Use [TBD: confirm current staff availability] for any staff placeholders. Write at least 600 words. " + kb + pastPerfSection;
   };
 
   const generate = async () => {
@@ -75,7 +105,8 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     // Query KB for institutional knowledge before generating
     const vertical = sharedCtx.vertical || "disaster_recovery";
     const kbInjection = await queryKB(vertical);
-    const txt = await callClaude(buildPrompt(sLabel, activeRfp, kbInjection), buildSys(sLabel, kbInjection), 4000);
+    const pastPerformance = await getPastPerformance(vertical);
+    const txt = await callClaude(buildPrompt(sLabel, activeRfp, kbInjection), buildSys(sLabel, kbInjection, pastPerformance), 4000);
     setResult(txt);
     saveSection(section, txt);
     setCurrentlyGenerating("");
@@ -96,6 +127,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     // Query KB once before generating all sections
     const vertical = sharedCtx.vertical || "disaster_recovery";
     const kbInjection = await queryKB(vertical);
+    const pastPerformance = await getPastPerformance(vertical);
 
     for (let i = 0; i < selectedKeys.length; i++) {
       if (abortRef.current) break;
@@ -105,7 +137,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
       setAutoProgress(prev => prev.map((p,idx) => idx===i ? {...p,status:"generating"} : p));
 
       try {
-        const txt = await callClaude(buildPrompt(sLabel, activeRfp, kbInjection), buildSys(sLabel, kbInjection), 4000);
+        const txt = await callClaude(buildPrompt(sLabel, activeRfp, kbInjection), buildSys(sLabel, kbInjection, pastPerformance), 4000);
         currentDraft[key] = txt;
         setProposalDraft({...currentDraft});
         store.set("proposalDraft", {...currentDraft});
@@ -428,15 +460,4 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
       {/* ── COMPLIANCE SCAN PANEL ── */}
       {showCompliance && (
         <div style={{marginTop:24,border:`1px solid ${GOLD}44`,borderRadius:4,overflow:"hidden"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:GOLD+"11",borderBottom:`1px solid ${GOLD}33`}}>
-            <span style={{color:GOLD,fontWeight:700,fontSize:13}}>Compliance Scan Results</span>
-            <Btn small variant="ghost" onClick={()=>setShowCompliance(false)}>Close</Btn>
-          </div>
-          <div style={{padding:16}}>
-            <AIOut content={complianceResult} loading={complianceLoading} label="SCANNING PROPOSAL AGAINST RFP REQUIREMENTS" />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between
