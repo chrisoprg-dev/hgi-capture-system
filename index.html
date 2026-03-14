@@ -1450,7 +1450,33 @@ function WeeklyDigest() {
     setLoading(true);
     const tracker = store.get("tracker") || [];
     const pipeline = tracker.slice(0,5).map(o => "- " + o.title + " (" + o.stage + (o.opiScore?", OPI:"+o.opiScore:"") + ")").join("\n") || "No active pipeline entries";
-    const dateStr = new Date().toLocaleDateString("en-US", {weekday:"long",year:"numeric",month:"long",day:"numeric"});
+    const // Update date and time display
+  const updateDateTime = () => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    }) + " · " + now.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+    return dateStr;
+  };
+  
+  const [dateTimeStr, setDateTimeStr] = useState(updateDateTime());
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDateTimeStr(updateDateTime());
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Legacy variable name for compatibility
+  const dateStr = dateTimeStr; // This maintains compatibility with existing code that uses dateStr = {weekday:"long",year:"numeric",month:"long",day:"numeric"});
     const txt = await callClaude(
       "Generate HGI Weekly Capture Intelligence Digest for week of " + dateStr + ".\n\n" +
       (focus ? "SPECIAL FOCUS: " + focus + "\n\n" : "") +
