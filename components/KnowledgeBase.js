@@ -1,4 +1,16 @@
-```javascript
+import React, { useState, useEffect, useRef } from 'react';
+import { Btn, Input, Label, Badge } from './UI';
+
+const GOLD = "#b8860b";
+const GREEN = "#4ade80";
+const RED = "#ef4444";
+const ORANGE = "#f97316";
+const TEXT = "#f1f5f9";
+const TEXT_D = "#94a3b8";
+const BG2 = "#1e293b";
+const BG3 = "#334155";
+const BORDER = "#475569";
+
 function KnowledgeBase() {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -19,20 +31,14 @@ function KnowledgeBase() {
   const loadDocs = async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/knowledge?limit=100', {
-        headers: { 'x-intake-secret': 'hgi-intake-2026-secure' }
+      const r = await fetch(API_BASE + "/api/knowledge?limit=100", {
+        headers: { "x-intake-secret": INTAKE_SECRET }
       });
-      const text = await r.text();
-      try {
-        const d = JSON.parse(text);
-        const docs = d.documents || d.data || (Array.isArray(d) ? d : []);
-        setDocs(docs);
-      } catch(e) {
-        console.error('KB parse error:', text.slice(0,200));
+      if (r.ok) {
+        const d = await r.json();
+        setDocs(d.documents || []);
       }
-    } catch(e) {
-      console.error('KB fetch error:', e.message);
-    }
+    } catch(e) { console.error(e); }
     setLoading(false);
   };
 
@@ -487,5 +493,4 @@ function KnowledgeBase() {
                         {/* Key personnel */}
                         {doc.doctrine?.key_personnel?.length > 0 && (
                           <div style={{marginTop:10}}>
-                            <div style={{fontSize:10,color:TEXT_D,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Key Personnel</div>
-                            <div style={{color:TEXT_D,fontSize:11}}>{doc.doctrine.key_personnel.join(" · ")}</div
+                            <div style={{fontSize:10,color:TEXT
