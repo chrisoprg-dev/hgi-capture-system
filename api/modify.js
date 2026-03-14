@@ -142,7 +142,12 @@ CRITICAL RULES:
 
   if (!response.ok) throw new Error(`Claude API error: ${response.status}`);
   const data = await response.json();
-  return JSON.parse(data.content[0].text);
+  let text = data.content[0].text;
+  
+  // More aggressive cleaning before JSON.parse
+  text = text.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
+  
+  return JSON.parse(text);
 };
 
 export default async function handler(req, res) {
