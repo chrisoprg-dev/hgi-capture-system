@@ -87,7 +87,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     let pastPerfSection = "";
     
     if (pastPerformance && pastPerformance.length > 0) {
-      pastPerfSection = "\n\nTOP RELEVANT PAST PERFORMANCE:\n" + 
+      pastPerfSection = "\n\nTOP PAST PERFORMANCE:\n" + 
         pastPerformance.map((perf, idx) => 
           `${idx + 1}. Client: ${perf.client}, Scope: ${perf.scope}, Value: ${perf.value}, Outcome: ${perf.outcome}`
         ).join("\n");
@@ -105,7 +105,10 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     // Query KB for institutional knowledge before generating
     const vertical = sharedCtx.vertical || "disaster_recovery";
     const kbInjection = await queryKB(vertical);
-    const pastPerformance = await getPastPerformance(vertical);
+    
+    // Fetch past performance entries from /api/knowledge-query?vertical=disaster_recovery
+    const pastPerformance = await getPastPerformance("disaster_recovery");
+    
     const txt = await callClaude(buildPrompt(sLabel, activeRfp, kbInjection), buildSys(sLabel, kbInjection, pastPerformance), 4000);
     setResult(txt);
     saveSection(section, txt);
@@ -127,7 +130,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     // Query KB once before generating all sections
     const vertical = sharedCtx.vertical || "disaster_recovery";
     const kbInjection = await queryKB(vertical);
-    const pastPerformance = await getPastPerformance(vertical);
+    const pastPerformance = await getPastPerformance("disaster_recovery");
 
     for (let i = 0; i < selectedKeys.length; i++) {
       if (abortRef.current) break;
@@ -459,16 +462,4 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
 
       {/* ── COMPLIANCE SCAN PANEL ── */}
       {showCompliance && (
-        <div style={{marginTop:24,border:`1px solid ${GOLD}44`,borderRadius:4,overflow:"hidden"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:GOLD+"11",borderBottom:`1px solid ${GOLD}33`}}>
-            <span style={{color:GOLD,fontWeight:700,fontSize:13}}>Compliance Scan Results</span>
-            <Btn small variant="ghost" onClick={()=>setShowCompliance(false)}>Close</Btn>
-          </div>
-          <div style={{padding:16}}>
-            <AIOut content={complianceResult} loading={complianceLoading} label="SCANNING PROPOSAL AGAINST RFP REQUIREMENTS" />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+        <div style={{marginTop:24,border:`1px solid ${GOLD}44`,borderRadius:4,
