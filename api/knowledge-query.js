@@ -38,13 +38,13 @@ export default async function handler(req, res) {
   try {
     // Get extracted docs matching vertical
     let docs = await dbGet("knowledge_documents",
-      `?vertical=eq.${vertical}&status=eq.extracted&order=uploaded_at.desc&limit=10&select=id,filename,document_class,vertical,client,contract_name,summary,doctrine,winning_dna`
+      `?vertical=eq.${vertical}&status=eq.extracted&filename=not.like.*.url*&order=uploaded_at.desc&limit=10&select=id,filename,document_class,vertical,client,contract_name,summary,doctrine,winning_dna`
     );
 
     // Fall back to general docs if not enough vertical-specific
     if (docs.length < 3) {
       const generalDocs = await dbGet("knowledge_documents",
-        `?status=eq.extracted&order=uploaded_at.desc&limit=10&select=id,filename,document_class,vertical,client,contract_name,summary,doctrine,winning_dna`
+        `?status=eq.extracted&filename=not.like.*.url*&order=uploaded_at.desc&limit=10&select=id,filename,document_class,vertical,client,contract_name,summary,doctrine,winning_dna`
       );
       // Merge, deduplicate by id
       const seen = new Set(docs.map(d => d.id));
