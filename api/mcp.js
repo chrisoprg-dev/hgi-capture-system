@@ -197,6 +197,18 @@ const TOOLS = [
     }
   },
   {
+    name: 'restore_file_from_git',
+    description: 'Restore any file to its last known good version from git history. Use when a file gets corrupted by a bad modification.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filename: { type: 'string', description: 'Filename to restore' },
+        commit_sha: { type: 'string', description: 'Optional specific commit SHA to restore from' }
+      },
+      required: ['filename']
+    }
+  },
+  {
     name: 'research_opportunity',
     description: 'Generate full competitive intelligence and capture research pack for an opportunity.',
     inputSchema: {
@@ -373,6 +385,41 @@ const handleTool = async (name, input) => {
         if (r.ok) deleted++;
       }
       return { deleted, total: ids.length };
+    }
+
+    case 'restore_file_from_git': {
+      const { filename, commit_sha } = input;
+      
+      let targetSha = commit_sha;
+      let targetMessage;
+      
+      if (!targetSha) {
+        const commitsR = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?path=${encodeURIComponent(filename)}&per_page=10`, { headers: ghHeaders });
+        if (!commitsR.ok) throw new Error(`Failed to fetch commits: ${commitsR.status}`);
+        const commits = await commitsR.json();
+        
+        const goodCommit = commits.find(commit => !commit.commit.message.startsWith('MCP:'));
+        if (!goodCommit) throw new Error('No good commit found');
+        
+        targetSha = goodCommit.sha;
+        targetMessage = goodCommit.commit.message;
+      }
+      
+      const fileR = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${encodeURIComponent(filename)}?ref=${targetSha}`, { headers: ghHeaders });
+      if (!fileR.ok) throw new Error(`Failed to fetch file: ${fileR.status}`);
+      const fileData = await fileR.json();
+      const restoredContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+      
+      const currentFile = await getFile(filename);
+      if (!currentFile) throw new Error('Current file not found');
+      
+      await pushFile(filename, restoredContent, currentFile.sha, `MCP: Restore ${filename} from ${targetSha.slice(0, 7)}`);
+      
+      return {
+        restored: true,
+        from_commit: targetMessage || 'Specified commit',
+        sha: targetSha
+      };
     }
 
     case 'research_opportunity': {
