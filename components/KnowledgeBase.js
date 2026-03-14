@@ -1,3 +1,4 @@
+```javascript
 function KnowledgeBase() {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -18,7 +19,7 @@ function KnowledgeBase() {
   const loadDocs = async () => {
     setLoading(true);
     try {
-      const r = await fetch(API_BASE + "/api/knowledge?limit=100", {
+      const r = await fetch(API_BASE + "/api/knowledge?limit=100&status=not.eq.deleted", {
         headers: { "x-intake-secret": INTAKE_SECRET }
       });
       if (r.ok) {
@@ -496,3 +497,4 @@ function KnowledgeBase() {
     </div>
   );
 }
+```
