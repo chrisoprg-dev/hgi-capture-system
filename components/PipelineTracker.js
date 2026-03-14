@@ -41,6 +41,17 @@ function PipelineTracker({ goToWorkflow }) {
     save(filtered);
   };
 
+  const cleanTestData = () => {
+    if (window.confirm("This will remove all entries with no title or titled 'Untitled'. Real opportunities will be kept. Continue?")) {
+      const filtered = items.filter(item => 
+        item.title && 
+        item.title.trim() !== "" && 
+        item.title.trim() !== "Untitled"
+      );
+      save(filtered);
+    }
+  };
+
   const getStrategy = async (item) => {
     setAiLoading(a => ({...a, [item.id]:true}));
     const txt = await callClaude("Capture strategy for HGI — stage: " + item.stage + ":\nTitle: " + item.title + "\nAgency: " + item.agency + "\nValue: " + item.value + "\nDecision: " + (item.decision||"N/A") + "\nOPI: " + (item.opiScore||"N/A") + "\n\nProvide: 3 actions this week, key intel to gather, teaming considerations, Pwin estimate.");
@@ -62,7 +73,7 @@ function PipelineTracker({ goToWorkflow }) {
           <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>{items.length} opportunities tracked</p>
         </div>
         <div style={{marginLeft:"auto",display:"flex",gap:8}}>
-          <Btn variant="secondary" onClick={clearTestData}>Clear Test Data</Btn>
+          <Btn variant="secondary" onClick={cleanTestData}>Clean Test Data</Btn>
           <Btn onClick={()=>{setShowAdd(!showAdd);setEditItem(null);}}>+ Add Opportunity</Btn>
         </div>
       </div>
