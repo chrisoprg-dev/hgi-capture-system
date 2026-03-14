@@ -1,5 +1,15 @@
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ setActive }) {
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString("en-US", { hour: 'numeric', minute: '2-digit' }));
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString("en-US", { hour: 'numeric', minute: '2-digit' }));
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   const tracker = store.get("tracker") || [];
   const t1 = tracker.filter(o => o.opiScore && parseInt(o.opiScore) >= 70);
   const pursuing = tracker.filter(o => o.stage === "pursuing");
@@ -18,7 +28,7 @@ function Dashboard({ setActive }) {
     <div>
       <div style={{marginBottom:24}}>
         <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:22,fontWeight:800}}>HGI Capture Dashboard</h2>
-        <p style={{color:TEXT_D,margin:0,fontSize:13}}>Hammerman & Gainer LLC · {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</p>
+        <p style={{color:TEXT_D,margin:0,fontSize:13}}>Hammerman & Gainer LLC · {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})} · {currentTime}</p>
       </div>
       <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
         {statBox("TOTAL TRACKED", tracker.length, GOLD, "tracker")}
