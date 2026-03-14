@@ -123,16 +123,21 @@ KEY PAST PERFORMANCE:
 - Orleans Parish School Board: 22 years multi-line TPA
 - Terrebonne Parish School Board: Construction management
 
-CURRENT AUTHORIZED RATE CARD (confirmed HTHA 2026):
+CURRENT AUTHORIZED RATE CARD (confirmed 2026):
 - Principal: $180/hr
 - Program Director: $165/hr
-- Senior Project Manager: $155/hr
-- Project Manager: $145/hr
-- Senior Grant Manager: $140/hr
-- Grant Manager: $125/hr
-- Financial Analyst: $115/hr
-- Environmental Specialist: $110/hr
-- Administrative Support: $65/hr
+- Subject Matter Expert: $155/hr
+- Senior Grant Manager: $150/hr
+- Grant Manager: $120/hr
+- Senior Project Manager: $150/hr
+- Project Manager: $140/hr
+- Grant Writer: $105/hr
+- Architect Engineer: $135/hr
+- Cost Estimator: $125/hr
+- Appeals Specialist: $145/hr
+- Senior Damage Assessor: $115/hr
+- Damage Assessor: $95/hr
+- Administrative Support Specialist: $65/hr
 
 GEOGRAPHY: Louisiana, Texas, Florida, Mississippi, Alabama, Georgia, Federal
 NAICS: 541611, 541690, 561110, 561990, 524291, 923120, 921190
