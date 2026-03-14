@@ -36,17 +36,22 @@ const getFile = async (path) => {
 
 // Push a file to GitHub
 const pushFile = async (path, content, sha, message) => {
+  const body = {
+    message,
+    content: Buffer.from(content, 'utf-8').toString('base64'),
+    branch: BRANCH,
+  };
+  
+  if (sha) {
+    body.sha = sha;
+  }
+
   const r = await fetch(
     `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`,
     {
       method: 'PUT',
       headers: githubHeaders,
-      body: JSON.stringify({
-        message,
-        content: Buffer.from(content, 'utf-8').toString('base64'),
-        sha,
-        branch: BRANCH,
-      }),
+      body: JSON.stringify(body),
     }
   );
   if (!r.ok) {
@@ -96,6 +101,43 @@ CRITICAL RULES:
 - Match the existing code style exactly
 - If the instruction is ambiguous, make the most reasonable interpretation
 - Return the complete file ready to deploy`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!response.ok) throw new Error(`Claude API error: ${response.status}`);
+  const data = await response.json();
+  return data.content[0].text;
+};
+
+// Ask Claude to generate complete new file content
+const claudeCreateFile = async (instruction, filename) => {
+  const prompt = `You are the AI engine for the HGI AI Capture System. You have been asked to create a new file.
+
+INSTRUCTION FROM CHRISTOPHER ONEY (President, HGI Global):
+${instruction}
+
+NEW FILE: ${filename}
+
+Your job:
+1. Generate the complete content for the new file based on the instruction
+2. Follow best practices for the file type
+3. Match the existing codebase style and patterns
+4. Return the COMPLETE file content ready to deploy
+5. Do not add markdown, backticks, or any explanation — return ONLY the raw code
+
+The file should be functional and follow the patterns used in the HGI Capture System.`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -178,7 +220,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server configuration error: Missing required API keys' });
   }
 
-  const { instruction, filename = 'index.html' } = req.body || {};
+  const { instruction, filename = 'index.html', new_file_content } = req.body || {};
 
   if (!instruction) {
     return res.status(400).json({ error: 'Bad request: instruction field is required' });
@@ -188,8 +230,36 @@ export default async function handler(req, res) {
     // Step 1: Read current file from GitHub
     console.log(`Reading ${filename} from GitHub...`);
     const file = await getFile(filename);
+    
+    // Check if we need to create a new file
     if (!file) {
-      return res.status(404).json({ error: `File not found: ${filename}. Check that the file exists in the repository.` });
+      const shouldCreate = instruction.toLowerCase().includes('create') || new_file_content;
+      
+      if (!shouldCreate) {
+        return res.status(404).json({ error: `File not found: ${filename}. Check that the file exists in the repository.` });
+      }
+
+      // Create new file
+      console.log(`Creating new file: ${filename}`);
+      let newContent;
+      
+      if (new_file_content) {
+        newContent = new_file_content;
+      } else {
+        newContent = await claudeCreateFile(instruction, filename);
+      }
+
+      const commitMessage = `AI created file: ${filename} - ${instruction.slice(0, 50)}`;
+      await pushFile(filename, newContent, null, commitMessage);
+
+      return res.status(200).json({
+        success: true,
+        created: true,
+        message: `Successfully created ${filename}. Vercel is deploying — live in ~60 seconds.`,
+        instruction,
+        filename,
+        commit_message: commitMessage,
+      });
     }
 
     // Step 2: Save original content to global variable
