@@ -176,12 +176,12 @@ const TOOLS = [
   },
   {
     name: 'delete_records',
-    description: 'Delete records from any Supabase table by ID array',
+    description: 'Delete records from any Supabase table by ID array. Use to remove broken KB .url placeholder records.',
     inputSchema: {
       type: 'object',
       properties: {
-        table: { type: 'string', description: 'Table name' },
-        ids: { type: 'array', items: { type: 'string' }, description: 'Array of IDs to delete' }
+        table: { type: 'string', description: 'Table name e.g. knowledge_documents' },
+        ids: { type: 'array', items: { type: 'string' }, description: 'Array of record IDs to delete' }
       },
       required: ['table', 'ids']
     }
