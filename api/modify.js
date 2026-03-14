@@ -233,16 +233,9 @@ export default async function handler(req, res) {
     
     // Check if we need to create a new file
     if (!file) {
-      const shouldCreate = instruction.toLowerCase().includes('create') || new_file_content;
+      console.log(`File ${filename} does not exist. Creating new file...`);
       
-      if (!shouldCreate) {
-        return res.status(404).json({ error: `File not found: ${filename}. Check that the file exists in the repository.` });
-      }
-
-      // Create new file
-      console.log(`Creating new file: ${filename}`);
       let newContent;
-      
       if (new_file_content) {
         newContent = new_file_content;
       } else {
@@ -255,7 +248,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         created: true,
-        message: `Successfully created ${filename}. Vercel is deploying — live in ~60 seconds.`,
+        message: `Created ${filename}. Deploying in ~60 seconds.`,
         instruction,
         filename,
         commit_message: commitMessage,
