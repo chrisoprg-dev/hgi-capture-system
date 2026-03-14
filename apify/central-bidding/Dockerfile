@@ -1,0 +1,1 @@
+FROM apify/actor-node-playwright:24
