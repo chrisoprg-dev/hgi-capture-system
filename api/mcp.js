@@ -230,7 +230,7 @@ const handleTool = async (name, input) => {
     case 'modify_system': {
       const { instruction, filename } = input;
       const file = await getFile(filename);
-      if (!file) return { error: `File not found: ${filename}` };
+      if (!file) { const newContent = await callClaude(`Create a new file called ${filename} for the HGI Capture System.\n\nINSTRUCTION: ${instruction}\n\nWrite the complete file content. Raw code only. No markdown.`, 'You are a senior software engineer. Write complete, production-ready code.', 8000); const createR = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filename}`, { method: 'PUT', headers: ghHeaders, body: JSON.stringify({ message: `MCP: Create ${filename}`, content: Buffer.from(newContent, 'utf-8').toString('base64'), branch: 'main' }) }); if (!createR.ok) return { error: `Failed to create file: ${await createR.text()}` }; return { success: true, message: `Created ${filename}. Deploying in ~60 seconds.`, created: true }; }
       const isLarge = file.content.length > 50000;
       let prompt;
       if (isLarge) {
