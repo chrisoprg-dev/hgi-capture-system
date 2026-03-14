@@ -496,4 +496,3 @@ function KnowledgeBase() {
     </div>
   );
 }
-
