@@ -175,6 +175,18 @@ const TOOLS = [
     }
   },
   {
+    name: 'delete_records',
+    description: 'Delete records from any Supabase table by ID array',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        table: { type: 'string', description: 'Table name' },
+        ids: { type: 'array', items: { type: 'string' }, description: 'Array of IDs to delete' }
+      },
+      required: ['table', 'ids']
+    }
+  },
+  {
     name: 'generate_weekly_digest',
     description: 'Generate the HGI weekly capture intelligence digest.',
     inputSchema: {
@@ -317,6 +329,26 @@ const handleTool = async (name, input) => {
       if (filters) path += `&${filters}`;
       const data = await sb(path);
       return { table, count: data.length, data };
+    }
+
+    case 'delete_records': {
+      const { table, ids } = input;
+      let count = 0;
+      for (const id of ids) {
+        try {
+          await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+            method: 'DELETE',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_KEY
+            }
+          });
+          count++;
+        } catch (e) {
+          // Continue with other deletions even if one fails
+        }
+      }
+      return { deleted: count, total: ids.length };
     }
 
     case 'generate_weekly_digest': {
