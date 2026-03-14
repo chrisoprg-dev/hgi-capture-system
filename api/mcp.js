@@ -201,11 +201,11 @@ const TOOLS = [
   },
   {
     name: 'delete_kb_records',
-    description: 'Delete knowledge base records by ID. Use to remove broken .url shortcut placeholder records.',
+    description: 'Delete knowledge base records by ID array. Use to remove broken .url shortcut placeholder records.',
     inputSchema: {
       type: 'object',
       properties: {
-        ids: { type: 'array', items: { type: 'string' }, description: 'Array of knowledge document IDs to delete' }
+        ids: { type: 'array', items: { type: 'string' }, description: 'Array of document IDs to delete' }
       },
       required: ['ids']
     }
@@ -341,27 +341,22 @@ const handleTool = async (name, input) => {
 
     case 'delete_kb_records': {
       const { ids } = input;
-      const deletedIds = [];
-      let deletedCount = 0;
-      
+      let count = 0;
       for (const id of ids) {
         try {
-          await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents?id=eq.${id}`, {
+          await fetch(SUPABASE_URL + '/rest/v1/knowledge_documents?id=eq.' + encodeURIComponent(id), {
             method: 'DELETE',
             headers: {
               'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Content-Type': 'application/json'
+              'Authorization': 'Bearer ' + SUPABASE_KEY
             }
           });
-          deletedIds.push(id);
-          deletedCount++;
-        } catch (error) {
-          console.error(`Failed to delete record ${id}:`, error.message);
+          count++;
+        } catch (e) {
+          // Continue with other deletions even if one fails
         }
       }
-      
-      return { deleted: deletedCount, ids: deletedIds };
+      return { deleted: count, total: input.ids.length };
     }
 
     default:
