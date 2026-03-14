@@ -117,33 +117,23 @@ CRITICAL RULES:
 };
 
 // Ask Claude for surgical string replacement (large file approach)
-const claudeSurgicalModify = async (instruction, currentCode, filename) => {
-  const prompt = `You are the AI engine for the HGI AI Capture System. You have been given an instruction to modify the system.
+const claudeSurgicalModify = async (instruction, currentCode, filename, retryCount = 0) => {
+  const searchScope = retryCount === 0 ? 'exact match' : 'broader context match';
+  const prompt = `You are the AI engine for the HGI AI Capture System. You must return ONLY valid JSON with no additional text.
 
-INSTRUCTION FROM CHRISTOPHER ONEY (President, HGI Global):
-${instruction}
+INSTRUCTION: ${instruction}
+FILE: ${filename}
+CODE: ${currentCode.slice(0, 80000)}
 
-CURRENT FILE: ${filename}
-CURRENT CODE:
-${currentCode.slice(0, 80000)}
+Return ONLY this JSON format with no markdown, no backticks, no explanation:
+{"find": "exact string from code", "replace": "replacement string"}
 
-This file is large (>50KB). You must use a surgical string replacement approach.
-
-Your job:
-1. Understand exactly what Christopher wants
-2. Identify the EXACT string to find and replace
-3. Return ONLY a JSON object with two fields: "find" and "replace"
-4. The "find" string must match EXACTLY what exists in the file
-5. The "replace" string should be the exact replacement
-
-Example response format:
-{"find": "exact string to find", "replace": "exact string to replace it with"}
-
-CRITICAL RULES:
-- Return ONLY valid JSON - no markdown, backticks, or explanation
-- The "find" string must be an exact match from the existing code
-- Never remove existing features or break functionality
-- Make the smallest possible change to fulfill the instruction`;
+CRITICAL REQUIREMENTS:
+- Response must be pure JSON only
+- "find" must be an ${searchScope} from the existing code
+- Make minimal changes to fulfill the instruction
+- Never break existing functionality
+- Return ONLY the JSON object`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -163,10 +153,18 @@ CRITICAL RULES:
   const data = await response.json();
   let text = data.content[0].text;
   
-  // More aggressive cleaning before JSON.parse
-  text = text.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
+  // Aggressively clean response
+  text = text.replace(/```[a-z]*\n?/gi, "")
+             .replace(/```/g, "")
+             .replace(/^[^{]*/, "")
+             .replace(/[^}]*$/, "")
+             .trim();
   
-  return JSON.parse(text);
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error(`Failed to parse Claude response as JSON. Response: "${text}". Parse error: ${e.message}`);
+  }
 };
 
 export default async function handler(req, res) {
@@ -174,16 +172,16 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed. Use POST.' });
 
   if (!ANTHROPIC_KEY || !GITHUB_TOKEN) {
-    return res.status(500).json({ error: 'Missing environment variables' });
+    return res.status(500).json({ error: 'Server configuration error: Missing required API keys' });
   }
 
   const { instruction, filename = 'index.html' } = req.body || {};
 
   if (!instruction) {
-    return res.status(400).json({ error: 'instruction required' });
+    return res.status(400).json({ error: 'Bad request: instruction field is required' });
   }
 
   try {
@@ -191,7 +189,7 @@ export default async function handler(req, res) {
     console.log(`Reading ${filename} from GitHub...`);
     const file = await getFile(filename);
     if (!file) {
-      return res.status(404).json({ error: `File not found: ${filename}` });
+      return res.status(404).json({ error: `File not found: ${filename}. Check that the file exists in the repository.` });
     }
 
     // Step 2: Save original content to global variable
@@ -201,40 +199,74 @@ export default async function handler(req, res) {
     console.log(`File size: ${fileSizeKB.toFixed(2)}KB`);
 
     let modifiedContent;
+    let approach;
 
-    if (fileSizeKB > 50) {
-      // Large file: Use surgical string replacement
-      console.log(`Using surgical string replacement for large file...`);
-      const replacement = await claudeSurgicalModify(instruction, file.content, filename);
-      
-      if (!replacement.find || !replacement.replace) {
-        throw new Error('Claude did not return valid find/replace JSON');
-      }
-
-      // Perform the string replacement
-      if (!file.content.includes(replacement.find)) {
-        throw new Error('Find string not found in file content');
-      }
-
-      modifiedContent = file.content.replace(replacement.find, replacement.replace);
-
-      if (modifiedContent === file.content) {
-        throw new Error('No changes were made - find and replace strings may be identical');
-      }
-
-      // Step 2a: Check for broken patterns after surgical replacement
-      if (checkForBrokenPatterns(modifiedContent)) {
-        return res.status(500).json({
-          error: 'Surgical replacement created broken patterns (const //, var //, or let //). Aborting push.',
-          instruction,
-          filename,
-        });
-      }
-
-    } else {
+    if (fileSizeKB < 20) {
       // Small file: Use full file approach
-      console.log(`Using full file approach for small file...`);
+      console.log(`Using full file approach for small file (<20KB)...`);
+      approach = 'full-file';
       modifiedContent = await claudeModify(instruction, file.content, filename);
+    } else if (fileSizeKB <= 100) {
+      // Medium file: Use surgical string replacement with retry
+      console.log(`Using surgical string replacement for medium file (20-100KB)...`);
+      approach = 'surgical';
+      
+      let replacement;
+      let retryCount = 0;
+      const maxRetries = 2;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          replacement = await claudeSurgicalModify(instruction, file.content, filename, retryCount);
+          
+          if (!replacement.find || replacement.replace === undefined) {
+            throw new Error('Claude response missing required find/replace fields');
+          }
+
+          // Perform the string replacement
+          if (!file.content.includes(replacement.find)) {
+            if (retryCount < maxRetries) {
+              console.log(`Find string not found, retrying with broader search (attempt ${retryCount + 2})...`);
+              retryCount++;
+              continue;
+            } else {
+              throw new Error(`Find string not found in file after ${maxRetries + 1} attempts. Last find string: "${replacement.find.substring(0, 200)}..."`);
+            }
+          }
+
+          modifiedContent = file.content.replace(replacement.find, replacement.replace);
+
+          if (modifiedContent === file.content) {
+            if (retryCount < maxRetries) {
+              console.log(`No changes detected, retrying with different approach (attempt ${retryCount + 2})...`);
+              retryCount++;
+              continue;
+            } else {
+              throw new Error('No changes were made after multiple attempts. The find and replace strings may be identical or the instruction may not apply to this file.');
+            }
+          }
+
+          // Check for broken patterns after surgical replacement
+          if (checkForBrokenPatterns(modifiedContent)) {
+            throw new Error('Surgical replacement created broken code patterns (const //, var //, or let //). This indicates a malformed replacement.');
+          }
+
+          break; // Success
+          
+        } catch (e) {
+          if (retryCount >= maxRetries) {
+            throw new Error(`Surgical modification failed after ${maxRetries + 1} attempts. Last error: ${e.message}`);
+          }
+          console.log(`Attempt ${retryCount + 1} failed: ${e.message}`);
+          retryCount++;
+        }
+      }
+    } else {
+      return res.status(413).json({
+        error: `File too large: ${fileSizeKB.toFixed(2)}KB exceeds 100KB limit. Large file modifications are not supported to prevent response truncation.`,
+        filename,
+        file_size_kb: Math.round(fileSizeKB * 100) / 100
+      });
     }
 
     // Step 3: Push modified file back to GitHub
@@ -248,16 +280,27 @@ export default async function handler(req, res) {
       instruction,
       filename,
       commit_message: commitMessage,
-      approach: fileSizeKB > 50 ? 'surgical' : 'full-file',
+      approach,
       file_size_kb: Math.round(fileSizeKB * 100) / 100,
     });
 
   } catch (e) {
     console.error('Modification error:', e);
+    
+    let errorMessage = e.message;
+    if (e.message.includes('Claude API error')) {
+      errorMessage = `AI service error: ${e.message}`;
+    } else if (e.message.includes('GitHub push failed')) {
+      errorMessage = `GitHub push failed: ${e.message}. Check repository permissions.`;
+    } else if (e.message.includes('JSON')) {
+      errorMessage = `AI response parsing error: ${e.message}. The AI may have returned malformed data.`;
+    }
+    
     return res.status(500).json({
-      error: e.message,
+      error: errorMessage,
       instruction,
       filename,
+      details: e.message !== errorMessage ? e.message : undefined
     });
   }
 }
