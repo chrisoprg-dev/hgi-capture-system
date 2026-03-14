@@ -27,6 +27,10 @@ export default async function handler(req, res) {
 
   // GET - Query knowledge_documents
   if (req.method === "GET") {
+    if (req.query.test === "1") {
+      return res.status(200).json({ status: "ok", message: "knowledge API is reachable" });
+    }
+    
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents?select=*&order=uploaded_at.desc`, {
         headers: dbHeaders
