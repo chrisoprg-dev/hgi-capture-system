@@ -5,8 +5,8 @@ await Actor.init();
 
 const INTAKE_URL = 'https://hgi-capture-system.vercel.app/api/intake';
 const INTAKE_SECRET = 'hgi-intake-2026-secure';
-const CB_USERNAME = 'HGIGLOBAL';
-const CB_PASSWORD = 'Whatever1340!';
+const CB_USERNAME = process.env.CB_USERNAME || 'HGIGLOBAL';
+const CB_PASSWORD = process.env.CB_PASSWORD || 'Whatever1340!';
 
 const HGI_KEYWORDS = [
     'grant management',
