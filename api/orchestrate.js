@@ -84,7 +84,7 @@ export default async function handler(req, res) {
       '0. SUB-VERTICAL CLASSIFICATION — Classify the SPECIFIC type of work within the vertical. For example: if tagged "tpa" — is this workers comp TPA (HGI core), health insurance TPA (NOT HGI), insurance brokerage (NOT HGI), property casualty claims (HGI core), or student accident insurance (NOT HGI)? If tagged "disaster" — is this FEMA PA administration (HGI core), physical construction/repair (NOT HGI), debris removal (NOT HGI), or grant management (HGI core)? If tagged "infrastructure" — is this program/construction management (HGI adjacent), or physical construction (NOT HGI)? Be precise. This classification determines whether HGI should even be looking at this opportunity.\n' +
       '1. SCOPE SUMMARY — What is actually being asked for, plain English, 3-5 sentences.\n' +
       '2. DETAILED DELIVERABLES — Every deliverable, task, and work product. If listing is thin, infer from similar contracts for this agency type and vertical.\n' +
-      '3. EVALUATION CRITERIA — How will this be scored? Infer from similar Louisiana procurements if not stated.\n' +
+      '3. EVALUATION CRITERIA — Extract the EXACT evaluation criteria and point values from the RFP text. Do NOT infer or estimate. Only infer if no criteria are stated.\n' +
       '4. HGI CAPABILITY ALIGNMENT — Map each deliverable to specific HGI past performance. Flag gaps with RED FLAG.\n' +
       '5. COMPLIANCE REQUIREMENTS — Licenses, certs, insurance, bonding, registrations.\n' +
       '6. CRITICAL QUESTIONS — What must HGI ask the agency before committing resources?',
