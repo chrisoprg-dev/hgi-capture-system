@@ -231,8 +231,10 @@ function PipelineTracker({ goToWorkflow }) {
 
   const deleteItem = async (itemId) => {
     try {
-      const response = await fetch(`/api/opportunities/${itemId}`, {
-        method: 'DELETE'
+      const response = await fetch('/api/opportunities', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: itemId, status: 'archived' })
       });
       
       if (response.ok) {
