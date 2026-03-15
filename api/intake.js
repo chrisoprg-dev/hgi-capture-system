@@ -525,20 +525,20 @@ Return ONLY this exact JSON with no markdown:
     
     await dbPatch("opportunities", recordId, updateData);
 
-    // ── AUTO-RESEARCH: Fire and forget research brief for high-scoring opportunities ──
+    // ── AUTO-RESEARCH: Generate and store research brief for high-scoring opportunities ──
     if (finalOpiScore >= 75) {
-      fetch("https://hgi-capture-system.vercel.app/api/claude", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [{
-            role: 'user',
-            content: 'Research this opportunity and provide a 3-sentence decision brief: ' + title + ' | Agency: ' + agency + ' | Vertical: ' + analysis.vertical
-          }]
-        })
-      }).catch(error => {
-        console.warn("Auto-research failed:", error.message);
-      });
+      try {
+        const researchR = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
+          body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, system: "You are an HGI capture intelligence analyst. Be specific and directive.", messages: [{ role: "user", content: "Research brief for HGI on: " + title + " | Agency: " + finalAgency + " | Vertical: " + analysis.vertical + " | OPI: " + finalOpiScore + ". Provide: (1) 3-sentence decision brief, (2) likely competitors, (3) recommended capture action this week." }] })
+        });
+        const researchD = await researchR.json();
+        const researchText = researchD.content?.filter(b => b.type === "text").map(b => b.text).join("") || "";
+        if (researchText) {
+          await dbPatch("opportunities", recordId, { capture_action: researchText.slice(0, 2000) });
+        }
+      } catch(e) { console.warn("Auto-research failed:", e.message); }
     }
 
     if (finalOpiScore >= 60) {
