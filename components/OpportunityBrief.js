@@ -106,95 +106,38 @@ function OpportunityBrief() {
     if (!selected) return;
     setAnalyzingScope(true);
     setScopeAnalysis('');
+    setOrchestrateResult(null);
     
-    let sourceContent = '';
-    if (selected.source_url) {
-      setFetchingSource(true);
-      try {
-        const fetchR = await fetch('/api/fetch-rfp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: selected.source_url })
-        });
-        if (fetchR.ok) {
-          const fetchD = await fetchR.json();
-          sourceContent = (fetchD.textContent || '').slice(0, 8000);
-        }
-      } catch(e) {}
-      setFetchingSource(false);
-    }
-
-    const kb = await queryKB(selected.vertical || 'disaster');
-    
-    // Step 1: Generate scope analysis
-    const scopeText = await callClaude(
-      'Deep scope of work analysis for HGI go/no-go decision.\n\n' +
-      'OPPORTUNITY: ' + selected.title + '\n' +
-      'AGENCY: ' + selected.agency + '\n' +
-      'VERTICAL: ' + (selected.vertical || 'general') + '\n' +
-      'DESCRIPTION: ' + (selected.description || '') + '\n' +
-      'CURRENT SCOPE BULLETS: ' + (selected.scope_of_work || []).join('; ') + '\n' +
-      'KEY REQUIREMENTS: ' + (selected.key_requirements || []).join('; ') + '\n' +
-      'RFP TEXT: ' + (selected.rfp_text || '').slice(0, 3000) + '\n' +
-      (sourceContent ? '\nSOURCE PAGE CONTENT:\n' + sourceContent.slice(0, 5000) : '') +
-      '\n\nHGI KB:\n' + (kb || '').slice(0, 2000) +
-      '\n\nProvide a COMPREHENSIVE scope analysis:\n\n' +
-      '0. SUB-VERTICAL CLASSIFICATION — Classify the SPECIFIC type of work. For TPA: is this workers comp TPA (HGI core), health insurance TPA (NOT HGI), insurance brokerage (NOT HGI), property casualty claims (HGI core), student accident insurance (NOT HGI)? For disaster: FEMA PA administration (HGI core) vs physical construction (NOT HGI)? Be precise.\n\n' +
-      '1. SCOPE SUMMARY — What is actually being asked for, plain English, 3-5 sentences.\n\n' +
-      '2. DETAILED DELIVERABLES — Every deliverable and work product.\n\n' +
-      '3. EVALUATION CRITERIA — How will this be scored?\n\n' +
-      '4. STAFFING IMPLICATIONS — Roles needed, reference HGI rate card.\n\n' +
-      '5. HGI CAPABILITY ALIGNMENT — Map deliverables to HGI past performance. Flag gaps.\n\n' +
-      '6. COMPLIANCE REQUIREMENTS — Licenses, certs, bonding needed.\n\n' +
-      '7. MISSING INFORMATION — Questions to ask the agency.\n\n' +
-      '8. ESTIMATED LEVEL OF EFFORT — Hours by role, cost, pricing range.',
-      'You are a senior government contracting scope analyst. CRITICAL: Determine the EXACT type of work and whether it matches HGI capabilities. HGI does: workers comp TPA, property casualty TPA, FEMA PA grant management, CDBG-DR program admin, property tax appeals, workforce admin, construction MANAGEMENT. HGI does NOT do: insurance brokerage, health insurance TPA, physical construction, debris removal, IT, engineering, environmental. Rate card: Principal $180/hr, Program Director $165/hr, SME $155/hr, PM $140/hr, Grant Manager $120/hr, Admin Support $65/hr.', 4000
-    );
-    setScopeAnalysis(scopeText);
-
-    // Step 2: Save scope analysis to the opportunity record
     try {
-      await fetch('/api/opportunities', {
-        method: 'PATCH',
+      // Trigger the full orchestrator which runs:
+      // 1. Scope Analysis  2. Financial Analysis  3. Research  4. Revised OPI Score  5. Winnability  6. Auto-Proposal (if GO)
+      const r = await fetch('/api/orchestrate', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: selected.id,
-          description: ((selected.description || '').split('--- SCOPE ANALYSIS ---')[0].trim() + '\n\n--- SCOPE ANALYSIS ---\n' + scopeText).slice(0, 2000)
-        })
+        body: JSON.stringify({ opportunity_id: selected.id, trigger: 'deep_scope' })
       });
-    } catch(e) { console.warn('Failed to save scope:', e.message); }
-
-    // Step 3: Re-score based on scope analysis
-    try {
-      const rescoreText = await callClaude(
-        'Re-score this opportunity for HGI based on the scope analysis.\n\n' +
-        'Title: ' + selected.title + '\nAgency: ' + selected.agency + '\nOriginal OPI: ' + selected.opi_score + '\n\n' +
-        'SCOPE ANALYSIS:\n' + scopeText.slice(0, 2500) + '\n\nHGI KB:\n' + (kb || '').slice(0, 1000) + '\n\n' +
-        'SCORING RULES:\n' +
-        '- If scope analysis found this is NOT HGI core work (insurance brokerage, health insurance TPA, physical construction, debris removal, IT, engineering, environmental, medical) — score BELOW 25.\n' +
-        '- If scope is HGI-adjacent but not core — score 25-50.\n' +
-        '- If scope is HGI core work — score on: Past Performance Match (30), Technical Capability (20), Competitive Position (15), Relationship (15), Strategic Value (10), Financial (10).\n\n' +
-        'Return ONLY: REVISED_OPI: [number]',
-        'You are the OPI calibration engine. Sub-vertical classification overrides all other factors. Return ONLY: REVISED_OPI: [number]', 100
-      );
-      const opiMatch = rescoreText.match(/REVISED_OPI:\s*(\d+)/i);
-      if (opiMatch) {
-        const newScore = parseInt(opiMatch[1]);
-        await fetch('/api/opportunities', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: selected.id, opi_score: newScore })
-        });
-        // Reload all opportunities to reflect new score
-        const r2 = await fetch('/api/opportunities?sort=opi_score.desc&limit=20');
-        const d2 = await r2.json();
-        const list = (d2.opportunities || d2 || []).filter(o => o.status === 'active');
-        setOpps(list);
-        const updated = list.find(o => o.id === selected.id);
-        if (updated) setSelected(updated);
+      const d = await r.json();
+      setOrchestrateResult(d);
+      
+      // Reload the opportunity data to show ALL updated fields (score, description, hgi_fit, capture_action)
+      const r2 = await fetch('/api/opportunities?sort=opi_score.desc&limit=20');
+      const d2 = await r2.json();
+      const list = (d2.opportunities || d2 || []).filter(o => o.status === 'active');
+      setOpps(list);
+      const updated = list.find(o => o.id === selected.id);
+      if (updated) {
+        setSelected(updated);
+        // Extract scope analysis from the updated description if it contains the marker
+        const desc = updated.description || '';
+        const scopeIdx = desc.indexOf('--- SCOPE ANALYSIS ---');
+        if (scopeIdx >= 0) {
+          setScopeAnalysis(desc.slice(scopeIdx + 22).trim());
+        }
       }
-    } catch(e) { console.warn('Re-score failed:', e.message); }
-
+    } catch(e) {
+      setScopeAnalysis('Error: ' + e.message);
+    }
+    
     setAnalyzingScope(false);
   };
 
