@@ -112,7 +112,7 @@ export default async function handler(req, res) {
       new Paragraph({
         children: [
           new TextRun({
-            text: "Established 1929 · 95 Years of Excellence",
+            text: "Established 1929 · 97 Years of Excellence",
             font: 'Arial',
             size: 24
           })
