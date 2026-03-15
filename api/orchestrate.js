@@ -90,7 +90,7 @@ export default async function handler(req, res) {
       '6. CRITICAL QUESTIONS — What must HGI ask the agency before committing resources?',
       'You are a senior government contracting scope analyst specializing in Louisiana procurements. CRITICAL: Your first job is to determine the EXACT type of work being requested and whether it matches HGI capabilities. HGI does: workers comp TPA, property casualty TPA, insurance guaranty association administration, FEMA PA grant management, CDBG-DR program administration, disaster recovery program management, property tax appeals, workforce program administration, construction MANAGEMENT (not construction). HGI does NOT do: insurance brokerage, health insurance TPA, physical construction, debris removal, IT services, engineering, architecture, environmental remediation, medical services. Be exhaustive. When RFP text is thin, use knowledge of similar contracts to determine what type of work this actually is.', 2500
     );
-    await patchOpp(opportunity_id, { description: (opp.description + '\n\n--- SCOPE ANALYSIS ---\n' + scopeAnalysis).slice(0, 2000) });
+    await patchOpp(opportunity_id, { scope_analysis: scopeAnalysis });
     await logEvent('opportunity.scope_analyzed', opportunity_id, opp.title, { step: 'scope' });
     results.steps_completed.push('scope_analysis');
   } catch(e) { results.scope_error = e.message; }
@@ -119,8 +119,7 @@ export default async function handler(req, res) {
       '9. FINANCIAL RECOMMENDATION — PURSUE / CONDITIONAL / PASS with specific financial reasoning.',
       'You are HGI CFO-level financial analyst. Be specific with numbers. Use the HGI rate card provided. Every number must be justified.', 2000
     );
-    var finSummary = financialAnalysis.slice(0, 200);
-    await patchOpp(opportunity_id, { estimated_value: finSummary });
+    await patchOpp(opportunity_id, { financial_analysis: financialAnalysis });
     await logEvent('opportunity.financial_analyzed', opportunity_id, opp.title, { step: 'financial' });
     results.steps_completed.push('financial_analysis');
   } catch(e) { results.financial_error = e.message; }
@@ -140,7 +139,7 @@ export default async function handler(req, res) {
       '\n6. RISKS & CHALLENGES — What are the specific downsides, obstacles, and gaps? Include: relationship gaps, geographic challenges, capability gaps, competitive disadvantages, compliance risks, timeline risks. Do NOT sugarcoat — the President needs honest assessment of what could go wrong.',
       'HGI senior capture intelligence analyst. Every recommendation must reference specific scope requirements or financial data from the analysis.', 2000
     );
-    await patchOpp(opportunity_id, { hgi_fit: researchBrief.slice(0, 2000) });
+    await patchOpp(opportunity_id, { research_brief: researchBrief, hgi_fit: researchBrief.slice(0, 2000) });
     await logEvent('opportunity.researched', opportunity_id, opp.title, { step: 'research' });
     results.steps_completed.push('research');
   } catch(e) { results.research_error = e.message; }
@@ -175,8 +174,9 @@ export default async function handler(req, res) {
   // ══════════════════════════════════════════════════════════════════════════
   let pwin = 0;
   let recommendation = 'UNDETERMINED';
+  let winnability = '';
   try {
-    const winnability = await claudeCall(
+    winnability = await claudeCall(
       'Final GO/NO-GO winnability assessment. You have scope, financial, and competitive intelligence.\n\n' +
       'Opportunity: ' + opp.title + '\nAgency: ' + opp.agency + '\nRevised OPI: ' + revisedOpi +
       '\nSCOPE ANALYSIS:\n' + scopeAnalysis.slice(0, 1000) +
@@ -193,7 +193,7 @@ export default async function handler(req, res) {
     pwin = pwinMatch ? parseInt(pwinMatch[1]) : 0;
     recommendation = recMatch ? recMatch[1] : 'UNDETERMINED';
 
-    await patchOpp(opportunity_id, { capture_action: ('PWIN: ' + pwin + '% | ' + recommendation + '\n\n' + winnability + '\n\n--- FINANCIAL & STAFFING ANALYSIS ---\n' + financialAnalysis).slice(0, 4000) });
+    await patchOpp(opportunity_id, { capture_action: ('PWIN: ' + pwin + '% | ' + recommendation + '\n\n' + winnability) });
 
     // Auto-filter NO-BID opportunities out of active views
     if (recommendation === 'NO-BID') {
