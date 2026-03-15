@@ -13,49 +13,24 @@ function PipelineScanner() {
     if (d) { setOpps(d.opps || []); setLastScanned(d.at); }
   }, []);
 
-  const QUERIES = [
-    {label:"FEMA PA Louisiana", q:"FEMA Public Assistance TPA program management RFP Louisiana 2026"},
-    {label:"CDBG-DR Gulf Coast", q:"CDBG-DR disaster recovery program manager RFP Louisiana Gulf Coast 2026"},
-    {label:"TPA Claims", q:"third party administrator TPA claims management RFP disaster recovery 2026"},
-    {label:"Housing Authority", q:"housing authority program administration RFP Louisiana 2026"},
-    {label:"SAM.gov Disaster", q:"SAM.gov NAICS 541611 disaster recovery program management Louisiana Texas 2026"},
-    {label:"Recompetes", q:"disaster recovery program management recompete RFP Louisiana Texas 2026"},
-  ];
-
   const scan = async () => {
-    setScanning(true); setError(""); setOpps([]);
-    const results = [];
-    for (let i = 0; i < QUERIES.length; i++) {
-      const sq = QUERIES[i];
-      setProgress("Searching: " + sq.label + " (" + (i+1) + "/" + QUERIES.length + ")...");
-      try {
-        const txt = await callClaude(
-          "Find real open government RFPs matching: " + sq.q + ". Today: " + new Date().toLocaleDateString() + ". Return ONLY a JSON array. Each object: title, agency, value, deadline (YYYY-MM-DD or TBD), url, description (1 sentence). Only real verifiable opportunities. Return [] if none found.",
-          "Return ONLY valid JSON array, no markdown, no explanation."
-        );
-        const clean = txt.replace(/```json|```/g, "").trim();
-        const s = clean.indexOf("["), e = clean.lastIndexOf("]");
-        if (s !== -1 && e !== -1) {
-          JSON.parse(clean.slice(s, e+1)).forEach(o => {
-            o.id = "sc-" + Date.now() + "-" + Math.random().toString(36).slice(2,7);
-            o.cat = sq.label;
-            results.push(o);
-          });
-        }
-      } catch(ex) {}
-      await new Promise(r => setTimeout(r, 300));
+    setScanning(true); setError(''); setOpps([]);
+    try {
+      const res = await fetch('/api/opportunities?status=active&limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        const at = new Date().toISOString();
+        setOpps(data);
+        setLastScanned(at);
+        store.set('scanner', { opps: data, at });
+        if (!data.length) setError('No active opportunities in pipeline yet. The scraper runs every 30 minutes.');
+      } else {
+        setError('Failed to load pipeline data.');
+      }
+    } catch(ex) {
+      setError('Error loading pipeline: ' + ex.message);
     }
-    const seen = new Set();
-    const deduped = results.filter(o => {
-      const k = (o.title || "").toLowerCase().slice(0, 35);
-      if (seen.has(k)) return false;
-      seen.add(k); return true;
-    });
-    const at = new Date().toISOString();
-    setOpps(deduped); setLastScanned(at);
-    store.set("scanner", {opps: deduped, at});
-    if (!deduped.length) setError("No results returned. Try again or use manual portal links below.");
-    setProgress(""); setScanning(false);
+    setProgress(''); setScanning(false);
   };
 
   const analyze = async (opp) => {
@@ -74,6 +49,16 @@ function PipelineScanner() {
       stage: "identified", notes: opp.description || "", addedDate: new Date().toISOString()
     }, ...ex]);
     alert("Added to Pipeline Tracker!");
+  };
+
+  const getUrgencyColor = (urgency) => {
+    switch(urgency) {
+      case 'IMMEDIATE': return RED;
+      case 'CRITICAL': return '#FF7F00';
+      case 'URGENT': return '#FFD700';
+      case 'APPROACHING': return '#4A90E2';
+      default: return TEXT_D;
+    }
   };
 
   return (
@@ -100,12 +85,44 @@ function PipelineScanner() {
           <Card key={opp.id} style={{borderLeft:`3px solid ${GOLD}`}}>
             <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
               <div style={{flex:1}}>
-                <div style={{fontWeight:700,color:TEXT,fontSize:14,marginBottom:4}}>{opp.title}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
+                  <div style={{fontWeight:700,color:TEXT,fontSize:14}}>{opp.title}</div>
+                  {opp.opi_score && <OPIBadge score={opp.opi_score} />}
+                  {opp.urgency && <span style={{
+                    background:getUrgencyColor(opp.urgency),
+                    color:'white',
+                    padding:'2px 6px',
+                    borderRadius:4,
+                    fontSize:10,
+                    fontWeight:600
+                  }}>{opp.urgency}</span>}
+                  {opp.vertical && <span style={{
+                    background:BG3,
+                    color:TEXT_D,
+                    padding:'2px 6px',
+                    borderRadius:4,
+                    fontSize:10,
+                    border:`1px solid ${BORDER}`
+                  }}>{opp.vertical}</span>}
+                </div>
                 {opp.description && <div style={{color:TEXT_D,fontSize:12,marginBottom:6}}>{opp.description}</div>}
+                {opp.capture_action && <div style={{
+                  background:`${GOLD}22`,
+                  color:GOLD,
+                  padding:'6px 8px',
+                  borderRadius:4,
+                  fontSize:12,
+                  marginBottom:6,
+                  border:`1px solid ${GOLD}44`
+                }}><strong>Action:</strong> {opp.capture_action}</div>}
                 <div style={{display:"flex",gap:16,fontSize:12,flexWrap:"wrap"}}>
                   {opp.agency && <span><span style={{color:GOLD}}>Agency:</span> {opp.agency}</span>}
                   {opp.value && <span><span style={{color:GOLD}}>Value:</span> {opp.value}</span>}
                   {opp.deadline && <span><span style={{color:GOLD}}>Due:</span> {opp.deadline}</span>}
+                  {opp.days_until_deadline !== null && opp.days_until_deadline !== undefined && 
+                    <span style={{color:opp.days_until_deadline < 7 ? RED : TEXT_D}}>
+                      {opp.days_until_deadline} days left
+                    </span>}
                   {opp.url && <a href={opp.url} target="_blank" rel="noopener noreferrer" style={{color:GOLD}}>View RFP</a>}
                 </div>
               </div>
