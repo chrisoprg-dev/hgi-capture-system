@@ -525,18 +525,34 @@ Return ONLY this exact JSON with no markdown:
     
     await dbPatch("opportunities", recordId, updateData);
 
-    // ── AUTO-RESEARCH: Generate and store research brief for high-scoring opportunities ──
+    // ── AUTO-RESEARCH: Generate and store full research brief for high-scoring opportunities ──
     if (finalOpiScore >= 75) {
       try {
+        const kbR = await fetch((process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'https://hgi-capture-system.vercel.app') + '/api/knowledge-query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vertical: analysis.vertical || 'disaster', max_chunks: 4 })
+        });
+        const kbData = kbR.ok ? await kbR.json() : {};
+        const kbContext = kbData.prompt_injection || '';
+        
         const researchR = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
-          body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, system: "You are an HGI capture intelligence analyst. Be specific and directive.", messages: [{ role: "user", content: "Research brief for HGI on: " + title + " | Agency: " + finalAgency + " | Vertical: " + analysis.vertical + " | OPI: " + finalOpiScore + ". Provide: (1) 3-sentence decision brief, (2) likely competitors, (3) recommended capture action this week." }] })
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 2000,
+            system: "You are HGI's senior capture intelligence analyst. Use the HGI knowledge base provided. Be specific, name real competitors, provide actionable intelligence.",
+            messages: [{ role: "user", content: "Full capture intelligence brief for HGI:\nOpportunity: " + title + "\nAgency: " + finalAgency + "\nVertical: " + (analysis.vertical || 'general') + "\nOPI Score: " + finalOpiScore + "\nDescription: " + (analysis.description || description).slice(0, 1000) + "\nWhy HGI Wins: " + (analysis.why_hgi_wins || []).join('; ') + "\n\nHGI KB:\n" + kbContext.slice(0, 2000) + "\n\nProvide: (1) Agency Profile - 3 sentences, (2) Competitive Landscape - who else will bid, (3) HGI Win Strategy - 3 specific differentiators, (4) Red Flags, (5) This Week Action Plan - 3 concrete steps" }]
+          })
         });
         const researchD = await researchR.json();
         const researchText = researchD.content?.filter(b => b.type === "text").map(b => b.text).join("") || "";
         if (researchText) {
-          await dbPatch("opportunities", recordId, { capture_action: researchText.slice(0, 2000) });
+          await dbPatch("opportunities", recordId, { 
+            hgi_fit: researchText.slice(0, 2000),
+            last_updated: new Date().toISOString()
+          });
         }
       } catch(e) { console.warn("Auto-research failed:", e.message); }
     }
