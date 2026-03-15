@@ -367,7 +367,7 @@ const crawler = new PlaywrightCrawler({
                                 deadline: bidData.deadline || '',
                                 value: bidData.value || '',
                                 description: bidData.description || '',
-                                source_url: bidUrl,
+                                url: bidUrl,source: 'Central Bidding': source_id: bidUrl.split('/').pop().replace(/\.html?$/i, ''),
                                 state: 'LA',
                                 vertical: 'disaster',
                                 source: 'Central Bidding'
