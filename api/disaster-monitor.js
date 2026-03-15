@@ -1,4 +1,3 @@
-```javascript
 export const config = { maxDuration: 30 };
 
 // Calculate days since declaration
@@ -114,4 +113,3 @@ export default async function handler(req, res) {
   
   return res.status(405).json({ success: false, error: 'Method not allowed' });
 }
-```
