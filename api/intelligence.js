@@ -278,7 +278,17 @@ export default async function handler(req, res) {
         return days > 7 && (o.opi_score || 0) >= 60;
       }).length,
       last_scraper_run: hunts.find(h => h.source === 'apify_batch')?.run_at || null,
-      new_today: opps.filter(o => (now - new Date(o.discovered_at)) < 24*60*60*1000).length
+      new_today: opps.filter(o => (now - new Date(o.discovered_at)) < 24*60*60*1000).length,
+      // Scraper deep stats
+      scraper_batches_today: hunts.filter(h => h.source === 'apify_batch' && (now - new Date(h.run_at)) < 86400000).length,
+      scraper_current_batch: hunts.filter(h => h.source === 'apify_batch').length > 0 ? Math.max(...hunts.filter(h => h.source === 'apify_batch').map(h => h.opportunities_found || 0)) : 0,
+      scraper_total_categories: 479,
+      scraper_categories_covered: Math.min(hunts.filter(h => h.source === 'apify_batch' && (now - new Date(h.run_at)) < 86400000).length * 5, 479),
+      scraper_rfps_reviewed_today: hunts.filter(h => h.source === 'apify_batch' && (now - new Date(h.run_at)) < 86400000).length * 5,
+      opportunities_filtered_today: (() => { const todayStart = new Date(now); todayStart.setHours(0,0,0,0); return opps.filter(o => new Date(o.discovered_at) >= todayStart && o.status === 'filtered').length; })(),
+      opportunities_active_today: opps.filter(o => (now - new Date(o.discovered_at)) < 86400000 && o.status === 'active').length,
+      opportunities_pending_review: opps.filter(o => o.status === 'active' && (!o.stage || o.stage === 'identified')).length,
+      top_verticals_today: (() => { const v = {}; opps.forEach(o => { if(o.vertical) v[o.vertical] = (v[o.vertical]||0)+1; }); return Object.entries(v).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,n])=>k+':'+n).join(', ') || 'none'; })()
     };
 
     // Sort actions by priority then urgency
