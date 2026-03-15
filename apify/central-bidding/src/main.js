@@ -292,7 +292,7 @@ const crawler = new PlaywrightCrawler({
                             
                             // Send ALL data to intake endpoint
                             try {
-                                const response = await fetch(INTAKE_URL, {
+                                const intakeRes = await fetch(INTAKE_URL, {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json',
@@ -301,12 +301,13 @@ const crawler = new PlaywrightCrawler({
                                     body: JSON.stringify(opportunity)
                                 });
                                 
-                                if (response.ok) {
+                                if (intakeRes.ok) {
                                     log.info(`SENT TO HGI: ${finalTitle}`);
                                     // Add to processed bids after successful sending
                                     processedBids.add(bidUrl);
                                 } else {
-                                    log.error(`Failed to send to HGI: ${response.status} ${response.statusText}`);
+                                    const errorText = await intakeRes.text();
+                                    console.log('Failed to send to HGI:', intakeRes.status, errorText);
                                 }
                             } catch (error) {
                                 log.error(`Failed to post to intake: ${error.message}`);
