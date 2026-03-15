@@ -346,6 +346,7 @@ function PipelineTracker({ goToWorkflow }) {
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontWeight:700,color:TEXT,fontSize:13,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.title}</div>
                   <div style={{fontSize:11,color:TEXT_D}}>{item.agency}{item.type?" · "+item.type:""}</div>
+                  <WinPathBar currentStage={item.stage} />
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
                   {item.value && <span style={{color:GREEN,fontSize:12,fontWeight:700}}>{item.value}</span>}
