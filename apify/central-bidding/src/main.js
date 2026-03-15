@@ -64,45 +64,31 @@ const crawler = new PlaywrightCrawler({
             log.info(`Found ${bidLinks.length} bid links in category`);
             const limitedBidLinks = bidLinks.slice(0, 3);
             
+            // Extract agency name from category URL
+            const categoryUrl = request.url;
+            const agencyMatch = categoryUrl.match(/\/Category\/([^\/]+)/);
+            const agency = agencyMatch ? agencyMatch[1] : '';
+            
             for (let i = 0; i < limitedBidLinks.length; i++) {
                 const bidUrl = limitedBidLinks[i];
                 log.info(`Processing bid ${i + 1}/${limitedBidLinks.length}: ${bidUrl}`);
                 
                 try {
-                    await page.goto(bidUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+                    // Extract title from URL slug
+                    const urlMatch = bidUrl.match(/\/rfp\d+-([^\/]+)/);
+                    if (!urlMatch || !urlMatch[1]) {
+                        log.info(`Could not extract title from URL: ${bidUrl}`);
+                        continue;
+                    }
                     
-                    const title = await page.evaluate(() => {
-                        let title = document.querySelector('h1')?.textContent?.trim();
-                        if (!title) {
-                            title = document.querySelector('h2')?.textContent?.trim();
-                        }
-                        if (!title) {
-                            title = document.querySelector('.rfp-title')?.textContent?.trim();
-                        }
-                        if (!title) {
-                            const url = window.location.href;
-                            const match = url.match(/\/rfp\d+-([^\/]+)/);
-                            if (match && match[1]) {
-                                title = match[1].replace(/-/g, ' ').replace(/\.html$/, '');
-                            }
-                        }
-                        return title || document.title || '';
-                    });
+                    let title = urlMatch[1]
+                        .replace(/\.html$/, '')
+                        .replace(/-/g, ' ')
+                        .split(' ')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                        .join(' ');
                     
-                    const bodyText = await page.evaluate(() => {
-                        const descElement = document.querySelector('.rfp-description, .description, #description, main, article');
-                        return descElement ? descElement.innerText : document.body.innerText.slice(500, 3000);
-                    });
-                    
-                    const agencyMatch = bodyText.match(/(Entity|Agency)[:\s]+([^\n\r]+)/i);
-                    const agency = agencyMatch ? agencyMatch[2].trim() : '';
-                    
-                    const deadlineMatch = bodyText.match(/(Due Date|Deadline)[:\s]+([^\n\r]+)/i);
-                    const deadline = deadlineMatch ? deadlineMatch[2].trim() : '';
-                    
-                    const description = bodyText.slice(0, 2000);
-                    
-                    if (!isRelevant(title, description)) {
+                    if (!isRelevant(title, '')) {
                         log.info(`Not relevant: ${title}`);
                         continue;
                     }
@@ -112,9 +98,10 @@ const crawler = new PlaywrightCrawler({
                     const opportunity = {
                         title: title,
                         agency: agency,
-                        deadline: deadline,
-                        description: description,
-                        url: bidUrl
+                        source_url: bidUrl,
+                        state: 'LA',
+                        vertical: 'disaster',
+                        source: 'Central Bidding'
                     };
                     
                     await pushData(opportunity);
