@@ -9,11 +9,13 @@ const CB_USERNAME = process.env.CB_USERNAME || 'HGIGLOBAL';
 const CB_PASSWORD = process.env.CB_PASSWORD || 'Whatever1340!';
 
 const HGI_KEYWORDS = [
-    'grant management', 'program management', 'disaster recovery', 'FEMA', 'CDBG', 
-    'public assistance', 'claims administration', 'TPA', 'housing', 'workforce', 
-    'property tax', 'appeals', 'emergency management', 'hazard mitigation', 
-    'insurance', 'flood', 'hurricane', 'recovery', 'consulting', 'professional services',
-    'administrative services', 'program administration'
+    'grant management', 'grants management', 'program management', 'program administration', 
+    'disaster recovery', 'FEMA', 'CDBG', 'public assistance', 'claims administration', 
+    'third party administrator', 'TPA', 'housing assistance', 'workforce development', 
+    'workforce services', 'property tax appeal', 'hazard mitigation', 'HMGP', 'BRIC', 
+    'emergency management services', 'recovery program', 'community development block grant', 
+    'homeowner assistance', 'flood recovery', 'hurricane recovery', 'case management services', 
+    'benefits administration'
 ];
 
 const isRelevant = (title, description) => {
