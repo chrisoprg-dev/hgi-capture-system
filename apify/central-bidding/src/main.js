@@ -157,7 +157,7 @@ const checkDuplicate = async (sourceUrl, log) => {
 const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: 300,
     maxConcurrency: 1,
-    requestHandlerTimeoutSecs: 120,
+    requestHandlerTimeoutSecs: 240,
     requestHandler: async ({ page, request, log }) => {
         if (request.label === 'LOGIN') {
             const batch = await getCurrentBatch(log);
@@ -349,6 +349,13 @@ const crawler = new PlaywrightCrawler({
                                     log.info(`Skipping expired bid: ${finalTitle}`);
                                     continue;
                                 }
+                            }
+                            
+                            // Check relevance against full page text
+                            const combinedText = finalTitle + ' ' + (bidData.description || '') + ' ' + fullPageText.slice(0, 2000);
+                            if (!isRelevant(finalTitle, combinedText)) {
+                                log.info(`Not relevant: ${finalTitle}`);
+                                continue;
                             }
                             
                             log.info(`RELEVANT: ${finalTitle}`);
