@@ -2,7 +2,7 @@ const { useState, useEffect, useRef } = React;
 const GOLD="#C9A84C",GOLD_D="#8B6E2E",BG="#0A0A0A",BG2="#111111",BG3="#191919",BG4="#222222";
 const TEXT="#E8E0D0",TEXT_D="#888070",BORDER="#2A2520",RED="#C0392B",GREEN="#27AE60",BLUE="#2980B9",ORANGE="#E67E22";
 
-const HGI_CONTEXT = "Hammerman & Gainer LLC (HGI) — 95 years. Disaster Recovery, CDBG-DR, TPA/Claims, Housing, Construction Management. Past performance: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 20yrs Texas, Restore Louisiana, Terrebonne Parish, Jefferson Parish FEMA PA. Geography: Louisiana, Gulf Coast, Texas.";
+const HGI_CONTEXT = "Hammerman & Gainer LLC (HGI) — 97 years. Disaster Recovery, CDBG-DR, TPA/Claims, Housing, Construction Management. Past performance: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 20yrs Texas, Restore Louisiana, Terrebonne Parish, Jefferson Parish FEMA PA. Geography: Louisiana, Gulf Coast, Texas.";
 
 // ── KB QUERY — fetches extracted institutional knowledge from Supabase ──────
 async function queryKB(vertical) {
@@ -87,15 +87,38 @@ const Sel = ({value, onChange, options, style}) => (
   </select>
 );
 const Label = ({text}) => <label style={{display:"block",fontSize:11,color:TEXT_D,marginBottom:4,letterSpacing:"0.06em"}}>{text}</label>;
+
+function renderMarkdown(text) {
+  if (!text || typeof text !== 'string') return [React.createElement('span', {key:'e'}, '')];
+  try {
+    var lines = text.split('\n');
+    var els = [];
+    for (var i = 0; i < lines.length; i++) {
+      var t = lines[i].trim();
+      if (!t) continue;
+      if (t.indexOf('# ') === 0) { els.push(React.createElement('div', {key:i,style:{fontSize:18,fontWeight:800,color:GOLD,marginTop:16,marginBottom:8,borderBottom:'1px solid '+GOLD+'33',paddingBottom:6}}, t.slice(2))); }
+      else if (t.indexOf('## ') === 0) { els.push(React.createElement('div', {key:i,style:{fontSize:15,fontWeight:700,color:GOLD,marginTop:14,marginBottom:6}}, t.slice(3))); }
+      else if (t.indexOf('### ') === 0) { els.push(React.createElement('div', {key:i,style:{fontSize:14,fontWeight:700,color:TEXT,marginTop:10,marginBottom:4}}, t.slice(4))); }
+      else if (t.indexOf('---') === 0) { els.push(React.createElement('hr', {key:i,style:{border:'none',borderTop:'1px solid '+BORDER,margin:'12px 0'}})); }
+      else if (t.indexOf('- ') === 0 || t.indexOf('* ') === 0) { els.push(React.createElement('div', {key:i,style:{fontSize:13,color:TEXT_D,marginBottom:4,paddingLeft:14,borderLeft:'2px solid '+BORDER}}, t.slice(2))); }
+      else if (/^\d+[\.\)]\s/.test(t)) { els.push(React.createElement('div', {key:i,style:{fontSize:13,color:TEXT_D,marginBottom:6,paddingLeft:14,borderLeft:'2px solid '+BLUE+'44'}}, t)); }
+      else { els.push(React.createElement('div', {key:i,style:{fontSize:13,color:TEXT_D,marginBottom:6,lineHeight:1.7}}, t.replace(/\*\*(.+?)\*\*/g, function(m,p1){return p1;}))); }
+    }
+    return els.length > 0 ? els : [React.createElement('span', {key:'e'}, text)];
+  } catch(e) { return [React.createElement('span', {key:'e',style:{color:TEXT_D,fontSize:13,whiteSpace:'pre-wrap'}}, text)]; }
+}
+
 const AIOut = ({content, loading, label="AI ANALYSIS"}) => {
   if (loading) return <div style={{color:GOLD,fontSize:13,padding:12,background:BG3,borderRadius:4,border:`1px solid ${GOLD}33`,animation:"pulse 1.2s infinite"}}>
     ⟳ generating {label}...</div>;
   if (!content) return null;
-  return <div style={{background:BG3,border:`1px solid ${GOLD}33`,borderRadius:4,padding:14,fontSize:13,lineHeight:1.75,color:TEXT,whiteSpace:"pre-wrap"}}>
-    <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>{label}</div>
-    {content}
+  var rendered = renderMarkdown(content);
+  return <div style={{background:BG3,border:`1px solid ${GOLD}33`,borderRadius:4,padding:14}}>
+    <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:10}}>{label}</div>
+    {rendered}
   </div>;
 };
+
 const OPIBadge = ({score}) => {
   if (!score && score !== 0) return null;
   const n = parseInt(score);
