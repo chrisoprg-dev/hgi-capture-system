@@ -12,6 +12,7 @@ const MODULES = [
   {id:"recruiting", label:"Recruiting & Bench", icon:"◐"},
   {id:"digest", label:"Weekly Digest", icon:"◇"},
   {id:"crm", label:"Relationship Intelligence", icon:"◑"},
+  {id:"content", label:"Content Engine", icon:"✦"},
   {id:"knowledge", label:"Knowledge Base", icon:"⬡"},
 ];
 
@@ -48,6 +49,7 @@ function App() {
     recruiting: <RecruitingBench sharedCtx={sharedCtx} />,
     digest: <WeeklyDigest />,
     crm: <CRM />,
+    content: <ContentEngine />,
     knowledge: <KnowledgeBase />,
   };
 
