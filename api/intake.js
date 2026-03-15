@@ -81,6 +81,22 @@ function extractDaysUntilDeadline(dueDateString) {
   return null;
 }
 
+// Fire-and-forget research brief generation
+function triggerResearchBrief(title, agency, description, vertical) {
+  fetch("https://hgi-capture-system.vercel.app/api/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: title,
+      agency: agency,
+      description: description,
+      vertical: vertical
+    })
+  }).catch(error => {
+    console.warn("Research brief generation failed:", error.message);
+  });
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -410,6 +426,26 @@ Return ONLY this exact JSON with no markdown:
     }
     
     await dbPatch("opportunities", recordId, updateData);
+
+    // ── Trigger research brief for high-scoring opportunities ────────────────
+    if (finalOpiScore >= 75 && analysis.capture_action && analysis.why_hgi_wins) {
+      // Check if fields are empty before triggering research
+      try {
+        const currentRecord = await dbGet("opportunities", `?id=eq.${encodeURIComponent(recordId)}&select=capture_action,why_hgi_wins`);
+        const record = currentRecord[0];
+        
+        if (record && (!record.capture_action || !record.why_hgi_wins || 
+            (Array.isArray(record.why_hgi_wins) && record.why_hgi_wins.length === 0))) {
+          // Fire and forget research brief generation
+          triggerResearchBrief(title, agency, description, analysis.vertical);
+        }
+      } catch (e) {
+        console.warn("Failed to check existing fields for research brief:", e.message);
+        // Still trigger research brief on error to be safe
+        triggerResearchBrief(title, agency, description, analysis.vertical);
+      }
+    }
+    
   } catch (e) {
     console.error("Failed to save analysis:", e.message);
     return res.status(500).json({ error: "Analysis save failed", details: e.message });
