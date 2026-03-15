@@ -18,6 +18,71 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
   const [complianceLoading, setComplianceLoading] = useState(false);
   const abortRef = useRef(false);
 
+  const [pipelineOpps, setPipelineOpps] = useState([]);
+  const [selectedOpp, setSelectedOpp] = useState(null);
+
+  // Load active opportunities with proposal packages
+  useEffect(() => {
+    const loadOpps = async () => {
+      try {
+        const r = await fetch('/api/opportunities?sort=opi_score.desc&limit=10');
+        const d = await r.json();
+        const list = (d.opportunities || d || []).filter(function(o) { return o.status === 'active' && o.rfp_text && o.rfp_text.indexOf('PROPOSAL') !== -1; });
+        setPipelineOpps(list);
+      } catch(e) {}
+    };
+    loadOpps();
+  }, []);
+
+  const loadProposalFromPipeline = function(opp) {
+    setSelectedOpp(opp);
+    // Parse the rfp_text into sections by splitting on ## headers
+    var text = opp.rfp_text || '';
+    var sections = {};
+    var sectionMap = {
+      'COMPLIANCE MATRIX': 'compliance_matrix',
+      'KEY PERSONNEL': 'staffing_plan',
+      'PRICING EXHIBIT': 'pricing_narrative',
+      'TECHNICAL APPROACH': 'technical_approach',
+      'PAST PERFORMANCE': 'past_performance',
+      'STAFFING': 'staffing_plan',
+      'QUESTIONS': 'clarifying_questions',
+      'SUBMISSION TIMELINE': 'transition_plan',
+      'EXECUTIVE SUMMARY': 'executive_summary'
+    };
+    var currentKey = null;
+    var currentContent = [];
+    var lines = text.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (line.indexOf('## ') === 0) {
+        if (currentKey && currentContent.length > 0) {
+          sections[currentKey] = currentContent.join('\n').trim();
+        }
+        var header = line.replace(/^##\s*\d*\.?\s*/, '').trim().toUpperCase();
+        currentKey = null;
+        var keys = Object.keys(sectionMap);
+        for (var j = 0; j < keys.length; j++) {
+          if (header.indexOf(keys[j]) !== -1) {
+            currentKey = sectionMap[keys[j]];
+            break;
+          }
+        }
+        currentContent = [];
+      } else if (currentKey) {
+        currentContent.push(line);
+      }
+    }
+    if (currentKey && currentContent.length > 0) {
+      sections[currentKey] = currentContent.join('\n').trim();
+    }
+    setProposalDraft(sections);
+    store.set('proposalDraft', sections);
+    setRfpText(opp.rfp_text);
+    setContext(opp.title + ' — ' + opp.agency);
+    setActiveView('workspace');
+  };
+
   const SECTIONS = [
     {value:"executive_summary",label:"Executive Summary"},
     {value:"technical_approach",label:"Technical Approach"},
