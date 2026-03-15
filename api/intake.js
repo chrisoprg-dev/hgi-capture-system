@@ -403,6 +403,8 @@ SCORING INSTRUCTIONS:
 - Score 70-84 if HGI capabilities directly match but no identical past performance
 - Score 50-69 if adjacent capability match
 - Score below 50 if weak or speculative match
+- CRITICAL: Distinguish between sub-types within each vertical. For TPA/insurance — workers comp TPA and property casualty TPA are HGI core (score high). Insurance brokerage, health insurance TPA, and student accident insurance are NOT HGI work (score below 30). For disaster — FEMA PA administration and CDBG-DR program management are core (score high). Physical construction and debris removal are NOT HGI work (score below 20). For infrastructure — program and construction management are HGI-adjacent. Actual construction is NOT HGI (score below 15).
+- When the title or description is ambiguous about the specific type of work, assign MEDIUM relevance and note the ambiguity in hgi_fit
 - Consider small contracts (<$500K) if recurring revenue potential exists
 - IMMEDIATE if response deadline within 30 days
 - ACTIVE if deadline 31-90 days out or unknown but posted recently
