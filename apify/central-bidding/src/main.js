@@ -11,15 +11,14 @@ const CB_USERNAME = process.env.CB_USERNAME || 'HGIGLOBAL';
 const CB_PASSWORD = process.env.CB_PASSWORD || 'Whatever1340!';
 
 const HGI_KEYWORDS = [
-    'grant management', 'grants management', 'grant administration', 'program management services', 
-    'program administration', 'disaster recovery services', 'disaster recovery program', 
-    'FEMA public assistance', 'FEMA grant', 'CDBG-DR', 'CDBG program', 
-    'community development block grant', 'claims administration', 'third party administrator', 
-    'TPA services', 'housing assistance program', 'homeowner assistance', 
-    'workforce development services', 'workforce services', 'property tax appeal', 
-    'hazard mitigation grant', 'HMGP', 'emergency management services', 
-    'case management services', 'benefits administration', 'disaster relief', 
-    'flood recovery program', 'hurricane recovery program'
+    'grant management', 'grants management', 'grant administration', 
+'program management services', 'disaster recovery services', 
+'FEMA public assistance', 'FEMA grant', 'CDBG-DR', 
+'community development block grant', 'claims administration', 
+'third party administrator', 'housing assistance program', 
+'homeowner assistance', 'workforce development services', 
+'property tax appeal', 'hazard mitigation grant', 
+'emergency management services', 'case management services'
 ];
 
 const EXPIRED_BID_IDS = ['rfp55622652'];
