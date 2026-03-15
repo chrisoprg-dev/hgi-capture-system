@@ -24,7 +24,7 @@ const isRelevant = (title, description) => {
 const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: 300,
     maxConcurrency: 3,
-    requestHandlerTimeoutSecs: 30,
+    requestHandlerTimeoutSecs: 120,
     requestHandler: async ({ page, request, log, addRequests, pushData }) => {
         if (request.label === 'LOGIN') {
             const batch = await Actor.getValue('batch') || 0;
@@ -62,59 +62,64 @@ const crawler = new PlaywrightCrawler({
             );
             
             log.info(`Found ${bidLinks.length} bid links in category`);
-            const limitedBidLinks = bidLinks.slice(0, 5);
-            if (limitedBidLinks.length > 0) {
-                log.info(`Processing ${limitedBidLinks.length} hrefs: ${limitedBidLinks.join(', ')}`);
-            }
-            await addRequests(limitedBidLinks.map(url => ({ url, label: 'BID' })));
+            const limitedBidLinks = bidLinks.slice(0, 3);
             
-        } else if (request.label === 'BID') {
-            await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
-            
-            const title = await page.evaluate(() => {
-                return document.querySelector('h1')?.innerText || 
-                       document.querySelector('h2')?.innerText || 
-                       document.title || '';
-            });
-            
-            const bodyText = await page.evaluate(() => document.body.innerText);
-            
-            const agencyMatch = bodyText.match(/(Entity|Agency)[:\s]+([^\n\r]+)/i);
-            const agency = agencyMatch ? agencyMatch[2].trim() : '';
-            
-            const deadlineMatch = bodyText.match(/(Due Date|Deadline)[:\s]+([^\n\r]+)/i);
-            const deadline = deadlineMatch ? deadlineMatch[2].trim() : '';
-            
-            const description = bodyText.slice(0, 2000);
-            
-            if (!isRelevant(title, description)) {
-                log.info(`Not relevant: ${title}`);
-                return;
-            }
-            
-            log.info(`RELEVANT: ${title}`);
-            
-            const opportunity = {
-                title: title,
-                agency: agency,
-                deadline: deadline,
-                description: description,
-                url: request.url
-            };
-            
-            await pushData(opportunity);
-            
-            try {
-                await fetch(INTAKE_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-intake-secret': INTAKE_SECRET
-                    },
-                    body: JSON.stringify(opportunity)
-                });
-            } catch (error) {
-                log.error(`Failed to post to intake: ${error.message}`);
+            for (let i = 0; i < limitedBidLinks.length; i++) {
+                const bidUrl = limitedBidLinks[i];
+                log.info(`Processing bid ${i + 1}/${limitedBidLinks.length}: ${bidUrl}`);
+                
+                try {
+                    await page.goto(bidUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+                    
+                    const title = await page.evaluate(() => {
+                        return document.querySelector('h1')?.innerText || 
+                               document.querySelector('h2')?.innerText || 
+                               document.title || '';
+                    });
+                    
+                    const bodyText = await page.evaluate(() => document.body.innerText);
+                    
+                    const agencyMatch = bodyText.match(/(Entity|Agency)[:\s]+([^\n\r]+)/i);
+                    const agency = agencyMatch ? agencyMatch[2].trim() : '';
+                    
+                    const deadlineMatch = bodyText.match(/(Due Date|Deadline)[:\s]+([^\n\r]+)/i);
+                    const deadline = deadlineMatch ? deadlineMatch[2].trim() : '';
+                    
+                    const description = bodyText.slice(0, 2000);
+                    
+                    if (!isRelevant(title, description)) {
+                        log.info(`Not relevant: ${title}`);
+                        continue;
+                    }
+                    
+                    log.info(`RELEVANT: ${title}`);
+                    
+                    const opportunity = {
+                        title: title,
+                        agency: agency,
+                        deadline: deadline,
+                        description: description,
+                        url: bidUrl
+                    };
+                    
+                    await pushData(opportunity);
+                    
+                    try {
+                        await fetch(INTAKE_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-intake-secret': INTAKE_SECRET
+                            },
+                            body: JSON.stringify(opportunity)
+                        });
+                    } catch (error) {
+                        log.error(`Failed to post to intake: ${error.message}`);
+                    }
+                    
+                } catch (error) {
+                    log.error(`Error processing bid ${bidUrl}: ${error.message}`);
+                }
             }
         }
     }
