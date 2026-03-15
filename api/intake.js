@@ -459,7 +459,7 @@ Return ONLY this exact JSON with no markdown:
   }
 
   // ── Filter low relevance ─────────────────────────────────────────────────
-  if (analysis.hgi_relevance === "LOW" && analysis.opi_score < 25) {
+  if (analysis.hgi_relevance === "LOW" && analysis.opi_score < 40) {
     await dbPatch("opportunities", recordId, {
       status: "filtered",
       hgi_relevance: "LOW",
