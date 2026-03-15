@@ -1,7 +1,4 @@
-```javascript
 export const config = { maxDuration: 30 };
-
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, ShadingType, WidthType, Table, TableRow, TableCell, PageBreak, Header, Footer, PageNumber, LevelFormat } = require('docx');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -9,6 +6,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, ShadingType, WidthType, Table, TableRow, TableCell, PageBreak, Header, Footer, PageNumber, LevelFormat, TabStopType } = await import('docx');
+    
     const { title, agency, sections, metadata } = req.body;
 
     if (!title || !agency || !sections) {
@@ -64,7 +63,7 @@ export default async function handler(req, res) {
             ],
             tabStops: [
               {
-                type: 'right',
+                type: TabStopType.RIGHT,
                 position: 9360
               }
             ]
@@ -212,7 +211,7 @@ export default async function handler(req, res) {
         alignment: AlignmentType.CENTER,
         spacing: { after: 240 }
       }),
-      new PageBreak()
+      new Paragraph({ children: [new PageBreak()] })
     );
 
     // Table of Contents
@@ -257,7 +256,7 @@ export default async function handler(req, res) {
       }
     });
 
-    documentChildren.push(new PageBreak());
+    documentChildren.push(new Paragraph({ children: [new PageBreak()] }));
 
     // Process sections
     sectionOrder.forEach(sectionKey => {
@@ -405,16 +404,27 @@ export default async function handler(req, res) {
           processTextContent(content, documentChildren);
         }
 
-        documentChildren.push(new PageBreak());
+        documentChildren.push(new Paragraph({ children: [new PageBreak()] }));
       }
     });
 
-    // Remove last page break
-    if (documentChildren.length > 0 && documentChildren[documentChildren.length - 1] instanceof PageBreak) {
-      documentChildren.pop();
-    }
-
     const doc = new Document({
+      numbering: {
+        config: [{
+          reference: 'hgi-bullets',
+          levels: [{ 
+            level: 0, 
+            format: LevelFormat.BULLET, 
+            text: '•', 
+            alignment: AlignmentType.LEFT,
+            style: { 
+              paragraph: { 
+                indent: { left: 720, hanging: 360 } 
+              } 
+            } 
+          }]
+        }]
+      },
       sections: [{
         properties: {
           page: {
@@ -465,7 +475,8 @@ function processTextContent(content, documentChildren) {
                 size: 24
               })
             ],
-            bullet: {
+            numbering: {
+              reference: 'hgi-bullets',
               level: 0
             },
             spacing: { after: 120, line: 276 }
@@ -517,4 +528,3 @@ function processTextContent(content, documentChildren) {
 
   flushBulletItems();
 }
-```
