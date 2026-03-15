@@ -325,7 +325,6 @@ function FinancialPricing({ sharedCtx={} }) {
 
       {(()=>{
         const wfState = store.get('wfState') || {};
-        const oppTitle = sharedCtx.title || wfState.title || intel.estimatedValue ? null : null;
         const title = sharedCtx.title || wfState.title;
         const agency = sharedCtx.agency || wfState.agency;
         const value = intel.estimatedValue || sharedCtx.value || wfState.value;
@@ -345,15 +344,10 @@ function FinancialPricing({ sharedCtx={} }) {
         return (
           <div style={{marginBottom:12,padding:"10px 14px",background:ORANGE+"11",border:`1px solid ${ORANGE}33`,borderRadius:4}}>
             <div style={{fontSize:12,color:ORANGE,fontWeight:600,marginBottom:4}}>No opportunity loaded</div>
-            <div style={{fontSize:11,color:TEXT_D}}>Run Full Workflow on an RFP first — this module will auto-populate with the contract details, labor roles, and pricing data extracted from the RFP. Or enter values manually below.</div>
+            <div style={{fontSize:11,color:TEXT_D}}>Run Full Workflow on an RFP first — this module will auto-populate with contract details, labor roles, and pricing data. Or enter values manually below.</div>
           </div>
         );
-      })()} && {
-  "find": "<div style={{fontSize:10,color:TEXT_D,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>COST COMPOSITION — {fmt(contractTotalAmt)} total</div>",
-  "replace": "<div style={{fontSize:10,color:TEXT_D,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>
-  {(()=>{ const wfState=store.get('wfState')||{}; const t=sharedCtx.title||wfState.title; const a=sharedCtx.agency||wfState.agency; return (t||a) ? (t||a) + (a&&t?' — '+a:'') + ' · ' : ''; })()}COST COMPOSITION — {fmt(contractTotalAmt)} total
-</div>"
-}
+      })()}
 
       {/* Live Summary Stats — clickable drill-downs */}
       {(()=>{
