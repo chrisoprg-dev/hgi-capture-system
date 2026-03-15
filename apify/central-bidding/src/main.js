@@ -120,8 +120,18 @@ const crawler = new PlaywrightCrawler({
                             await page.goto(bidUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
                             await page.waitForTimeout(1000);
                             
-                            // Get the full page text
+                            // DIAGNOSTIC: Log page details
+                            const currentUrl = page.url();
+                            log.info(`Full page URL after loading: ${currentUrl}`);
+                            
                             const fullPageText = await page.evaluate(() => document.body.innerText);
+                            const first500Chars = fullPageText.substring(0, 500);
+                            log.info(`First 500 characters of page text: ${first500Chars}`);
+                            
+                            const contains99 = fullPageText.includes('99.99');
+                            const containsPlaceBid = fullPageText.includes('Place a Bid');
+                            const containsDownload = fullPageText.includes('Download');
+                            log.info(`Page contains "99.99": ${contains99}, "Place a Bid": ${containsPlaceBid}, "Download": ${containsDownload}`);
                             
                             // Extract title from h1/h2
                             let title = '';
