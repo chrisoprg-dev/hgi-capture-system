@@ -5,17 +5,16 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SAM_API_KEY = process.env.SAM_API_KEY;
 
 const HGI_NAICS = [
-  '336411', '541330', '541511', '541512', '541513', '541519',
-  '541611', '541612', '541618', '541690', '541715', '541990',
-  '561210', '611430', '336413', '336414', '336415', '336419'
+  '541611', '541690', '561110', '561990', '524291', '923120', '921190'
 ];
 
 const HGI_KEYWORDS = [
-  'artificial intelligence', 'AI', 'machine learning', 'ML', 'computer vision',
-  'autonomous', 'unmanned', 'UAV', 'UAS', 'drone', 'robotics', 'sensor',
-  'detection', 'surveillance', 'reconnaissance', 'intelligence',
-  'cybersecurity', 'cyber', 'data analytics', 'predictive analytics',
-  'geospatial', 'GIS', 'mapping', 'satellite', 'imagery', 'remote sensing'
+  'disaster recovery', 'CDBG', 'FEMA', 'public assistance', 'hazard mitigation',
+  'claims administration', 'third party administrator', 'TPA', 'workers compensation',
+  'housing', 'grant management', 'program management', 'case management',
+  'workforce development', 'property tax', 'appeals', 'construction management',
+  'compliance monitoring', 'financial management', 'emergency management',
+  'insurance', 'pension', 'benefits administration'
 ];
 
 function calculateHGIRelevance(title, description = '') {
