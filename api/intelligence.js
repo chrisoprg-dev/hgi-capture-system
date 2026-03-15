@@ -137,7 +137,7 @@ export default async function handler(req, res) {
       await fetch(SB + '/rest/v1/opportunities?id=eq.manualtest-manual-htha-2026-03-04-001', {
         method: 'PATCH',
         headers: { ...H, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ due_date: '2026-03-19', urgency: 'IMMEDIATE', stage: 'proposal', last_updated: new Date().toISOString() })
+        body: JSON.stringify({ due_date: '2026-03-19', state: 'LA', urgency: 'IMMEDIATE', last_updated: new Date().toISOString() })
       });
     } catch(healErr) {
       console.warn('Self-heal patch failed:', healErr.message);
