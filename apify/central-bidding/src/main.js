@@ -48,6 +48,8 @@ const extractDetailsFromText = (text) => {
     return { agency, deadline, value };
 };
 
+let firstBidProcessed = false;
+
 const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: 300,
     maxConcurrency: 3,
@@ -121,6 +123,24 @@ const crawler = new PlaywrightCrawler({
                     
                     // 1) Load each bid page
                     await page.goto(bidUrl, {waitUntil: 'domcontentloaded', timeout: 10000});
+                    
+                    // Screenshot and debug for first bid only
+                    if (!firstBidProcessed) {
+                        // Log the full page URL
+                        log.info(`Full page URL after navigation: ${page.url()}`);
+                        
+                        // Get page text and log first 500 characters
+                        const pageText = await page.evaluate(() => document.body.innerText);
+                        log.info(`First 500 characters of page text: ${pageText.substring(0, 500)}`);
+                        
+                        // Take screenshot and save to key-value store
+                        await page.screenshot({path: 'bid-page.png'});
+                        await Actor.setValue('bid-screenshot', await page.screenshot(), {contentType: 'image/png'});
+                        log.info('Screenshot saved to key-value store');
+                        
+                        firstBidProcessed = true;
+                        break; // Break out of the loop after the first bid
+                    }
                     
                     // 2) Extract the full page text
                     const fullPageText = await page.evaluate(() => document.body.innerText);
