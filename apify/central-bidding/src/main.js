@@ -72,12 +72,27 @@ const crawler = new PlaywrightCrawler({
                     await page.goto(bidUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
                     
                     const title = await page.evaluate(() => {
-                        return document.querySelector('h1')?.innerText || 
-                               document.querySelector('h2')?.innerText || 
-                               document.title || '';
+                        let title = document.querySelector('h1')?.textContent?.trim();
+                        if (!title) {
+                            title = document.querySelector('h2')?.textContent?.trim();
+                        }
+                        if (!title) {
+                            title = document.querySelector('.rfp-title')?.textContent?.trim();
+                        }
+                        if (!title) {
+                            const url = window.location.href;
+                            const match = url.match(/\/rfp\d+-([^\/]+)/);
+                            if (match && match[1]) {
+                                title = match[1].replace(/-/g, ' ').replace(/\.html$/, '');
+                            }
+                        }
+                        return title || document.title || '';
                     });
                     
-                    const bodyText = await page.evaluate(() => document.body.innerText);
+                    const bodyText = await page.evaluate(() => {
+                        const descElement = document.querySelector('.rfp-description, .description, #description, main, article');
+                        return descElement ? descElement.innerText : document.body.innerText.slice(500, 3000);
+                    });
                     
                     const agencyMatch = bodyText.match(/(Entity|Agency)[:\s]+([^\n\r]+)/i);
                     const agency = agencyMatch ? agencyMatch[2].trim() : '';
