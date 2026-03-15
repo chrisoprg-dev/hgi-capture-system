@@ -73,7 +73,10 @@ const TOOLS = [
   { name: 'delete_kb_records', description: 'Delete knowledge base records by ID array.', inputSchema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' } } }, required: ['ids'] } },
   { name: 'generate_weekly_digest', description: 'Generate HGI weekly capture intelligence digest.', inputSchema: { type: 'object', properties: { focus: { type: 'string' } } } },
   { name: 'research_opportunity', description: 'Generate full competitive intelligence pack for an opportunity.', inputSchema: { type: 'object', properties: { title: { type: 'string' }, agency: { type: 'string' }, vertical: { type: 'string' }, value: { type: 'string' }, context: { type: 'string' } }, required: ['title', 'agency'] } },
-  { name: 'check_apify_status', description: 'Check Apify scraper status, last run details, and recent log output.', inputSchema: { type: 'object', properties: {} } }
+  { name: 'check_apify_status', description: 'Check Apify scraper status, last run details, and recent log output.', inputSchema: { type: 'object', properties: {} } },
+  { name: 'run_orchestrator', description: 'Run the full intelligence orchestration workflow on an opportunity. Executes: scope analysis → financial analysis → research → revised OPI score → winnability → auto-proposal (if GO). Returns all results including revised score and GO/NO-GO recommendation.', inputSchema: { type: 'object', properties: { opportunity_id: { type: 'string', description: 'The opportunity ID from the pipeline' } }, required: ['opportunity_id'] } },
+  { name: 'update_opportunity', description: 'Update any field on an opportunity record in the pipeline.', inputSchema: { type: 'object', properties: { opportunity_id: { type: 'string' }, updates: { type: 'object', description: 'Key-value pairs to update, e.g. {opi_score: 75, status: "active"}' } }, required: ['opportunity_id', 'updates'] } },
+  { name: 'fetch_source_page', description: 'Fetch and extract text content from an RFP source URL.', inputSchema: { type: 'object', properties: { url: { type: 'string', description: 'The URL to fetch' } }, required: ['url'] } }
 ];
 
 const handleTool = async (name, input) => {
