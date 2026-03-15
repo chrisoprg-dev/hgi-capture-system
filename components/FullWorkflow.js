@@ -428,13 +428,42 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
               {outB && !loadingB && (
                 <div style={{marginTop:16}}>
                   <div style={{marginBottom:10,padding:"10px 14px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
-                    ✓ Workflow complete — ready to build your full proposal section by section
+                    ✓ Full brief complete — OPI scored, competitive landscape mapped, 48-hour action plan ready
                   </div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     <Btn onClick={runC}>Step 3: Build Proposal in Proposal Engine →</Btn>
-                    <Btn variant="secondary" onClick={saveNoProposal}>? Save to Tracker</Btn>
+                    <Btn variant="secondary" onClick={saveNoProposal}>💾 Save to Tracker</Btn>
+                    <Btn variant="ghost" onClick={()=>setTab("c")}>🔍 Intel & Analysis →</Btn>
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {tab === "c" && (
+            <div>
+              {sharedCtx.research ? (
+                <div>
+                  <AIOut content={sharedCtx.research} label="COMPETITIVE INTELLIGENCE & AGENCY RESEARCH" />
+                  <div style={{marginTop:12,padding:"8px 12px",background:BG3,borderRadius:4,fontSize:11,color:TEXT_D}}>
+                    Auto-generated from RFP decomposition · Flows into Proposal Engine and Financial Pricing automatically
+                  </div>
+                </div>
+              ) : (
+                <Card style={{padding:32,textAlign:"center"}}>
+                  <div style={{color:TEXT_D,fontSize:13,marginBottom:12}}>
+                    {researchStatus && researchStatus.includes("Researching") ? (
+                      <span style={{color:GOLD,animation:"pulse 1.2s infinite"}}>⟳ {researchStatus}</span>
+                    ) : outA ? (
+                      <span style={{color:TEXT_D}}>{researchStatus || "Research runs automatically after Step 1 — or click below to run now."}</span>
+                    ) : (
+                      <span>Complete Step 1 to trigger auto-research on this agency.</span>
+                    )}
+                  </div>
+                  {outA && (
+                    <Btn small variant="ghost" onClick={()=>autoResearch(outA, title, agency)}>⟳ Run Research Now</Btn>
+                  )}
+                </Card>
               )}
             </div>
           )}
