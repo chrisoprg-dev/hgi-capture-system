@@ -541,25 +541,7 @@ Return ONLY this exact JSON with no markdown:
       } catch(e) { console.warn("Auto-research failed:", e.message); }
     }
 
-    if (finalOpiScore >= 60) {
-      fetch('https://hgi-capture-system.vercel.app/api/claude', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: 'Score winnability for HGI on this opportunity. Return Pwin 0-100, top 3 win themes, top 3 risks, and GO/NO-BID recommendation: ' + title + ' | Agency: ' + agency + ' | OPI: ' + finalOpiScore + ' | Vertical: ' + analysis.vertical + ' | Why HGI wins: ' + (analysis.why_hgi_wins || []).join('; ') }]
-        })
-      }).catch(() => {});
-    }
 
-    if (finalOpiScore >= 90) {
-      fetch('https://hgi-capture-system.vercel.app/api/claude', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: 'Draft a complete executive summary proposal section for HGI for this opportunity: ' + title + ' | Agency: ' + agency + ' | Scope: ' + (analysis.scope_of_work || []).join('; ') + ' | Why HGI wins: ' + (analysis.why_hgi_wins || []).join('; ') }]
-        })
-      }).catch(() => {});
-    }
     
   } catch (e) {
     console.error("Failed to save analysis:", e.message);
