@@ -216,8 +216,10 @@ const handleTool = async (name, input) => {
               }
             }
           }
+        } else {
+          apifyStatus = { error: 'Apify API returned ' + actsRes.status, statusText: actsRes.statusText };
         }
-      } catch(e) { apifyStatus = { error: e.message }; }
+      } catch(e) { apifyStatus = { error: e.message, stack: e.stack }; }
 
       return { pipeline: { total: opps.length, tier1: opps.filter(o => o.opi_score >= 70).length, pursuing: opps.filter(o => o.stage === 'pursuing').length, proposal: opps.filter(o => o.stage === 'proposal').length }, knowledge_base: { total: docs.length, extracted: docs.filter(d => d.status === 'extracted').length }, recent_hunts: hunts, apify: apifyStatus, timestamp: new Date().toISOString() };
     }
