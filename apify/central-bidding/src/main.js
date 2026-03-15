@@ -21,33 +21,6 @@ const isRelevant = (title, description) => {
     return HGI_KEYWORDS.some(keyword => text.includes(keyword.toLowerCase()));
 };
 
-const extractDetailsFromText = (text) => {
-    let agency = '';
-    let deadline = '';
-    let value = '';
-    
-    // Extract agency - look for patterns like "Agency:" or "Department:"
-    const agencyMatch = text.match(/(?:agency|department|entity|organization):\s*([^\n\r]+)/i);
-    if (agencyMatch) {
-        agency = agencyMatch[1].trim();
-    }
-    
-    // Extract deadline - look for date patterns
-    const deadlineMatch = text.match(/(?:due|deadline|submission|closing)(?:\s+date)?:\s*([^\n\r]+)/i) ||
-                         text.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\w+\s+\d{1,2},\s+\d{4})/);
-    if (deadlineMatch) {
-        deadline = deadlineMatch[1].trim();
-    }
-    
-    // Extract value - look for dollar amounts
-    const valueMatch = text.match(/\$[\d,]+(?:\.\d{2})?/g);
-    if (valueMatch && valueMatch.length > 0) {
-        value = valueMatch[valueMatch.length - 1]; // Take the last/largest value found
-    }
-    
-    return { agency, deadline, value };
-};
-
 const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: 300,
     maxConcurrency: 1,
@@ -143,10 +116,6 @@ const crawler = new PlaywrightCrawler({
                     // Take first 2
                     const limitedBidLinks = bidLinks.slice(0, 2);
                     
-                    // Extract agency name from category URL
-                    const agencyMatch = categoryUrl.match(/\/Category\/([^\/]+)/);
-                    const categoryAgency = agencyMatch ? agencyMatch[1] : '';
-                    
                     // For each bid link
                     for (const bidUrl of limitedBidLinks) {
                         log.info(`Processing bid: ${bidUrl}`);
@@ -156,33 +125,61 @@ const crawler = new PlaywrightCrawler({
                             await page.goto(bidUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
                             await page.waitForTimeout(1000);
                             
-                            // DIAGNOSTIC: Log page details
-                            const currentUrl = page.url();
-                            log.info(`Full page URL after loading: ${currentUrl}`);
-                            
+                            // Get full page text
                             const fullPageText = await page.evaluate(() => document.body.innerText);
-                            const first500Chars = fullPageText.substring(0, 500);
-                            log.info(`First 500 characters of page text: ${first500Chars}`);
                             
-                            const contains99 = fullPageText.includes('99.99');
-                            const containsPlaceBid = fullPageText.includes('Place a Bid');
-                            const containsDownload = fullPageText.includes('Download');
-                            log.info(`Page contains "99.99": ${contains99}, "Place a Bid": ${containsPlaceBid}, "Download": ${containsDownload}`);
-                            
-                            // Extract title from h1/h2
-                            const title = await page.evaluate(() => {
+                            // Extract data using page.evaluate
+                            const bidData = await page.evaluate(() => {
+                                // Extract title
+                                let title = '';
                                 const h1 = document.querySelector('h1');
-                                if (h1 && h1.textContent.trim().length > 3) return h1.textContent.trim();
-                                const h2 = document.querySelector('h2');
-                                if (h2 && h2.textContent.trim().length > 3) return h2.textContent.trim();
-                                return document.title.replace('Central Bidding', '').trim();
+                                if (h1 && h1.textContent.trim()) {
+                                    title = h1.textContent.trim();
+                                } else {
+                                    const h2 = document.querySelector('h2');
+                                    if (h2 && h2.textContent.trim()) {
+                                        title = h2.textContent.trim();
+                                    }
+                                }
+                                
+                                // Extract agency - text after "Louisiana >"
+                                let agency = '';
+                                const fullText = document.body.innerText;
+                                const agencyMatch = fullText.match(/Louisiana\s*>\s*([^\n\r>]+)/i);
+                                if (agencyMatch) {
+                                    agency = agencyMatch[1].trim();
+                                }
+                                
+                                // Extract deadline - text after various patterns
+                                let deadline = '';
+                                const deadlineMatch = fullText.match(/(?:Ends:|Due Date:|Bid Date:|Closing Date:)\s*([^\n\r]+)/i);
+                                if (deadlineMatch) {
+                                    deadline = deadlineMatch[1].trim();
+                                }
+                                
+                                // Extract value - text after various patterns
+                                let value = '';
+                                const valueMatch = fullText.match(/(?:Estimated Value:|Budget:|Amount:)\s*([^\n\r]+)/i);
+                                if (valueMatch) {
+                                    value = valueMatch[1].trim();
+                                }
+                                
+                                // Extract description - text between specific markers
+                                let description = '';
+                                const descMatch = fullText.match(/Listing Information\/Advertisement(.*?)BID SUBMITTAL INFORMATION/is);
+                                if (descMatch) {
+                                    description = descMatch[1].trim();
+                                }
+                                
+                                return { title, agency, deadline, value, description };
                             });
                             
-                            // Fall back to URL slug if no title found
-                            if (!title) {
+                            // Use extracted title, or fall back to URL parsing
+                            let finalTitle = bidData.title;
+                            if (!finalTitle) {
                                 const urlMatch = bidUrl.match(/\/rfp\d+-([^\/]+)/);
                                 if (urlMatch && urlMatch[1]) {
-                                    title = urlMatch[1]
+                                    finalTitle = urlMatch[1]
                                         .replace(/\.html$/, '')
                                         .replace(/-/g, ' ')
                                         .split(' ')
@@ -191,36 +188,35 @@ const crawler = new PlaywrightCrawler({
                                 }
                             }
                             
-                            if (!title) {
+                            if (!finalTitle) {
                                 log.info(`Could not extract title from URL or page: ${bidUrl}`);
                                 continue;
                             }
                             
-                            // Check isRelevant against full text
-                            if (!isRelevant(title, fullPageText)) {
-                                log.info(`Not relevant: ${title}`);
+                            // Check isRelevant against title + description combined
+                            if (!isRelevant(finalTitle, bidData.description || '')) {
+                                log.info(`Not relevant: ${finalTitle}`);
                                 continue;
                             }
                             
-                            log.info(`RELEVANT: ${title}`);
+                            log.info(`RELEVANT: ${finalTitle}`);
                             
-                            // Extract agency/deadline/value
-                            const extractedDetails = extractDetailsFromText(fullPageText);
-                            
+                            // Prepare complete opportunity data
                             const opportunity = {
-                                title: title,
-                                agency: extractedDetails.agency || categoryAgency,
+                                title: finalTitle,
+                                agency: bidData.agency || '',
+                                deadline: bidData.deadline || '',
+                                value: bidData.value || '',
+                                description: bidData.description || '',
                                 source_url: bidUrl,
                                 state: 'LA',
                                 vertical: 'disaster',
-                                source: 'Central Bidding',
-                                deadline: extractedDetails.deadline,
-                                value: extractedDetails.value
+                                source: 'Central Bidding'
                             };
                             
-                            // POST to intake URL
+                            // Send ALL data to intake endpoint
                             try {
-                                await fetch(INTAKE_URL, {
+                                const response = await fetch(INTAKE_URL, {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json',
@@ -228,6 +224,12 @@ const crawler = new PlaywrightCrawler({
                                     },
                                     body: JSON.stringify(opportunity)
                                 });
+                                
+                                if (response.ok) {
+                                    log.info(`SENT TO HGI: ${finalTitle}`);
+                                } else {
+                                    log.error(`Failed to send to HGI: ${response.status} ${response.statusText}`);
+                                }
                             } catch (error) {
                                 log.error(`Failed to post to intake: ${error.message}`);
                             }
