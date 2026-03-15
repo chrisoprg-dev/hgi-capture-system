@@ -405,7 +405,7 @@ const crawler = new PlaywrightCrawler({
                                 source_id: bidUrl.split('/').pop().replace(/\.html?$/i, ''),
                                 response_deadline: bidData.deadline || '',
                                 state: 'LA',
-                                vertical: 'disaster'
+
                             };
                             
                             // Send ALL data to intake endpoint
