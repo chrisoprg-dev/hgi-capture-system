@@ -323,12 +323,37 @@ function FinancialPricing({ sharedCtx={} }) {
         <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>Price Intelligence Engine · Cost Buildup · PTW · Evaluation Modeling · Cost Narrative</p>
       </div>
 
-      {sharedCtx.title && (
-        <div style={{marginBottom:12,padding:"8px 12px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
-          ✓ Loaded: <strong>{sharedCtx.title}</strong>{sharedCtx.agency ? " — " + sharedCtx.agency : ""}
-          {intel.estimatedValue ? <span style={{marginLeft:12,color:GOLD}}>Est. Value: {intel.estimatedValue}</span> : ""}
-        </div>
-      )}
+      {(()=>{
+        const wfState = store.get('wfState') || {};
+        const oppTitle = sharedCtx.title || wfState.title || intel.estimatedValue ? null : null;
+        const title = sharedCtx.title || wfState.title;
+        const agency = sharedCtx.agency || wfState.agency;
+        const value = intel.estimatedValue || sharedCtx.value || wfState.value;
+        if (title || agency) {
+          return (
+            <div style={{marginBottom:12,padding:"10px 14px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4}}>
+              <div style={{fontSize:11,color:GREEN,fontWeight:700,letterSpacing:"0.06em",marginBottom:4}}>ACTIVE OPPORTUNITY</div>
+              <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                <span style={{color:TEXT,fontWeight:700,fontSize:14}}>{title || "Untitled"}</span>
+                {agency && <span style={{color:TEXT_D,fontSize:12}}>— {agency}</span>}
+                {value && <span style={{color:GOLD,fontSize:12,fontWeight:700}}>{value}</span>}
+                {!sharedCtx.decomposition && <span style={{color:ORANGE,fontSize:11}}>⚠ Run Full Workflow first for auto-population</span>}
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div style={{marginBottom:12,padding:"10px 14px",background:ORANGE+"11",border:`1px solid ${ORANGE}33`,borderRadius:4}}>
+            <div style={{fontSize:12,color:ORANGE,fontWeight:600,marginBottom:4}}>No opportunity loaded</div>
+            <div style={{fontSize:11,color:TEXT_D}}>Run Full Workflow on an RFP first — this module will auto-populate with the contract details, labor roles, and pricing data extracted from the RFP. Or enter values manually below.</div>
+          </div>
+        );
+      })()} && {
+  "find": "<div style={{fontSize:10,color:TEXT_D,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>COST COMPOSITION — {fmt(contractTotalAmt)} total</div>",
+  "replace": "<div style={{fontSize:10,color:TEXT_D,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>
+  {(()=>{ const wfState=store.get('wfState')||{}; const t=sharedCtx.title||wfState.title; const a=sharedCtx.agency||wfState.agency; return (t||a) ? (t||a) + (a&&t?' — '+a:'') + ' · ' : ''; })()}COST COMPOSITION — {fmt(contractTotalAmt)} total
+</div>"
+}
 
       {/* Live Summary Stats — clickable drill-downs */}
       {(()=>{
