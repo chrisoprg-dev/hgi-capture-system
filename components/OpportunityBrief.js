@@ -244,6 +244,24 @@ function OpportunityBrief() {
         )
       ),
 
+      // SCOPE ANALYSIS (from orchestrator)
+      o.scope_analysis && React.createElement(Card, {style:{marginBottom:16,border:'1px solid '+BLUE+'33'}},
+        React.createElement('div', {style:{color:BLUE,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:10}}, 'SCOPE ANALYSIS'),
+        React.createElement('div', null, renderMarkdown(o.scope_analysis))
+      ),
+
+      // FINANCIAL ANALYSIS (from orchestrator)
+      o.financial_analysis && React.createElement(Card, {style:{marginBottom:16,border:'1px solid '+GREEN+'33'}},
+        React.createElement('div', {style:{color:GREEN,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:10}}, 'FINANCIAL & STAFFING ANALYSIS'),
+        React.createElement('div', null, renderMarkdown(o.financial_analysis))
+      ),
+
+      // RESEARCH BRIEF (from orchestrator)
+      o.research_brief && React.createElement(Card, {style:{marginBottom:16,border:'1px solid '+ORANGE+'33'}},
+        React.createElement('div', {style:{color:ORANGE,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:10}}, 'COMPETITIVE INTELLIGENCE & RESEARCH'),
+        React.createElement('div', null, renderMarkdown(o.research_brief))
+      ),
+
       // SCOPE
       React.createElement(Card, {style:{marginBottom:16}},
         React.createElement('div', {style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:10}}, 'SCOPE OF WORK'),
