@@ -79,16 +79,16 @@ const TOOLS = [
 
 const handleTool = async (name, input) => {
 
-  if (name === 'read_file') {
-    const { filename } = input;
-    const file = await getFile(filename);
-    if (!file) return { content: [{ type: 'text', text: `File not found: ${filename}` }] };
-    const lines = file.content.split('\n').length;
-    const size = Buffer.byteLength(file.content, 'utf8');
-    return { content: [{ type: 'text', text: `File: ${filename}\nSize: ${size} bytes | ${lines} lines\n\n${file.content}` }] };
-  }
-
   switch (name) {
+
+    case 'read_file': {
+      const { filename } = input;
+      const file = await getFile(filename);
+      if (!file) return { content: [{ type: 'text', text: `File not found: ${filename}` }] };
+      const lines = file.content.split('\n').length;
+      const size = Buffer.byteLength(file.content, 'utf8');
+      return { content: [{ type: 'text', text: `File: ${filename}\nSize: ${size} bytes | ${lines} lines\n\n${file.content}` }] };
+    }
 
     case 'modify_system': {
       const { instruction, filename } = input;
