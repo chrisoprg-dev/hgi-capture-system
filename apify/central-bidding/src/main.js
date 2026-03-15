@@ -27,6 +27,9 @@ const crawler = new PlaywrightCrawler({
     requestHandlerTimeoutSecs: 30,
     requestHandler: async ({ page, request, log, addRequests, pushData }) => {
         if (request.label === 'LOGIN') {
+            const batch = await Actor.getValue('batch') || 0;
+            log.info(`Starting batch ${batch}`);
+            
             await page.fill('input[name="username"]', CB_USERNAME);
             await page.fill('input[type="password"]', CB_PASSWORD);
             await page.keyboard.press('Enter');
@@ -40,8 +43,13 @@ const crawler = new PlaywrightCrawler({
             );
             
             log.info(`Found ${categoryLinks.length} category links`);
-            const firstTwenty = categoryLinks.slice(0, 20);
-            await addRequests(firstTwenty.map(url => ({ url, label: 'CATEGORY' })));
+            
+            const startIndex = batch * 20;
+            const endIndex = (batch + 1) * 20;
+            const batchCategories = categoryLinks.slice(startIndex, endIndex);
+            
+            await addRequests(batchCategories.map(url => ({ url, label: 'CATEGORY' })));
+            await Actor.setValue('batch', (batch + 1) % 25);
             
         } else if (request.label === 'CATEGORY') {
             await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
