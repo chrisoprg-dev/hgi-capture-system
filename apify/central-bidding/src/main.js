@@ -23,6 +23,59 @@ const isRelevant = (title, description) => {
     return HGI_KEYWORDS.some(keyword => text.includes(keyword.toLowerCase()));
 };
 
+const parseDate = (dateStr) => {
+    if (!dateStr) return null;
+    
+    // Try different date formats
+    const formats = [
+        /(\d{1,2})-([A-Za-z]{3})-(\d{4})/,  // 19-Mar-2026
+        /([A-Za-z]+)\s+(\d{1,2}),\s+(\d{4})/, // March 19, 2026
+        /(\d{1,2})\/(\d{1,2})\/(\d{4})/, // 03/19/2026
+        /(\d{1,2})\/(\d{1,2})\/(\d{2})/ // 03/19/26
+    ];
+    
+    for (const format of formats) {
+        const match = dateStr.match(format);
+        if (match) {
+            try {
+                let year, month, day;
+                
+                if (format === formats[0]) { // 19-Mar-2026
+                    day = parseInt(match[1]);
+                    const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 
+                                       'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+                    month = monthNames.indexOf(match[2].toLowerCase());
+                    year = parseInt(match[3]);
+                } else if (format === formats[1]) { // March 19, 2026
+                    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june',
+                                       'july', 'august', 'september', 'october', 'november', 'december'];
+                    month = monthNames.indexOf(match[1].toLowerCase());
+                    day = parseInt(match[2]);
+                    year = parseInt(match[3]);
+                } else if (format === formats[2]) { // 03/19/2026
+                    month = parseInt(match[1]) - 1;
+                    day = parseInt(match[2]);
+                    year = parseInt(match[3]);
+                } else if (format === formats[3]) { // 03/19/26
+                    month = parseInt(match[1]) - 1;
+                    day = parseInt(match[2]);
+                    year = parseInt(match[3]);
+                    if (year < 50) year += 2000;
+                    else year += 1900;
+                }
+                
+                if (month >= 0 && month < 12) {
+                    return new Date(year, month, day);
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+    }
+    
+    return null;
+};
+
 const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: 300,
     maxConcurrency: 1,
@@ -140,11 +193,17 @@ const crawler = new PlaywrightCrawler({
                                     agency = agencyMatch[1].trim();
                                 }
                                 
-                                // Extract deadline - text after various patterns
+                                // Extract deadline - text after "Ends:" with more careful parsing
                                 let deadline = '';
-                                const deadlineMatch = fullText.match(/(?:Ends:|Due Date:|Bid Date:|Closing Date:)\s*([^\n\r]+)/i);
+                                const deadlineMatch = fullText.match(/Ends:\s*([^\n\r]+)/i);
                                 if (deadlineMatch) {
                                     deadline = deadlineMatch[1].trim();
+                                } else {
+                                    // Fallback to other patterns
+                                    const fallbackMatch = fullText.match(/(?:Due Date:|Bid Date:|Closing Date:)\s*([^\n\r]+)/i);
+                                    if (fallbackMatch) {
+                                        deadline = fallbackMatch[1].trim();
+                                    }
                                 }
                                 
                                 // Extract value - text after various patterns
@@ -190,6 +249,15 @@ const crawler = new PlaywrightCrawler({
                             if (!finalTitle) {
                                 log.info(`Could not extract title from URL or page: ${bidUrl}`);
                                 continue;
+                            }
+                            
+                            // Check for expired bids
+                            if (bidData.deadline) {
+                                const endDate = parseDate(bidData.deadline);
+                                if (endDate && endDate < new Date()) {
+                                    log.info(`Skipping expired bid: ${finalTitle}`);
+                                    continue;
+                                }
                             }
                             
                             // Check isRelevant against title + description combined
