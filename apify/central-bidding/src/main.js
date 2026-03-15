@@ -201,6 +201,29 @@ const crawler = new PlaywrightCrawler({
             
             log.info(`Found ${categoryLinks.length} category links`);
             
+            // PRIORITY SORT — HGI high-value categories first
+            const TIER1_KEYWORDS = [
+                'housing', 'authority', 'workforce', 'gohsep', 'ocd', 'community development',
+                'health', 'human services', 'parish government', 'city of', 'mayor',
+                'municipal', 'citizens', 'recovery', 'disaster', 'emergency', 'fema',
+                'hud', 'cdbg', 'police jury', 'council', 'planning', 'louisiana housing'
+            ];
+            const TIER2_KEYWORDS = [
+                'transit', 'utility', 'water', 'sewage', 'port', 'airport', 'finance',
+                'assessor', 'tax', 'sheriff', 'justice', 'court', 'clerk'
+            ];
+            
+            const scoreCategoryUrl = (url) => {
+                const slug = url.toLowerCase();
+                if (TIER1_KEYWORDS.some(k => slug.includes(k.replace(/ /g, '')))) return 2;
+                if (TIER2_KEYWORDS.some(k => slug.includes(k.replace(/ /g, '')))) return 1;
+                return 0;
+            };
+            
+            // Sort: highest priority first, preserve relative order within same tier
+            categoryLinks.sort((a, b) => scoreCategoryUrl(b) - scoreCategoryUrl(a));
+            log.info(`Categories sorted by HGI priority. Top 5: ${categoryLinks.slice(0,5).map(u => u.split('/').pop()).join(', ')}`);
+            
             // Take only categories from index (batch*5) to ((batch+1)*5)
             const startIndex = batch * 5;
             const endIndex = Math.min((batch + 1) * 5, categoryLinks.length);
