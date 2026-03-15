@@ -23,7 +23,8 @@ const isRelevant = (title, description) => {
 
 const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: 300,
-    requestHandlerTimeoutSecs: 60,
+    maxConcurrency: 3,
+    requestHandlerTimeoutSecs: 30,
     requestHandler: async ({ page, request, log, addRequests, pushData }) => {
         if (request.label === 'LOGIN') {
             await page.fill('input[name="username"]', CB_USERNAME);
@@ -43,7 +44,7 @@ const crawler = new PlaywrightCrawler({
             await addRequests(firstTwenty.map(url => ({ url, label: 'CATEGORY' })));
             
         } else if (request.label === 'CATEGORY') {
-            await page.waitForLoadState('networkidle', { timeout: 15000 });
+            await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
             
             const bidLinks = await page.$$eval('a', links => 
                 links.map(link => link.href)
@@ -60,7 +61,7 @@ const crawler = new PlaywrightCrawler({
             await addRequests(limitedBidLinks.map(url => ({ url, label: 'BID' })));
             
         } else if (request.label === 'BID') {
-            await page.waitForLoadState('networkidle', { timeout: 15000 });
+            await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
             
             const title = await page.evaluate(() => {
                 return document.querySelector('h1')?.innerText || 
