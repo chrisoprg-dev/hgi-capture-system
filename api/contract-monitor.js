@@ -1,92 +1,50 @@
-const axios = require('axios');
+export const config = { maxDuration: 30 };
 
-const USASPENDING_API_URL = 'https://api.usaspending.gov/api/v2/search/spending_by_award/';
-
-const getRecompeteStatus = (endDate) => {
-  const today = new Date();
-  const expirationDate = new Date(endDate);
-  const daysUntilExpiration = Math.ceil((expirationDate - today) / (1000 * 60 * 60 * 24));
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') return res.status(200).end();
   
-  if (daysUntilExpiration <= 90 && daysUntilExpiration >= 0) {
-    return { status: 'RECOMPETE_IMMINENT', daysUntilExpiration };
-  } else if (daysUntilExpiration <= 180 && daysUntilExpiration > 90) {
-    return { status: 'RECOMPETE_SOON', daysUntilExpiration };
-  } else if (daysUntilExpiration <= 365 && daysUntilExpiration > 180) {
-    return { status: 'RECOMPETE_PIPELINE', daysUntilExpiration };
-  }
-  
-  return { status: 'OUT_OF_RANGE', daysUntilExpiration };
-};
-
-const formatDate = (daysOffset = 0) => {
-  const date = new Date();
-  date.setDate(date.getDate() + daysOffset);
-  return date.toISOString().split('T')[0];
-};
-
-const searchPayload = {
-  filters: {
-    time_period: [
-      {
-        start_date: formatDate(0),
-        end_date: formatDate(365)
-      }
-    ],
-    award_type_codes: ["A", "B", "C", "D"],
-    naics_codes: ["541611", "541690", "561110", "561990", "524291", "923120", "921190"],
-    place_of_performance_locations: [
-      { country: "USA", state: "LA" },
-      { country: "USA", state: "TX" },
-      { country: "USA", state: "FL" }
-    ]
-  },
-  fields: [
-    "Award ID",
-    "Recipient Name", 
-    "Award Amount",
-    "Period of Performance End Date",
-    "Awarding Agency",
-    "Description"
-  ],
-  limit: 25,
-  sort: "Period of Performance End Date",
-  order: "asc"
-};
-
-const contractMonitor = async (req, res) => {
   try {
-    const response = await axios.post(USASPENDING_API_URL, searchPayload, {
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000
-    });
-
-    if (!response.data || !response.data.results) {
-      return res.json([]);
-    }
-
-    const contracts = response.data.results.map(contract => {
-      const recompeteInfo = getRecompeteStatus(contract['Period of Performance End Date']);
-      
-      return {
-        awardId: contract['Award ID'],
-        recipientName: contract['Recipient Name'],
-        awardAmount: contract['Award Amount'],
-        endDate: contract['Period of Performance End Date'],
-        awardingAgency: contract['Awarding Agency'],
-        description: contract['Description'],
-        recompeteStatus: recompeteInfo.status,
-        daysUntilExpiration: recompeteInfo.daysUntilExpiration
-      };
-    }).filter(contract => contract.recompeteStatus !== 'OUT_OF_RANGE');
-
-    res.json(contracts);
+    const today = new Date().toISOString().split('T')[0];
+    const nextYear = new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0];
     
-  } catch (error) {
-    console.error('USAspending.gov API error:', error.message);
-    res.json([]);
+    const response = await fetch('https://api.usaspending.gov/api/v2/search/spending_by_award/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filters: {
+          time_period: [{ start_date: today, end_date: nextYear }],
+          award_type_codes: ['A','B','C','D'],
+          naics_codes: ['541611','541690','561110','561990','524291','923120','921190'],
+          place_of_performance_locations: [{ country: 'USA', state: 'LA' },{ country: 'USA', state: 'TX' },{ country: 'USA', state: 'FL' }]
+        },
+        fields: ['Award ID','Recipient Name','Award Amount','Period of Performance End Date','Awarding Agency','Description'],
+        limit: 25,
+        sort: 'Period of Performance End Date',
+        order: 'asc'
+      })
+    });
+    
+    if (!response.ok) return res.status(200).json([]);
+    
+    const data = await response.json();
+    const results = (data.results || []).map(c => {
+      const end = new Date(c['Period of Performance End Date']);
+      const days = Math.ceil((end - new Date()) / (1000*60*60*24));
+      return {
+        awardId: c['Award ID'],
+        recipientName: c['Recipient Name'],
+        awardAmount: c['Award Amount'],
+        endDate: c['Period of Performance End Date'],
+        awardingAgency: c['Awarding Agency'],
+        description: c['Description'],
+        daysUntilExpiration: days,
+        recompeteStatus: days <= 90 ? 'RECOMPETE_IMMINENT' : days <= 180 ? 'RECOMPETE_SOON' : 'RECOMPETE_PIPELINE'
+      };
+    }).filter(c => c.daysUntilExpiration > 0 && c.daysUntilExpiration <= 365);
+    
+    return res.status(200).json(results);
+  } catch(e) {
+    return res.status(200).json([]);
   }
-};
-
-module.exports = contractMonitor;
+}
