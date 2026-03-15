@@ -68,13 +68,49 @@ export default async function handler(req, res) {
     results.research_length = researchBrief.length;
   } catch(e) { results.research_error = e.message; }
 
+  // ── STEP 1.5: DEEP SCOPE ANALYSIS ────────────────────────────────────────
+  let scopeAnalysis = '';
+  try {
+    // Try to fetch more detail from the source page
+    let sourceContent = '';
+    if (opp.source_url) {
+      try {
+        const srcR = await fetch('https://hgi-capture-system.vercel.app/api/fetch-rfp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: opp.source_url })
+        });
+        if (srcR.ok) {
+          const srcD = await srcR.json();
+          sourceContent = (srcD.textContent || '').slice(0, 6000);
+        }
+      } catch(e) {}
+    }
+
+    scopeAnalysis = await claudeCall(
+      'Deep scope analysis for HGI:\nOpportunity: ' + opp.title + '\nAgency: ' + opp.agency + '\nVertical: ' + (opp.vertical || 'general') + '\nDescription: ' + (opp.description || '').slice(0, 1000) + '\nCurrent Scope: ' + (opp.scope_of_work || []).join('; ') + '\nRFP Text: ' + (opp.rfp_text || '').slice(0, 2000) + (sourceContent ? '\nSource Page:\n' + sourceContent.slice(0, 3000) : '') + '\n\nHGI KB:\n' + kbContext.slice(0, 1500) + '\n\nProvide: (1) What is actually being asked for in plain English, (2) All likely deliverables even if not explicitly stated, (3) Staffing needs with HGI roles and rates, (4) Capability gaps if any, (5) Critical missing information to ask the agency',
+      'You are a senior scope analyst for Louisiana government procurements. When listing details are thin, infer the full scope from similar contracts. HGI rates: Principal $180/hr, PM $140/hr, SME $155/hr, Admin $65/hr.', 2000
+    );
+
+    // Build enhanced scope array from analysis
+    const enhancedScope = scopeAnalysis.slice(0, 2000);
+    
+    // Update the description to include scope analysis
+    const currentDesc = opp.description || '';
+    await patchOpp(opportunity_id, { 
+      description: (currentDesc + '\n\n--- SCOPE ANALYSIS ---\n' + enhancedScope).slice(0, 2000)
+    });
+    await logEvent('opportunity.scope_analyzed', opportunity_id, opp.title, { step: 'scope_analysis' });
+    results.steps_completed.push('scope_analysis');
+  } catch(e) { results.scope_error = e.message; }
+
   // ── STEP 2: WINNABILITY (uses research output) ────────────────────────────
   let winnability = '';
   let pwin = 0;
   let recommendation = 'UNDETERMINED';
   try {
     winnability = await claudeCall(
-      'Winnability assessment for HGI. Use the research brief below to inform your analysis.\n\nOpportunity: ' + opp.title + '\nAgency: ' + opp.agency + '\nOPI: ' + opp.opi_score + '\nDescription: ' + (opp.description || '').slice(0, 800) + '\nWhy HGI Wins: ' + (opp.why_hgi_wins || []).join('; ') + '\nKey Requirements: ' + (opp.key_requirements || []).join('; ') + '\nIncumbent: ' + (opp.incumbent || 'Unknown') + '\nRecompete: ' + (opp.recompete ? 'Yes' : 'No') + '\n\nRESEARCH BRIEF:\n' + researchBrief.slice(0, 1500) + '\n\nHGI KB:\n' + kbContext.slice(0, 1500) + '\n\nReturn your assessment starting with exactly this format on the first line:\nPWIN: [number]% | RECOMMENDATION: [GO|CONDITIONAL GO|NO-BID]\n\nThen provide:\n1. Top 3 win factors\n2. Top 3 risk factors\n3. Price-to-Win estimate\n4. Teaming recommendation — prime or sub, specific partner suggestions\n5. Capture strategy summary',
+      'Winnability assessment for HGI. Use the research brief below to inform your analysis.\n\nOpportunity: ' + opp.title + '\nAgency: ' + opp.agency + '\nOPI: ' + opp.opi_score + '\nDescription: ' + (opp.description || '').slice(0, 800) + '\nWhy HGI Wins: ' + (opp.why_hgi_wins || []).join('; ') + '\nKey Requirements: ' + (opp.key_requirements || []).join('; ') + '\nIncumbent: ' + (opp.incumbent || 'Unknown') + '\nRecompete: ' + (opp.recompete ? 'Yes' : 'No') + '\n\nRESEARCH BRIEF:\n' + researchBrief.slice(0, 1500) + '\nSCOPE ANALYSIS:\n' + scopeAnalysis.slice(0, 800) + '\n\nHGI KB:\n' + kbContext.slice(0, 1500) + '\n\nReturn your assessment starting with exactly this format on the first line:\nPWIN: [number]% | RECOMMENDATION: [GO|CONDITIONAL GO|NO-BID]\n\nThen provide:\n1. Top 3 win factors\n2. Top 3 risk factors\n3. Price-to-Win estimate\n4. Teaming recommendation — prime or sub, specific partner suggestions\n5. Capture strategy summary',
       'You are HGI chief capture strategist. Your first line MUST be: PWIN: XX% | RECOMMENDATION: GO or CONDITIONAL GO or NO-BID', 2000
     );
 
