@@ -107,15 +107,16 @@ export default async function handler(req, res) {
       '\nVERTICAL: ' + (opp.vertical || 'general') +
       '\nSCOPE ANALYSIS:\n' + scopeAnalysis.slice(0, 2000) +
       '\n\nHGI RATE CARD:\nPrincipal $180/hr, Program Director $165/hr, SME $155/hr, Sr Grant Mgr $150/hr, Grant Mgr $120/hr, Sr PM $150/hr, PM $140/hr, Grant Writer $105/hr, Architect/Engineer $135/hr, Cost Estimator $125/hr, Appeals Specialist $145/hr, Sr Damage Assessor $115/hr, Damage Assessor $95/hr, Admin Support $65/hr.\n\n' +
-      'Provide:\n' +
-      '1. ESTIMATED CONTRACT VALUE — Best estimate of what the agency will pay, with reasoning.\n' +
-      '2. HGI COST TO DELIVER — Staffing plan with roles, hours per month, loaded cost. Include overhead estimate.\n' +
-      '3. PRICE-TO-WIN — What price range wins this? Factor in competition and agency budget.\n' +
-      '4. PROFIT MARGIN ANALYSIS — At price-to-win, what margin does HGI make? Is it worth pursuing?\n' +
-      '5. REVENUE PROJECTION — Monthly, annual, and total contract value for HGI.\n' +
-      '6. PURSUIT COST — What will it cost HGI to prepare and submit this proposal?\n' +
-      '7. ROI ASSESSMENT — Pursuit cost vs. expected revenue. Worth the investment?\n' +
-      '8. FINANCIAL RECOMMENDATION — PURSUE / CONDITIONAL / PASS with clear reasoning.',
+      'Provide ALL of the following with SPECIFIC NUMBERS and RATIONALE for each:\n\n' +
+      '1. ESTIMATED CONTRACT VALUE — What will the agency pay? Show your math: comparable contracts, agency budget, scope complexity. Give a range with low/mid/high.\n\n' +
+      '2. STAFFING PLAN — List every role HGI needs to staff this contract. For each role show: title, hourly rate (from HGI rate card), estimated hours per month, monthly cost, and justification for why this role is needed. Total the monthly and annual staffing cost.\n\n' +
+      '3. HGI COST TO DELIVER — Staffing cost from above PLUS: overhead (estimate % and dollar amount), travel, technology/tools, insurance, subcontractor costs. Show every line item.\n\n' +
+      '4. PRICE-TO-WIN — What price range wins this contract? Factor in: agency budget constraints, competitor pricing patterns, market rates for this work in this state. Show comparable contract values if known.\n\n' +
+      '5. PROFIT MARGIN ANALYSIS — At price-to-win, what is HGI gross margin? What is net margin after overhead? Is this margin acceptable for HGI? Compare to HGI target margins.\n\n' +
+      '6. REVENUE PROJECTION — Monthly revenue, annual revenue, total contract value over full period including option years.\n\n' +
+      '7. PURSUIT COST — What will it cost HGI in staff time and expenses to prepare and submit this proposal? Is the pursuit investment justified by the expected return?\n\n' +
+      '8. FINANCIAL RISKS — What could make this contract unprofitable? Scope creep, understaffing, travel costs, subcontractor overruns, delayed payments.\n\n' +
+      '9. FINANCIAL RECOMMENDATION — PURSUE / CONDITIONAL / PASS with specific financial reasoning.',
       'You are HGI CFO-level financial analyst. Be specific with numbers. Use the HGI rate card provided. Every number must be justified.', 2000
     );
     const currentRfp = opp.rfp_text || '';
