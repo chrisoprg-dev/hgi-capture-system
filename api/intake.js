@@ -539,9 +539,7 @@ Return ONLY this exact JSON with no markdown:
       last_updated: now,
     };
     
-    if (days_until_deadline !== null) {
-      updateData.days_until_deadline = days_until_deadline;
-    }
+
     
     await dbPatch("opportunities", recordId, updateData);
 
