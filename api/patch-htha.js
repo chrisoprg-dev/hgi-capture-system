@@ -10,15 +10,17 @@ export default async function handler(req, res) {
     headers: H,
     body: JSON.stringify({
       due_date: '2026-03-19',
-      urgency: 'IMMEDIATE',
+      state: 'LA',
       stage: 'proposal',
-      status: 'active',
-      hgi_relevance: 'HIGH',
-      strategic_importance: 'TIER_1',
+      urgency: 'IMMEDIATE',
       last_updated: new Date().toISOString()
     })
   });
 
   const data = await r.json();
-  return res.status(200).json({ patched: true, record: data });
+  return res.status(r.status).json({ 
+    status: r.status, 
+    statusText: r.statusText,
+    response: data 
+  });
 }
