@@ -72,7 +72,7 @@ function PipelineTracker({ goToWorkflow }) {
             value: item.estimated_value,
             deadline: item.due_date,
             notes: item.description,
-            stage: item.stage,
+            stage: item.stage || 'identified',
             opiScore: item.opi_score,
             addedDate: item.created_at
           }));
