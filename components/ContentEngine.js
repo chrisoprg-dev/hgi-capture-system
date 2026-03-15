@@ -1,267 +1,277 @@
+```jsx
+import React, { useState } from 'react';
+
+// Design tokens
+const COLORS = {
+  gold: '#D4AF37',
+  dark: '#1a1a1a',
+  textLight: '#666666',
+  textDark: '#333333',
+  border: '#e0e0e0',
+  background: '#ffffff',
+  backgroundLight: '#f8f9fa'
+};
+
+// Reusable components
+const Card = ({ children, style = {} }) => (
+  <div style={{
+    backgroundColor: COLORS.background,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '8px',
+    padding: '20px',
+    ...style
+  }}>
+    {children}
+  </div>
+);
+
+const Input = ({ value, onChange, placeholder, style = {} }) => (
+  <input
+    type="text"
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    placeholder={placeholder}
+    style={{
+      width: '100%',
+      padding: '10px 12px',
+      border: `1px solid ${COLORS.border}`,
+      borderRadius: '4px',
+      fontSize: '14px',
+      fontFamily: 'inherit',
+      outline: 'none',
+      ...style
+    }}
+  />
+);
+
+const Textarea = ({ value, onChange, placeholder, rows = 3, style = {} }) => (
+  <textarea
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    placeholder={placeholder}
+    rows={rows}
+    style={{
+      width: '100%',
+      padding: '10px 12px',
+      border: `1px solid ${COLORS.border}`,
+      borderRadius: '4px',
+      fontSize: '14px',
+      fontFamily: 'inherit',
+      outline: 'none',
+      resize: 'vertical',
+      ...style
+    }}
+  />
+);
+
+const Select = ({ value, onChange, options, style = {} }) => (
+  <select
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    style={{
+      width: '100%',
+      padding: '10px 12px',
+      border: `1px solid ${COLORS.border}`,
+      borderRadius: '4px',
+      fontSize: '14px',
+      fontFamily: 'inherit',
+      outline: 'none',
+      backgroundColor: COLORS.background,
+      ...style
+    }}
+  >
+    {options.map(option => (
+      <option key={option.value} value={option.value}>
+        {option.label}
+      </option>
+    ))}
+  </select>
+);
+
+const Button = ({ onClick, children, disabled = false, variant = 'primary', style = {} }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    style={{
+      padding: '10px 16px',
+      borderRadius: '4px',
+      fontSize: '14px',
+      fontFamily: 'inherit',
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      border: variant === 'primary' ? 'none' : `1px solid ${COLORS.border}`,
+      backgroundColor: disabled ? COLORS.textLight : (variant === 'primary' ? COLORS.gold : 'transparent'),
+      color: disabled ? COLORS.background : (variant === 'primary' ? '#000' : COLORS.textDark),
+      fontWeight: '500',
+      opacity: disabled ? 0.6 : 1,
+      ...style
+    }}
+  >
+    {children}
+  </button>
+);
+
+const Label = ({ text }) => (
+  <div style={{
+    fontSize: '11px',
+    fontWeight: '700',
+    color: COLORS.textLight,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    marginBottom: '4px'
+  }}>
+    {text}
+  </div>
+);
+
+const AIOutput = ({ content, label }) => (
+  <Card style={{ backgroundColor: COLORS.backgroundLight, marginTop: '16px' }}>
+    <Label text={label} />
+    <div style={{
+      color: COLORS.textDark,
+      fontSize: '14px',
+      lineHeight: '1.6',
+      whiteSpace: 'pre-wrap',
+      marginTop: '8px'
+    }}>
+      {content}
+    </div>
+  </Card>
+);
+
 function ContentEngine() {
-  const [activeTab, setActiveTab] = useState('thought-leadership');
-  const [formData, setFormData] = useState({});
-  const [results, setResults] = useState({});
+  const [tab, setTab] = useState('thought');
+  const [tl, setTl] = useState({topic:'',audience:'',format:'article'});
+  const [ppq, setPpq] = useState({agency:'',vertical:'disaster',rfp_context:'',evaluation_criteria:''});
+  const [team, setTeam] = useState({opportunity_title:'',agency:'',vertical:'disaster',set_aside:'',value:'',scope:''});
+  const [dis, setDis] = useState({disaster_name:'',state:'LA',incident_type:'Hurricane',declaration_date:'',estimated_damage:''});
+  const [result, setResult] = useState('');
+  const [result2, setResult2] = useState('');
+  const [result3, setResult3] = useState('');
+  const [result4, setResult4] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const post = async (url, body) => {
+    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    return r.json();
   };
 
-  const handleSubmit = async (endpoint, action, additionalData = {}) => {
-    setLoading(true);
-    try {
-      const payload = { action, ...formData, ...additionalData };
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-      setResults(data);
-    } catch (error) {
-      console.error('Error:', error);
-    }
+  const runTL = async () => {
+    setLoading(true); setResult('');
+    const d = await post('/api/thought-leadership', { action: tl.format, topic: tl.topic, audience: tl.audience });
+    setResult(d.content || d.error || 'No response');
     setLoading(false);
   };
 
-  const renderThoughtLeadership = () => (
-    <div className="space-y-4">
-      <input
-        placeholder="Topic"
-        value={formData.topic || ''}
-        onChange={(e) => handleInputChange('topic', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <input
-        placeholder="Audience"
-        value={formData.audience || ''}
-        onChange={(e) => handleInputChange('audience', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <select
-        value={formData.format || 'Article'}
-        onChange={(e) => handleInputChange('format', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      >
-        <option value="Article">Article</option>
-        <option value="LinkedIn Post">LinkedIn Post</option>
-        <option value="Capability Statement">Capability Statement</option>
-        <option value="White Paper Outline">White Paper Outline</option>
-      </select>
-      <button
-        onClick={() => {
-          const actionMap = {
-            'Article': 'article',
-            'LinkedIn Post': 'linkedin',
-            'Capability Statement': 'capability_statement',
-            'White Paper Outline': 'white_paper_outline'
-          };
-          handleSubmit('/api/thought-leadership', actionMap[formData.format || 'Article']);
-        }}
-        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        disabled={loading}
-      >
-        Generate
-      </button>
-      {results.result && <AIOut result={results.result} />}
-    </div>
-  );
+  const runPPQ = async (action) => {
+    setLoading(true); setResult('');
+    const d = await post('/api/ppq-automation', { action, ...ppq });
+    setResult(d.ppq || d.matched_pp || d.error || 'No response');
+    setLoading(false);
+  };
 
-  const renderPPQGenerator = () => (
-    <div className="space-y-4">
-      <input
-        placeholder="Agency"
-        value={formData.agency || ''}
-        onChange={(e) => handleInputChange('agency', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <select
-        value={formData.vertical || ''}
-        onChange={(e) => handleInputChange('vertical', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      >
-        <option value="">Select Vertical</option>
-        <option value="IT">IT</option>
-        <option value="Construction">Construction</option>
-        <option value="Professional Services">Professional Services</option>
-      </select>
-      <textarea
-        placeholder="RFP Context"
-        value={formData.rfp_context || ''}
-        onChange={(e) => handleInputChange('rfp_context', e.target.value)}
-        className="w-full p-3 border rounded-lg h-24"
-      />
-      <input
-        placeholder="Evaluation Criteria"
-        value={formData.evaluation_criteria || ''}
-        onChange={(e) => handleInputChange('evaluation_criteria', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <div className="flex gap-4">
-        <button
-          onClick={() => handleSubmit('/api/ppq-automation', 'generate_ppq')}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          disabled={loading}
-        >
-          Generate PPQ Responses
-        </button>
-        <button
-          onClick={() => handleSubmit('/api/ppq-automation', 'match_pp')}
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          disabled={loading}
-        >
-          Match Best PP
-        </button>
-      </div>
-      {results.ppq_responses && <AIOut result={results.ppq_responses} />}
-      {results.matched_projects && <AIOut result={results.matched_projects} />}
-    </div>
-  );
+  const runTeam = async () => {
+    setLoading(true); setResult('');
+    const d = await post('/api/teaming-radar', { action:'analyze', ...team });
+    setResult(d.analysis || d.error || 'No response');
+    setLoading(false);
+  };
 
-  const renderTeamingRadar = () => (
-    <div className="space-y-4">
-      <input
-        placeholder="Opportunity Title"
-        value={formData.opportunity_title || ''}
-        onChange={(e) => handleInputChange('opportunity_title', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <input
-        placeholder="Agency"
-        value={formData.agency || ''}
-        onChange={(e) => handleInputChange('agency', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <input
-        placeholder="Vertical"
-        value={formData.vertical || ''}
-        onChange={(e) => handleInputChange('vertical', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <input
-        placeholder="Set Aside"
-        value={formData.set_aside || ''}
-        onChange={(e) => handleInputChange('set_aside', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <input
-        placeholder="Value"
-        value={formData.value || ''}
-        onChange={(e) => handleInputChange('value', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <textarea
-        placeholder="Scope"
-        value={formData.scope || ''}
-        onChange={(e) => handleInputChange('scope', e.target.value)}
-        className="w-full p-3 border rounded-lg h-24"
-      />
-      <button
-        onClick={() => handleSubmit('/api/teaming-radar', 'analyze')}
-        className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-        disabled={loading}
-      >
-        Analyze Teaming
-      </button>
-      {results.analysis && <AIOut result={results.analysis} />}
-    </div>
-  );
+  const runDisaster = async () => {
+    setLoading(true); setResult(''); setResult2(''); setResult3(''); setResult4('');
+    const d = await post('/api/disaster-response-protocol', dis);
+    setResult(d.brief || '');
+    setResult2(d.opportunities || '');
+    setResult3(d.outreach_letter || '');
+    setResult4(d.capture_timeline || '');
+    setLoading(false);
+  };
 
-  const renderDisasterProtocol = () => (
-    <div className="space-y-4">
-      <input
-        placeholder="Disaster Name"
-        value={formData.disaster_name || ''}
-        onChange={(e) => handleInputChange('disaster_name', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <select
-        value={formData.state || ''}
-        onChange={(e) => handleInputChange('state', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      >
-        <option value="">Select State</option>
-        <option value="LA">Louisiana</option>
-        <option value="TX">Texas</option>
-        <option value="FL">Florida</option>
-        <option value="MS">Mississippi</option>
-        <option value="AL">Alabama</option>
-        <option value="GA">Georgia</option>
-      </select>
-      <select
-        value={formData.incident_type || ''}
-        onChange={(e) => handleInputChange('incident_type', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      >
-        <option value="">Select Incident Type</option>
-        <option value="Hurricane">Hurricane</option>
-        <option value="Flood">Flood</option>
-        <option value="Tornado">Tornado</option>
-        <option value="Wildfire">Wildfire</option>
-        <option value="Other">Other</option>
-      </select>
-      <input
-        type="date"
-        placeholder="Declaration Date"
-        value={formData.declaration_date || ''}
-        onChange={(e) => handleInputChange('declaration_date', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <input
-        placeholder="Estimated Damage"
-        value={formData.estimated_damage || ''}
-        onChange={(e) => handleInputChange('estimated_damage', e.target.value)}
-        className="w-full p-3 border rounded-lg"
-      />
-      <button
-        onClick={() => handleSubmit('/api/disaster-response-protocol', null)}
-        className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700"
-        disabled={loading}
-      >
-        Generate Response Package
-      </button>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {results.brief && <AIOut title="Brief" result={results.brief} />}
-        {results.opportunities && <AIOut title="Opportunities" result={results.opportunities} />}
-        {results.outreach_letter && <AIOut title="Outreach Letter" result={results.outreach_letter} />}
-        {results.timeline && <AIOut title="90-Day Timeline" result={results.timeline} />}
-      </div>
-    </div>
-  );
-
-  const tabs = [
-    { key: 'thought-leadership', label: 'Thought Leadership', component: renderThoughtLeadership },
-    { key: 'ppq-generator', label: 'PPQ Generator', component: renderPPQGenerator },
-    { key: 'teaming-radar', label: 'Teaming Radar', component: renderTeamingRadar },
-    { key: 'disaster-protocol', label: 'Disaster Protocol', component: renderDisasterProtocol }
-  ];
+  const TABS = [['thought','Thought Leadership'],['ppq','PPQ Generator'],['teaming','Teaming Radar'],['disaster','Disaster Protocol']];
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8">
-            {tabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.key
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+    <div>
+      <h2 style={{color:COLORS.gold,margin:'0 0 4px',fontSize:20,fontWeight:800}}>Content Engine</h2>
+      <p style={{color:COLORS.textLight,margin:'0 0 16px',fontSize:12}}>Thought Leadership · Past Performance · Teaming · Disaster Response</p>
+
+      <div style={{display:'flex',gap:4,marginBottom:16,borderBottom:`1px solid ${COLORS.border}`,paddingBottom:8}}>
+        {TABS.map(([id,label]) => (
+          <button key={id} onClick={()=>{setTab(id);setResult('');setResult2('');setResult3('');setResult4('');}} style={{padding:'6px 14px',borderRadius:4,fontSize:12,cursor:'pointer',fontFamily:'inherit',background:tab===id?COLORS.gold:'transparent',color:tab===id?'#000':COLORS.textLight,border:`1px solid ${tab===id?COLORS.gold:COLORS.border}`,fontWeight:tab===id?700:400}}>{label}</button>
+        ))}
+      </div>
+
+      {tab==='thought' && (
+        <div>
+          <Card style={{marginBottom:16}}>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div><Label text="TOPIC" /><Input value={tl.topic} onChange={v=>setTl(t=>({...t,topic:v}))} placeholder="e.g. Lessons from Road Home — what $12B taught us about disaster recovery" /></div>
+              <div><Label text="AUDIENCE" /><Input value={tl.audience} onChange={v=>setTl(t=>({...t,audience:v}))} placeholder="e.g. State emergency management directors, HUD grantees" /></div>
+              <div><Label text="FORMAT" /><Select value={tl.format} onChange={v=>setTl(t=>({...t,format:v}))} options={[{value:'article',label:'Article (600-800 words)'},{value:'linkedin',label:'LinkedIn Post'},{value:'capability_statement',label:'Capability Statement'},{value:'white_paper_outline',label:'White Paper Outline'}]} style={{width:'100%'}} /></div>
+              <Button onClick={runTL} disabled={loading||!tl.topic}>{loading?'Generating...':'Generate Content'}</Button>
+            </div>
+          </Card>
+          {result && <AIOutput content={result} label="GENERATED CONTENT" />}
         </div>
-      </div>
-      
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        {tabs.find(tab => tab.key === activeTab)?.component()}
-      </div>
+      )}
+
+      {tab==='ppq' && (
+        <div>
+          <Card style={{marginBottom:16}}>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                <div><Label text="AGENCY" /><Input value={ppq.agency} onChange={v=>setPpq(p=>({...p,agency:v}))} placeholder="e.g. Louisiana OCD-DRU" /></div>
+                <div><Label text="VERTICAL" /><Select value={ppq.vertical} onChange={v=>setPpq(p=>({...p,vertical:v}))} options={[{value:'disaster',label:'Disaster Recovery'},{value:'tpa',label:'TPA/Claims'},{value:'workforce',label:'Workforce'},{value:'health',label:'Health'},{value:'infrastructure',label:'Infrastructure'},{value:'federal',label:'Federal'}]} style={{width:'100%'}} /></div>
+              </div>
+              <div><Label text="EVALUATION CRITERIA" /><Input value={ppq.evaluation_criteria} onChange={v=>setPpq(p=>({...p,evaluation_criteria:v}))} placeholder="e.g. Technical approach 40%, Past performance 30%, Price 30%" /></div>
+              <div><Label text="RFP CONTEXT" /><Textarea value={ppq.rfp_context} onChange={v=>setPpq(p=>({...p,rfp_context:v}))} placeholder="Paste key RFP requirements..." rows={4} /></div>
+              <div style={{display:'flex',gap:8}}>
+                <Button onClick={()=>runPPQ('generate_ppq')} disabled={loading||!ppq.agency}>{loading?'Generating...':'Generate PPQ Responses'}</Button>
+                <Button variant="secondary" onClick={()=>runPPQ('match_pp')} disabled={loading||!ppq.rfp_context}>{loading?'Matching...':'Match Best Past Performance'}</Button>
+              </div>
+            </div>
+          </Card>
+          {result && <AIOutput content={result} label="PPQ / PAST PERFORMANCE" />}
+        </div>
+      )}
+
+      {tab==='teaming' && (
+        <div>
+          <Card style={{marginBottom:16}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+              <Input value={team.opportunity_title} onChange={v=>setTeam(t=>({...t,opportunity_title:v}))} placeholder="Opportunity Title" />
+              <Input value={team.agency} onChange={v=>setTeam(t=>({...t,agency:v}))} placeholder="Agency" />
+              <Select value={team.vertical} onChange={v=>setTeam(t=>({...t,vertical:v}))} options={[{value:'disaster',label:'Disaster Recovery'},{value:'tpa',label:'TPA/Claims'},{value:'workforce',label:'Workforce'},{value:'health',label:'Health'},{value:'infrastructure',label:'Infrastructure'},{value:'federal',label:'Federal'}]} style={{width:'100%'}} />
+              <Input value={team.set_aside} onChange={v=>setTeam(t=>({...t,set_aside:v}))} placeholder="Set-Aside (if any)" />
+              <Input value={team.value} onChange={v=>setTeam(t=>({...t,value:v}))} placeholder="Estimated Value" />
+            </div>
+            <Textarea value={team.scope} onChange={v=>setTeam(t=>({...t,scope:v}))} placeholder="Scope of work..." rows={3} />
+            <Button onClick={runTeam} disabled={loading||!team.opportunity_title} style={{marginTop:10}}>{loading?'Analyzing...':'Analyze Teaming Strategy'}</Button>
+          </Card>
+          {result && <AIOutput content={result} label="TEAMING ANALYSIS" />}
+        </div>
+      )}
+
+      {tab==='disaster' && (
+        <div>
+          <Card style={{marginBottom:16}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+              <Input value={dis.disaster_name} onChange={v=>setDis(d=>({...d,disaster_name:v}))} placeholder="Disaster Name (e.g. Hurricane Francine)" />
+              <Select value={dis.state} onChange={v=>setDis(d=>({...d,state:v}))} options={[{value:'LA',label:'Louisiana'},{value:'TX',label:'Texas'},{value:'FL',label:'Florida'},{value:'MS',label:'Mississippi'},{value:'AL',label:'Alabama'},{value:'GA',label:'Georgia'}]} style={{width:'100%'}} />
+              <Select value={dis.incident_type} onChange={v=>setDis(d=>({...d,incident_type:v}))} options={[{value:'Hurricane',label:'Hurricane'},{value:'Flood',label:'Flood'},{value:'Tornado',label:'Tornado'},{value:'Wildfire',label:'Wildfire'},{value:'Other',label:'Other'}]} style={{width:'100%'}} />
+              <Input value={dis.declaration_date} onChange={v=>setDis(d=>({...d,declaration_date:v}))} placeholder="Declaration Date (YYYY-MM-DD)" />
+              <Input value={dis.estimated_damage} onChange={v=>setDis(d=>({...d,estimated_damage:v}))} placeholder="Estimated Damage (e.g. $2.4B)" style={{gridColumn:'1/-1'}} />
+            </div>
+            <Button onClick={runDisaster} disabled={loading||!dis.disaster_name}>{loading?'Generating Response Package...':'Generate Full Disaster Response Package'}</Button>
+          </Card>
+          {loading && <Card style={{textAlign:'center',padding:32,color:COLORS.gold}}>Generating 4-part response package — brief, opportunities, outreach letter, 90-day timeline...</Card>}
+          {result && <div style={{marginBottom:16}}><AIOutput content={result} label="48-HOUR BRIEF" /></div>}
+          {result2 && <div style={{marginBottom:16}}><AIOutput content={result2} label="PROCUREMENT OPPORTUNITIES" /></div>}
+          {result3 && <div style={{marginBottom:16}}><AIOutput content={result3} label="OUTREACH LETTER" /></div>}
+          {result4 && <AIOutput content={result4} label="90-DAY CAPTURE TIMELINE" />}
+        </div>
+      )}
     </div>
   );
 }
+
+export default ContentEngine;
+```
