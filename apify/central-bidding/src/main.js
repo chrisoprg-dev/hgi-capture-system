@@ -199,9 +199,9 @@ const crawler = new PlaywrightCrawler({
             
             log.info(`Found ${categoryLinks.length} category links`);
             
-            // Take only categories from index (batch*8) to ((batch+1)*8)
-            const startIndex = batch * 8;
-            const endIndex = Math.min((batch + 1) * 8, categoryLinks.length);
+            // Take only categories from index (batch*5) to ((batch+1)*5)
+            const startIndex = batch * 5;
+            const endIndex = Math.min((batch + 1) * 5, categoryLinks.length);
             const batchCategories = categoryLinks.slice(startIndex, endIndex);
             
             log.info(`Processing categories ${startIndex} to ${endIndex - 1} (${batchCategories.length} categories)`);
@@ -393,9 +393,9 @@ const crawler = new PlaywrightCrawler({
             }
             
             // Save next batch
-            await saveBatch((batch + 1) % 60, log);
+            await saveBatch((batch + 1) % 96, log);
             
-            log.info(`Completed batch ${batch}. Next batch: ${(batch + 1) % 60}`);
+            log.info(`Completed batch ${batch}. Next batch: ${(batch + 1) % 96}`);
         }
     }
 });
