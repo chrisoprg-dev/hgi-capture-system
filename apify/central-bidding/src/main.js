@@ -352,7 +352,7 @@ const crawler = new PlaywrightCrawler({
                             }
                             
                             // Check relevance against full page text
-                            const combinedText = finalTitle + ' ' + (bidData.description || '') + ' ' + fullPageText.slice(0, 2000);
+                            const combinedText = finalTitle + ' ' + (bidData.description || '');
                             if (!isRelevant(finalTitle, combinedText)) {
                                 log.info(`Not relevant: ${finalTitle}`);
                                 continue;
