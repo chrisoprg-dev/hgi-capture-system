@@ -49,6 +49,67 @@ function generateTitleFromUrl(url) {
   }
 }
 
+function calculateDaysUntilDeadline(deadlineStr) {
+  if (!deadlineStr || deadlineStr.trim() === "" || deadlineStr === "Unknown") {
+    return null;
+  }
+  
+  try {
+    const deadline = new Date(deadlineStr);
+    const now = new Date();
+    const diffTime = deadline.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  } catch (e) {
+    return null;
+  }
+}
+
+function applyDeadlineScoring(baseScore, urgency, captureAction, daysUntilDeadline) {
+  if (daysUntilDeadline === null || daysUntilDeadline > 30) {
+    return { adjustedScore: baseScore, urgency, captureAction, daysUntilDeadline };
+  }
+  
+  let adjustedScore = baseScore;
+  let newUrgency = urgency;
+  let newCaptureAction = captureAction;
+  
+  if (daysUntilDeadline < 0) {
+    // Deadline has passed
+    return { 
+      adjustedScore: 0, 
+      urgency: "EXPIRED", 
+      captureAction, 
+      daysUntilDeadline,
+      status: "filtered" 
+    };
+  } else if (daysUntilDeadline >= 1 && daysUntilDeadline <= 6) {
+    adjustedScore = baseScore - 35;
+    newUrgency = "IMMEDIATE";
+    newCaptureAction = "CRITICAL: Less than 7 days — GO/NO-BID decision required today";
+  } else if (daysUntilDeadline >= 7 && daysUntilDeadline <= 13) {
+    adjustedScore = baseScore - 20;
+    newUrgency = "CRITICAL";
+    newCaptureAction = "WARNING: Less than 14 days to deadline — assess proposal readiness immediately";
+  } else if (daysUntilDeadline >= 14 && daysUntilDeadline <= 20) {
+    adjustedScore = baseScore - 10;
+    newUrgency = "URGENT";
+  } else if (daysUntilDeadline >= 21 && daysUntilDeadline <= 30) {
+    adjustedScore = baseScore - 5;
+    newUrgency = "APPROACHING";
+  }
+  
+  // Ensure score doesn't go below 0
+  adjustedScore = Math.max(0, adjustedScore);
+  
+  return { 
+    adjustedScore, 
+    urgency: newUrgency, 
+    captureAction: newCaptureAction, 
+    daysUntilDeadline 
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -191,6 +252,9 @@ export default async function handler(req, res) {
   const sourcePrefix = source.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 10);
   const recordId = `${sourcePrefix}-${safeId(source_id)}`;
 
+  // ── Calculate days until deadline ────────────────────────────────────────
+  const daysUntilDeadline = calculateDaysUntilDeadline(response_deadline);
+
   // ── DB helpers ───────────────────────────────────────────────────────────
   const dbHeaders = {
     "Content-Type": "application/json",
@@ -269,6 +333,7 @@ export default async function handler(req, res) {
       estimated_value: estimated_value.slice(0, 100),
       description: description.slice(0, 2000),
       rfp_text: (stripScripts(raw_html) + " " + description).slice(0, 10000),
+      days_until_deadline: daysUntilDeadline,
       status: "pending",
       discovered_at: now,
       last_updated: now,
@@ -398,13 +463,48 @@ Return ONLY this exact JSON with no markdown:
     });
   }
 
-  // ── Filter low relevance ─────────────────────────────────────────────────
+  // ── Apply deadline proximity scoring ─────────────────────────────────────
+  const deadlineScoring = applyDeadlineScoring(
+    analysis.opi_score, 
+    analysis.urgency, 
+    analysis.capture_action, 
+    daysUntilDeadline
+  );
+
+  // Update analysis with deadline-adjusted values
+  analysis.opi_score = deadlineScoring.adjustedScore;
+  analysis.urgency = deadlineScoring.urgency;
+  analysis.capture_action = deadlineScoring.captureAction;
+
+  // ── Filter expired opportunities or low relevance ────────────────────────
+  if (deadlineScoring.status === "filtered") {
+    await dbPatch("opportunities", recordId, {
+      status: "filtered",
+      hgi_relevance: analysis.hgi_relevance,
+      opi_score: 0,
+      urgency: "EXPIRED",
+      vertical: analysis.vertical,
+      days_until_deadline: daysUntilDeadline,
+      analyzed_at: now,
+      last_updated: now,
+    });
+    return res.status(200).json({
+      success: true,
+      id: recordId,
+      filtered: true,
+      reason: "Deadline has passed",
+      opi_score: 0,
+    });
+  }
+
   if (analysis.hgi_relevance === "LOW" && analysis.opi_score < 25) {
     await dbPatch("opportunities", recordId, {
       status: "filtered",
       hgi_relevance: "LOW",
       opi_score: analysis.opi_score,
+      urgency: analysis.urgency,
       vertical: analysis.vertical,
+      days_until_deadline: daysUntilDeadline,
       analyzed_at: now,
       last_updated: now,
     });
@@ -433,6 +533,7 @@ Return ONLY this exact JSON with no markdown:
       incumbent: analysis.incumbent || "",
       recompete: analysis.recompete || false,
       description: analysis.description || description.slice(0, 500),
+      days_until_deadline: daysUntilDeadline,
       status: "active",
       analyzed_at: now,
       last_updated: now,
@@ -464,5 +565,6 @@ Return ONLY this exact JSON with no markdown:
     urgency: analysis.urgency,
     vertical: analysis.vertical,
     strategic_importance: analysis.strategic_importance,
+    days_until_deadline: daysUntilDeadline,
   });
 }
