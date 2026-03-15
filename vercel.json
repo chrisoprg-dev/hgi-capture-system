@@ -1,6 +1,7 @@
 {
   "functions": {
     "api/orchestrate.js": { "maxDuration": 300 },
+    "api/visual-proposal.js": { "maxDuration": 60 },
     "api/claude.js": { "maxDuration": 300 },
     "api/intake.js": { "maxDuration": 120 },
     "api/mcp.js": { "maxDuration": 300 },
