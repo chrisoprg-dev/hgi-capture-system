@@ -328,6 +328,48 @@ Extract and return as JSON:
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const fetch_ = async () => {
+      try {
+        const r = await fetch('/api/regulatory-monitor');
+        if (r.ok) {
+          const data = await r.json();
+          if (data && data.length > 0) {
+            setFundingAlerts(prev => {
+              const combined = [...data.map(d => ({...d, signal_type:'regulatory'})), ...prev];
+              const seen = new Set();
+              return combined.filter(d => { const k = d.title||d.document_number||JSON.stringify(d); if(seen.has(k)) return false; seen.add(k); return true; });
+            });
+          }
+        }
+      } catch(e) {}
+    };
+    fetch_();
+    const i = setInterval(fetch_, 600000);
+    return () => clearInterval(i);
+  }, []);
+
+  useEffect(() => {
+    const fetch_ = async () => {
+      try {
+        const r = await fetch('/api/presolicitation');
+        if (r.ok) {
+          const data = await r.json();
+          if (data && data.length > 0) {
+            setHuntResults(prev => {
+              const newItems = data.map(d => ({...d, urgency: d.urgency||'PIPELINE', opiScore: d.opi_score||45, presolicitation: true}));
+              const existingIds = new Set(prev.map(p => p.id||p.title));
+              return [...newItems.filter(n => !existingIds.has(n.id||n.title)), ...prev];
+            });
+          }
+        }
+      } catch(e) {}
+    };
+    fetch_();
+    const i = setInterval(fetch_, 900000);
+    return () => clearInterval(i);
+  }, []);
+
   const sendToWorkflow = (opp) => {
     setSendingToWorkflow(opp.id);
     const rfpContext = `OPPORTUNITY: ${opp.title}\nAGENCY: ${opp.agency}\nSTATE: ${opp.state}\nVERTICAL: ${opp.vertical}\nESTIMATED VALUE: ${opp.estimatedValue}\nTIMING: ${opp.timing}\nSOURCE: ${opp.source}\nWHY HGI WINS: ${Array.isArray(opp.whyHgiWins) ? opp.whyHgiWins.join("; ") : opp.whyHgiWins}\nINCUMBENT: ${opp.incumbent || "Unknown"}\nOPI SCORE: ${opp.opiScore}`;
