@@ -394,7 +394,7 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
           )}
 
           <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-            {[["a","Decomposition"],["b","Executive Brief"]].map(([id,label]) => (
+            {[["a","📋 Decomposition"],["b","🎯 Executive Brief"],["c","🔍 Intel & Analysis"]].map(([id,label]) => (
               <button key={id} onClick={()=>setTab(id)} style={{
                 padding:"6px 14px",borderRadius:4,fontSize:12,cursor:"pointer",fontFamily:"inherit",
                 background:tab===id?GOLD:BG3,color:tab===id?"#000":TEXT_D,
