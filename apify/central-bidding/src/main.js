@@ -11,20 +11,22 @@ const CB_USERNAME = process.env.CB_USERNAME || 'HGIGLOBAL';
 const CB_PASSWORD = process.env.CB_PASSWORD || 'Whatever1340!';
 
 const HGI_KEYWORDS = [
-    'grant management', 'grants management', 'program management', 'program administration', 
-    'disaster recovery', 'FEMA', 'CDBG', 'public assistance', 'claims administration', 
-    'third party administrator', 'TPA', 'housing assistance', 'workforce development', 
-    'workforce services', 'property tax appeal', 'hazard mitigation', 'HMGP', 'BRIC', 
-    'emergency management services', 'recovery program', 'community development block grant', 
-    'homeowner assistance', 'flood recovery', 'hurricane recovery', 'case management services', 
-    'benefits administration'
+    'grant management', 'grants management', 'grant administration', 'program management services', 
+    'program administration', 'disaster recovery services', 'disaster recovery program', 
+    'FEMA public assistance', 'FEMA grant', 'CDBG-DR', 'CDBG program', 
+    'community development block grant', 'claims administration', 'third party administrator', 
+    'TPA services', 'housing assistance program', 'homeowner assistance', 
+    'workforce development services', 'workforce services', 'property tax appeal', 
+    'hazard mitigation grant', 'HMGP', 'emergency management services', 
+    'case management services', 'benefits administration', 'disaster relief', 
+    'flood recovery program', 'hurricane recovery program'
 ];
 
 const EXPIRED_BID_IDS = ['rfp55622652'];
 
 const isRelevant = (title, description) => {
-    const text = `${title} ${description}`.toLowerCase();
-    return HGI_KEYWORDS.some(keyword => text.includes(keyword.toLowerCase()));
+    const pageText = `${title} ${description}`;
+    return HGI_KEYWORDS.some(keyword => pageText.toLowerCase().includes(keyword.toLowerCase()));
 };
 
 const parseDate = (dateStr) => {
@@ -218,9 +220,9 @@ const crawler = new PlaywrightCrawler({
             
             log.info(`Found ${categoryLinks.length} category links`);
             
-            // Take only categories from index (batch*10) to ((batch+1)*10)
-            const startIndex = batch * 10;
-            const endIndex = (batch + 1) * 10;
+            // Take only categories from index (batch*8) to ((batch+1)*8)
+            const startIndex = batch * 8;
+            const endIndex = (batch + 1) * 8;
             const batchCategories = categoryLinks.slice(startIndex, endIndex);
             
             log.info(`Processing categories ${startIndex} to ${endIndex - 1} (${batchCategories.length} categories)`);
@@ -409,9 +411,9 @@ const crawler = new PlaywrightCrawler({
             }
             
             // Save next batch
-            await saveBatch((batch + 1) % 48, log);
+            await saveBatch((batch + 1) % 60, log);
             
-            log.info(`Completed batch ${batch}. Next batch: ${(batch + 1) % 48}`);
+            log.info(`Completed batch ${batch}. Next batch: ${(batch + 1) % 60}`);
         }
     }
 });
