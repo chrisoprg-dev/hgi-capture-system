@@ -65,7 +65,8 @@ export default async function handler(req, res) {
     // ── POST — handle set_batch action ──
     if (req.method === "POST" && req.body.action === "set_batch") {
       const huntRunData = {
-        batch_number: req.body.batch,
+        opportunities_found: req.body.batch,
+        source: 'apify_batch',
         status: 'completed',
         run_at: new Date().toISOString()
       };
@@ -109,7 +110,7 @@ export default async function handler(req, res) {
 
     // Handle get_batch action
     if (action === "get_batch") {
-      const res2 = await fetch(`${SUPABASE_URL}/rest/v1/hunt_runs?status=eq.completed&order=run_at.desc&limit=1&select=batch_number`, {
+      const res2 = await fetch(`${SUPABASE_URL}/rest/v1/hunt_runs?order=run_at.desc&limit=1&select=opportunities_found`, {
         headers: {
           "apikey": SUPABASE_KEY,
           "Authorization": `Bearer ${SUPABASE_KEY}`,
@@ -118,7 +119,7 @@ export default async function handler(req, res) {
       });
       if (!res2.ok) return res.status(500).json({ error: "Failed to query hunt_runs" });
       const runs = await res2.json();
-      const batch = runs.length > 0 ? runs[0].batch_number : 0;
+      const batch = runs.length > 0 ? runs[0].opportunities_found : 0;
       return res.status(200).json({ batch });
     }
 
