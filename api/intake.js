@@ -578,6 +578,20 @@ Return ONLY this exact JSON with no markdown:
     console.warn("hunt_runs log failed:", e.message);
   }
 
+  // Broadcast discovery event to intelligence engine
+  fetch('https://hgi-capture-system.vercel.app/api/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      event_type: finalOpiScore >= 75 ? 'opportunity.tier1_discovered' : 'opportunity.discovered',
+      opportunity_id: recordId,
+      opportunity_title: title,
+      agency: agency,
+      source_module: 'intake',
+      data: { opi_score: finalOpiScore, urgency: finalUrgency, vertical: analysis.vertical }
+    })
+  }).catch(() => {});
+
   return res.status(200).json({
     success: true,
     id: recordId,
