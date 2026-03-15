@@ -16,9 +16,9 @@ export default async function handler(req, res) {
     // Calculate pipeline health
     const pipelineHealth = {
       totalActive: opportunities.length,
-      tier1Count: opportunities.filter(opp => opp.tier === 1).length,
-      pursuingCount: opportunities.filter(opp => opp.phase === 'pursuing').length,
-      proposalCount: opportunities.filter(opp => opp.phase === 'proposal').length
+      tier1Count: opportunities.filter(opp => opp.strategic_importance === 'TIER_1' || (opp.opi_score >= 75)).length,
+      pursuingCount: opportunities.filter(opp => opp.stage === 'pursuing').length,
+      proposalCount: opportunities.filter(opp => opp.stage === 'proposal').length
     };
 
     // Get top 5 opportunities
