@@ -72,7 +72,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  // ── Completely permissive validation with smart defaults ────────────────
+  // ── Validation with detailed error logging ───────────────────────────────
   let {
     source,
     source_id,
@@ -91,12 +91,47 @@ export default async function handler(req, res) {
     raw_html = "",
   } = req.body || {};
 
+  // Log received fields for debugging
+  const receivedFields = {
+    source: source || null,
+    source_id: source_id || null,
+    title: title || null,
+    agency: agency || null,
+    url: url || null,
+    source_url: source_url || null,
+    posted_date: posted_date || null,
+    response_deadline: response_deadline || null,
+    estimated_value: estimated_value || null,
+    naics: naics || null,
+    set_aside: set_aside || null,
+    contract_type: contract_type || null,
+    state: state || null,
+    description: description || null,
+    raw_html: raw_html ? `${raw_html.length} characters` : null,
+  };
+
   // Accept any request with title OR source_url/url
   const hasMinimumData = title || url || source_url;
   if (!hasMinimumData) {
+    const validationError = {
+      error: "Validation failed",
+      reason: "Missing minimum required data - need at least title, url, or source_url",
+      received_fields: receivedFields,
+      validation_details: {
+        title_provided: !!title,
+        url_provided: !!url,
+        source_url_provided: !!source_url,
+        minimum_requirement: "At least one of: title, url, or source_url"
+      }
+    };
+    
+    console.error("Intake validation failed:", JSON.stringify(validationError, null, 2));
+    
     // Even if no minimum data, still process with defaults
     title = "Government Opportunity";
     url = source_url || "https://example.gov/opportunity";
+    
+    console.log("Applied fallback values - continuing with processing");
   }
 
   // Use source_url as fallback for url
@@ -138,6 +173,19 @@ export default async function handler(req, res) {
       source_id = Date.now().toString();
     }
   }
+
+  // Log final processed values
+  console.log("Processed intake data:", {
+    id: `${source.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 10)}-${safeId(source_id)}`,
+    title,
+    agency,
+    state,
+    source,
+    url,
+    source_id,
+    has_description: !!description,
+    has_raw_html: !!raw_html
+  });
 
   // ── Generate deterministic ID ────────────────────────────────────────────
   const sourcePrefix = source.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 10);
