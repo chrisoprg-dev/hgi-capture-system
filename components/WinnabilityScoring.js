@@ -90,13 +90,13 @@ function WinnabilityScoring() {
                 <Label text="PWIN" />
               </div>
               <div>
-                <div style={{fontSize:18,fontWeight:700,color:WHITE}}>{simResult.opi_recommended}</div>
+                <div style={{fontSize:18,fontWeight:700,color:TEXT}}>{simResult.opi_recommended}</div>
                 <Label text="RECOMMENDED OPI" />
               </div>
               {simResult.top_3_actions && (
                 <div>
                   <Label text="TOP 3 ACTIONS" />
-                  <ul style={{margin:"4px 0 0 16px",padding:0,color:WHITE}}>
+                  <ul style={{margin:"4px 0 0 16px",padding:0,color:TEXT}}>
                     {simResult.top_3_actions.map((action, i) => (
                       <li key={i} style={{marginBottom:4}}>{action}</li>
                     ))}
