@@ -201,8 +201,8 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           event_type: 'workflow.completed',
-          opportunity_title: autoTitle || title,
-          agency: autoAgency || agency,
+          opportunity_title: title,
+          agency: agency,
           source_module: 'full_workflow',
           data: { decision: dec, opi: opiVal }
         })
