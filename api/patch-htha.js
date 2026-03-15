@@ -2,19 +2,12 @@ export const config = { maxDuration: 10 };
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
+  
   const SB = process.env.SUPABASE_URL;
   const KEY = process.env.SUPABASE_SERVICE_KEY;
 
-  if (!SB || !KEY) {
-    return res.status(500).json({ error: 'Missing env vars', hasSB: !!SB, hasKEY: !!KEY });
-  }
-
   try {
-    const url = SB + '/rest/v1/opportunities?id=eq.manualtest-manual-htha-2026-03-04-001';
-    const r = await fetch(url, {
+    const r = await fetch(SB + '/rest/v1/opportunities?id=eq.manualtest-manual-htha-2026-03-04-001', {
       method: 'PATCH',
       headers: {
         'apikey': KEY,
@@ -30,16 +23,9 @@ export default async function handler(req, res) {
       })
     });
 
-    const text = await r.text();
-    let data;
-    try { data = JSON.parse(text); } catch(e) { data = text; }
-
-    return res.status(200).json({
-      supabase_status: r.status,
-      supabase_ok: r.ok,
-      response: data
-    });
+    const data = await r.json();
+    return res.status(200).json({ supabase_status: r.status, ok: r.ok, patched: data });
   } catch(e) {
-    return res.status(500).json({ error: e.message, stack: e.stack });
+    return res.status(500).json({ error: e.message });
   }
 }
