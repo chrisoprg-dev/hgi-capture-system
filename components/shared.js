@@ -239,15 +239,77 @@ const Sel = ({value, onChange, options, style}) => (
   </select>
 );
 const Label = ({text}) => <label style={{display:"block",fontSize:11,color:TEXT_D,marginBottom:4,letterSpacing:"0.06em"}}>{text}</label>;
+
+function renderMarkdown(text) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) { i++; continue; }
+    if (trimmed.startsWith('# ')) {
+      elements.push(React.createElement('div', {key:i,style:{fontSize:18,fontWeight:800,color:GOLD,marginTop:16,marginBottom:8,borderBottom:'1px solid '+GOLD+'33',paddingBottom:6}}, trimmed.slice(2)));
+    } else if (trimmed.startsWith('## ')) {
+      elements.push(React.createElement('div', {key:i,style:{fontSize:15,fontWeight:700,color:GOLD,marginTop:14,marginBottom:6}}, trimmed.slice(3)));
+    } else if (trimmed.startsWith('### ')) {
+      elements.push(React.createElement('div', {key:i,style:{fontSize:14,fontWeight:700,color:TEXT,marginTop:10,marginBottom:4}}, trimmed.slice(4)));
+    } else if (trimmed.startsWith('---')) {
+      elements.push(React.createElement('hr', {key:i,style:{border:'none',borderTop:'1px solid '+BORDER,margin:'12px 0'}}));
+    } else if (trimmed.startsWith('- **') || trimmed.startsWith('* **')) {
+      const inner = trimmed.slice(2);
+      const boldEnd = inner.indexOf('**', 2);
+      if (boldEnd > 2) {
+        const boldText = inner.slice(2, boldEnd);
+        const rest = inner.slice(boldEnd + 2);
+        elements.push(React.createElement('div', {key:i,style:{fontSize:13,color:TEXT_D,marginBottom:4,paddingLeft:14,borderLeft:'2px solid '+GOLD+'44'}},
+          React.createElement('strong', {style:{color:TEXT}}, boldText), rest));
+      } else {
+        elements.push(React.createElement('div', {key:i,style:{fontSize:13,color:TEXT_D,marginBottom:4,paddingLeft:14,borderLeft:'2px solid '+GOLD+'44'}}, trimmed.slice(2)));
+      }
+    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('• ')) {
+      const bullet = trimmed.replace(/^[-*•]\s+/, '');
+      elements.push(React.createElement('div', {key:i,style:{fontSize:13,color:TEXT_D,marginBottom:4,paddingLeft:14,borderLeft:'2px solid '+BORDER}}, bullet));
+    } else if (/^\d+[\.\)]\s/.test(trimmed)) {
+      const num = trimmed.match(/^(\d+[\.\)])\s/)[1];
+      const rest = trimmed.slice(num.length + 1);
+      const boldMatch = rest.match(/^\*\*(.+?)\*\*(.*)/);
+      if (boldMatch) {
+        elements.push(React.createElement('div', {key:i,style:{fontSize:13,color:TEXT_D,marginBottom:6,paddingLeft:14,borderLeft:'2px solid '+BLUE+'44'}},
+          React.createElement('strong', {style:{color:BLUE}}, num + ' ' + boldMatch[1]), boldMatch[2]));
+      } else {
+        elements.push(React.createElement('div', {key:i,style:{fontSize:13,color:TEXT_D,marginBottom:6,paddingLeft:14,borderLeft:'2px solid '+BLUE+'44'}}, num + ' ' + rest));
+      }
+    } else {
+      let processed = trimmed;
+      const parts = [];
+      let lastIdx = 0;
+      const boldRegex = /\*\*(.+?)\*\*/g;
+      let match;
+      while ((match = boldRegex.exec(processed)) !== null) {
+        if (match.index > lastIdx) parts.push(processed.slice(lastIdx, match.index));
+        parts.push(React.createElement('strong', {key:'b'+match.index,style:{color:TEXT}}, match[1]));
+        lastIdx = match.index + match[0].length;
+      }
+      if (lastIdx < processed.length) parts.push(processed.slice(lastIdx));
+      if (parts.length === 0) parts.push(processed);
+      elements.push(React.createElement('div', {key:i,style:{fontSize:13,color:TEXT_D,marginBottom:6,lineHeight:1.7}}, ...parts));
+    }
+    i++;
+  }
+  return elements;
+}
+
 const AIOut = ({content, loading, label="AI ANALYSIS"}) => {
-  if (loading) return <div style={{color:GOLD,fontSize:13,padding:12,background:BG3,borderRadius:4,border:`1px solid ${GOLD}33`,animation:"pulse 1.2s infinite"}}>
-    ⟳ generating {label}...</div>;
+  if (loading) return React.createElement('div', {style:{color:GOLD,fontSize:13,padding:12,background:BG3,borderRadius:4,border:'1px solid '+GOLD+'33',animation:'pulse 1.2s infinite'}}, '⟳ generating ' + label + '...');
   if (!content) return null;
-  return <div style={{background:BG3,border:`1px solid ${GOLD}33`,borderRadius:4,padding:14,fontSize:13,lineHeight:1.75,color:TEXT,whiteSpace:"pre-wrap"}}>
-    <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>{label}</div>
-    {content}
-  </div>;
+  return React.createElement('div', {style:{background:BG3,border:'1px solid '+GOLD+'33',borderRadius:4,padding:14}},
+    React.createElement('div', {style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:10}}, label),
+    ...renderMarkdown(content)
+  );
 };
+
 const OPIBadge = ({score}) => {
   if (!score && score !== 0) return null;
   const n = parseInt(score);
