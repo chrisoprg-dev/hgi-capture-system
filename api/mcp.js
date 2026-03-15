@@ -72,7 +72,8 @@ const TOOLS = [
   { name: 'delete_records', description: 'Delete records from any Supabase table by ID array.', inputSchema: { type: 'object', properties: { table: { type: 'string' }, ids: { type: 'array', items: { type: 'string' } } }, required: ['table', 'ids'] } },
   { name: 'delete_kb_records', description: 'Delete knowledge base records by ID array.', inputSchema: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' } } }, required: ['ids'] } },
   { name: 'generate_weekly_digest', description: 'Generate HGI weekly capture intelligence digest.', inputSchema: { type: 'object', properties: { focus: { type: 'string' } } } },
-  { name: 'research_opportunity', description: 'Generate full competitive intelligence pack for an opportunity.', inputSchema: { type: 'object', properties: { title: { type: 'string' }, agency: { type: 'string' }, vertical: { type: 'string' }, value: { type: 'string' }, context: { type: 'string' } }, required: ['title', 'agency'] } }
+  { name: 'research_opportunity', description: 'Generate full competitive intelligence pack for an opportunity.', inputSchema: { type: 'object', properties: { title: { type: 'string' }, agency: { type: 'string' }, vertical: { type: 'string' }, value: { type: 'string' }, context: { type: 'string' } }, required: ['title', 'agency'] } },
+  { name: 'check_apify_status', description: 'Check Apify scraper status, last run details, and recent log output.', inputSchema: { type: 'object', properties: {} } }
 ];
 
 const handleTool = async (name, input) => {
@@ -228,6 +229,12 @@ const handleTool = async (name, input) => {
       const { title, agency, vertical, value, context } = input;
       const research = await callClaude('Capture intel for HGI:\nOpportunity: ' + title + '\nAgency: ' + agency + '\nVertical: ' + vertical + '\nValue: ' + value + '\nContext: ' + context + '\n\n1. AGENCY PROFILE\n2. DECISION-MAKER INTEL\n3. COMPETITIVE INTEL\n4. HGI WIN STRATEGY\n5. RED FLAGS\n6. 48-HOUR ACTION PLAN\n7. RELATIONSHIP GAPS', 'HGI senior capture intelligence analyst.');
       return { title, agency, research };
+    }
+
+    case 'check_apify_status': {
+      const r = await fetch('https://hgi-capture-system.vercel.app/api/apify-check');
+      if (!r.ok) throw new Error(`Apify check failed: ${r.status}`);
+      return await r.json();
     }
 
     default:
