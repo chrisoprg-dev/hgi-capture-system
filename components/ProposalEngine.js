@@ -434,6 +434,8 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6,padding:"8px 12px",background:GREEN+"11",border:`1px solid ${GREEN}33`,borderRadius:4}}>
                   <span style={{color:GREEN,fontWeight:700,fontSize:13,flex:1}}>✓ {s.label}</span>
                   <Btn small variant="ghost" onClick={()=>goGenerate(s.value)}>Regenerate</Btn>
+                  <Btn small variant="secondary" onClick={async()=>{const r=await fetch('/api/proposal-improve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({section_name:s.value,section_content:proposalDraft[s.value],rfp_context:rfpText||sharedCtx.rfpText||'',agency:sharedCtx.agency||'',vertical:sharedCtx.vertical||'disaster',action:'improve'})});const d=await r.json();if(d.improved)saveSection(s.value,d.improved);}}>Improve</Btn>
+                  <Btn small variant="secondary" onClick={async()=>{const r=await fetch('/api/proposal-improve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({section_name:s.value,section_content:proposalDraft[s.value],rfp_context:rfpText||sharedCtx.rfpText||'',agency:sharedCtx.agency||'',vertical:sharedCtx.vertical||'disaster',action:'redteam'})});const d=await r.json();if(d.findings)alert('RED TEAM FINDINGS:\n\n'+d.findings);}}>Red Team</Btn>
                   <Btn small variant="danger" onClick={()=>removeSection(s.value)}>Remove</Btn>
                 </div>
                 <Textarea value={proposalDraft[s.value]} onChange={v=>saveSection(s.value,v)} rows={14} />
