@@ -10,7 +10,6 @@ function OpportunityBrief() {
   const [orchestrateResult, setOrchestrateResult] = useState(null);
   const [scopeAnalysis, setScopeAnalysis] = useState('');
   const [analyzingScope, setAnalyzingScope] = useState(false);
-  const [fetchingSource, setFetchingSource] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -238,7 +237,7 @@ function OpportunityBrief() {
           : React.createElement('div', {style:{fontSize:12,color:TEXT_D,marginBottom:10,fontStyle:'italic'}}, 'No scope details extracted from listing. Run Deep Scope Analysis to generate a comprehensive breakdown.'),
         React.createElement('div', {style:{marginTop:12}},
           React.createElement(Btn, {onClick:runDeepScope,disabled:analyzingScope,small:true},
-            fetchingSource ? 'Fetching source document...' : analyzingScope ? 'Analyzing scope in depth...' : 'Deep Scope Analysis'
+            analyzingScope ? 'Analyzing scope in depth...' : 'Deep Scope Analysis'
           )
         )
       ),
