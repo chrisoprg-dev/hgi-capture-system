@@ -295,14 +295,7 @@ export default async function handler(req, res) {
     console.warn("Dedup check failed:", e.message);
   }
 
-  // Debug: log that we passed dedup
-  try {
-    await fetch(process.env.SUPABASE_URL + '/rest/v1/hunt_runs', {
-      method: 'POST',
-      headers: { 'apikey': process.env.SUPABASE_SERVICE_KEY, 'Authorization': 'Bearer ' + process.env.SUPABASE_SERVICE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ source: 'intake_step', status: ('dedup_passed:' + recordId).slice(0, 200), run_at: new Date().toISOString(), opportunities_found: 0 })
-    });
-  } catch(e) {}
+
 
   const now = new Date().toISOString();
 
