@@ -204,10 +204,10 @@ function PipelineTracker({ goToWorkflow }) {
 
   const updateStage = async (itemId, newStage) => {
     try {
-      const response = await fetch(`/api/opportunities/${itemId}`, {
+      const response = await fetch('/api/opportunities', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stage: newStage })
+        body: JSON.stringify({ id: itemId, status: newStage === 'won' ? 'won' : newStage === 'lost' ? 'lost' : 'active' })
       });
       
       if (response.ok) {
