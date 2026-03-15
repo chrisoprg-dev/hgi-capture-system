@@ -90,7 +90,7 @@ export default async function handler(req, res) {
       '6. CRITICAL QUESTIONS — What must HGI ask the agency before committing resources?',
       'You are a senior government contracting scope analyst specializing in Louisiana procurements. CRITICAL: Your first job is to determine the EXACT type of work being requested and whether it matches HGI capabilities. HGI does: workers comp TPA, property casualty TPA, insurance guaranty association administration, FEMA PA grant management, CDBG-DR program administration, disaster recovery program management, property tax appeals, workforce program administration, construction MANAGEMENT (not construction). HGI does NOT do: insurance brokerage, health insurance TPA, physical construction, debris removal, IT services, engineering, architecture, environmental remediation, medical services. Be exhaustive. When RFP text is thin, use knowledge of similar contracts to determine what type of work this actually is.', 2500
     );
-    await patchOpp(opportunity_id, { scope_analysis: scopeAnalysis });
+    await patchOpp(opportunity_id, { scope_analysis: scopeAnalysis, description: (opp.description || '').split('--- SCOPE ANALYSIS ---')[0].trim().slice(0, 2000) });
     await logEvent('opportunity.scope_analyzed', opportunity_id, opp.title, { step: 'scope' });
     results.steps_completed.push('scope_analysis');
   } catch(e) { results.scope_error = e.message; }
@@ -193,7 +193,7 @@ export default async function handler(req, res) {
     pwin = pwinMatch ? parseInt(pwinMatch[1]) : 0;
     recommendation = recMatch ? recMatch[1] : 'UNDETERMINED';
 
-    await patchOpp(opportunity_id, { capture_action: ('PWIN: ' + pwin + '% | ' + recommendation + '\n\n' + winnability) });
+    await patchOpp(opportunity_id, { capture_action: ('PWIN: ' + pwin + '% | ' + recommendation + '\n\n' + winnability).slice(0, 2000) });
 
     // Auto-filter NO-BID opportunities out of active views
     if (recommendation === 'NO-BID') {
