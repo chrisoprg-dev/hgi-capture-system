@@ -86,7 +86,16 @@ function evaluateOpportunity(opp) {
     capture_action: opp.capture_action,
     vertical: opp.vertical,
     estimated_value: opp.estimated_value,
-    due_date: opp.due_date
+    due_date: opp.due_date,
+    why_hgi_wins: opp.why_hgi_wins,
+    key_requirements: opp.key_requirements,
+    scope_of_work: opp.scope_of_work,
+    hgi_fit: opp.hgi_fit,
+    incumbent: opp.incumbent,
+    recompete: opp.recompete,
+    hgi_relevance: opp.hgi_relevance,
+    source_url: opp.source_url,
+    description: opp.description
   };
 }
 
@@ -134,7 +143,16 @@ export default async function handler(req, res) {
           action_label: evaluated.actionLabel || 'Review Now',
           action_module: evaluated.actionModule || 'tracker',
           opi: o.opi_score,
-          days_until_deadline: days
+          days_until_deadline: days,
+          why_hgi_wins: evaluated.why_hgi_wins,
+          key_requirements: evaluated.key_requirements,
+          scope_of_work: evaluated.scope_of_work,
+          hgi_fit: evaluated.hgi_fit,
+          incumbent: evaluated.incumbent,
+          recompete: evaluated.recompete,
+          estimated_value: evaluated.estimated_value || o.estimated_value,
+          source_url: evaluated.source_url,
+          description: evaluated.description || o.description
         });
       }
     });
@@ -156,7 +174,16 @@ export default async function handler(req, res) {
           action_label: evaluated.actionLabel || 'Start Workflow',
           action_module: evaluated.actionModule || 'workflow',
           opi: o.opi_score,
-          days_since_activity: daysSince
+          days_since_activity: daysSince,
+          why_hgi_wins: evaluated.why_hgi_wins,
+          key_requirements: evaluated.key_requirements,
+          scope_of_work: evaluated.scope_of_work,
+          hgi_fit: evaluated.hgi_fit,
+          incumbent: evaluated.incumbent,
+          recompete: evaluated.recompete,
+          estimated_value: evaluated.estimated_value || o.estimated_value,
+          source_url: evaluated.source_url,
+          description: evaluated.description || o.description
         });
       }
     });
@@ -166,6 +193,7 @@ export default async function handler(req, res) {
       const hoursOld = (now - new Date(o.discovered_at)) / (1000*60*60);
       return hoursOld <= 24 && (o.opi_score || 0) >= 70;
     }).forEach(o => {
+      const evaluated = evaluateOpportunity(o);
       actions.push({
         priority: 2,
         urgency: 'high',
@@ -177,13 +205,23 @@ export default async function handler(req, res) {
         detail: (o.description || '') + (o.capture_action ? ' Action: ' + o.capture_action : ''),
         action_label: 'Start Full Workflow',
         action_module: 'workflow',
-        opi: o.opi_score
+        opi: o.opi_score,
+        why_hgi_wins: evaluated.why_hgi_wins,
+        key_requirements: evaluated.key_requirements,
+        scope_of_work: evaluated.scope_of_work,
+        hgi_fit: evaluated.hgi_fit,
+        incumbent: evaluated.incumbent,
+        recompete: evaluated.recompete,
+        estimated_value: evaluated.estimated_value || o.estimated_value,
+        source_url: evaluated.source_url,
+        description: evaluated.description || o.description
       });
     });
 
     // 4. MEDIUM: Pursuing stage opportunities with no proposal started
     opps.filter(o => o.stage === 'pursuing').forEach(o => {
       const daysSince = o.last_updated ? Math.floor((now - new Date(o.last_updated)) / (1000*60*60*24)) : 999;
+      const evaluated = evaluateOpportunity(o);
       actions.push({
         priority: 3,
         urgency: 'medium',
@@ -195,7 +233,16 @@ export default async function handler(req, res) {
         detail: 'Ready to draft. Auto-generate all sections in ~20 minutes. ' + (o.capture_action || ''),
         action_label: 'Start Proposal',
         action_module: 'proposal',
-        opi: o.opi_score
+        opi: o.opi_score,
+        why_hgi_wins: evaluated.why_hgi_wins,
+        key_requirements: evaluated.key_requirements,
+        scope_of_work: evaluated.scope_of_work,
+        hgi_fit: evaluated.hgi_fit,
+        incumbent: evaluated.incumbent,
+        recompete: evaluated.recompete,
+        estimated_value: evaluated.estimated_value || o.estimated_value,
+        source_url: evaluated.source_url,
+        description: evaluated.description || o.description
       });
     });
 
@@ -234,23 +281,6 @@ export default async function handler(req, res) {
       new_today: opps.filter(o => (now - new Date(o.discovered_at)) < 24*60*60*1000).length
     };
 
-    // 7. Generate AI-powered top recommendation using Claude
-    let topRecommendation = null;
-    if (actions.length > 0 && opps.length > 0) {
-      try {
-        const topOpps = opps.slice(0, 5).map(o => o.title + ' | OPI:' + o.opi_score + ' | Stage:' + o.stage + ' | Due:' + (o.due_date || 'TBD') + ' | Agency:' + o.agency).join('\n');
-        const actionSummary = actions.slice(0, 5).map(a => a.icon + ' ' + a.headline).join('\n');
-        
-        const brief = await callClaude(
-          'You are the HGI capture team coordinator. Based on this pipeline state, write a 2-3 sentence directive morning briefing for Christopher Oney, President of HGI. Be direct, specific, and tell him exactly what the single most important thing he should do TODAY is and why.\n\nTOP OPPORTUNITIES:\n' + topOpps + '\n\nPENDING ACTIONS:\n' + actionSummary + '\n\nHGI context: disaster recovery, FEMA PA, CDBG-DR, TPA/claims. Louisiana-based.',
-          'You are a world-class capture manager briefing an executive. 2-3 sentences maximum. Lead with the single most urgent action. Be direct and specific — name the opportunity, agency, and exact action.'
-        );
-        topRecommendation = brief;
-      } catch(e) {
-        topRecommendation = null;
-      }
-    }
-
     // Sort actions by priority then urgency
     actions.sort((a, b) => a.priority - b.priority);
 
@@ -263,11 +293,68 @@ export default async function handler(req, res) {
       return true;
     });
 
+    // 7. Generate AI intelligence packages
+    let topRecommendation = null;
+    let opportunityBriefs = {};
+
+    if (opps.length > 0) {
+      try {
+        const topOpps = opps.slice(0, 5).map(o =>
+          o.title + ' | OPI:' + o.opi_score + ' | Stage:' + o.stage +
+          ' | Due:' + (o.due_date || 'TBD') + ' | Agency:' + o.agency +
+          ' | Value:' + (o.estimated_value || 'TBD') +
+          ' | Vertical:' + o.vertical +
+          ' | Why HGI wins:' + (Array.isArray(o.why_hgi_wins) ? o.why_hgi_wins.join('; ') : (o.why_hgi_wins || 'TBD')) +
+          ' | Incumbent:' + (o.incumbent || 'Unknown') +
+          ' | Capture action:' + (o.capture_action || 'TBD')
+        ).join('\n');
+        const actionSummary = deduped.slice(0, 5).map(a => a.icon + ' ' + a.headline).join('\n');
+        const declarationSummary = recentDeclarations.length > 0
+          ? '\nNEW FEMA DECLARATIONS: ' + recentDeclarations.map(d => d.declarationTitle + ' (' + d.stateCode + ')').join(', ')
+          : '';
+
+        const fullBrief = await callClaude(
+          'You are the HGI capture intelligence coordinator. Generate a complete morning briefing for Christopher Oney, President of HGI (Hammerman & Gainer LLC, disaster recovery specialists, 95 years, Louisiana-based).\n\nPIPELINE STATE:\n' + topOpps + '\n\nPENDING ACTIONS:\n' + actionSummary + declarationSummary + '\n\nGenerate a JSON response with this exact structure:\n{\n  "top_recommendation": "2-3 sentences, directive, names specific opportunity and exact action today",\n  "opportunity_briefs": [\n    {\n      "opportunity_id": "id from pipeline",\n      "headline": "1 sentence why this matters RIGHT NOW",\n      "win_case": "2-3 sentences: why HGI wins this, specific past performance that applies",\n      "risk": "1 sentence: biggest risk or obstacle",\n      "competitor_intel": "1 sentence: who else is likely bidding and their position",\n      "this_week_action": "exactly what to do this week, specific and directive"\n    }\n  ],\n  "market_pulse": "2-3 sentences on the overall market picture this week — any declarations, funding signals, recompetes worth watching"\n}\n\nReturn ONLY valid JSON. No markdown.',
+          'You are a world-class government contracting capture intelligence analyst. Be directive, specific, and brief. Name real competitors (ICF, Hagerty, Witt, Dewberry, CDM Smith, APTIM). Reference HGI real past performance: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 28 years. Return only valid JSON.'
+        );
+
+        try {
+          const clean = fullBrief.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1));
+          topRecommendation = parsed.top_recommendation || null;
+          (parsed.opportunity_briefs || []).forEach(b => {
+            if (b.opportunity_id) opportunityBriefs[b.opportunity_id] = b;
+          });
+          // Add market_pulse to pipelineStats
+          pipelineStats.market_pulse = parsed.market_pulse || null;
+        } catch(parseErr) {
+          // Fallback: use raw text as top recommendation
+          topRecommendation = fullBrief.slice(0, 300);
+        }
+      } catch(e) {
+        topRecommendation = null;
+      }
+    }
+
+    // Enrich action cards with AI intelligence briefs
+    deduped.forEach(action => {
+      if (action.opportunity_id && opportunityBriefs[action.opportunity_id]) {
+        const brief = opportunityBriefs[action.opportunity_id];
+        action.intel_headline = brief.headline;
+        action.win_case = brief.win_case;
+        action.risk = brief.risk;
+        action.competitor_intel = brief.competitor_intel;
+        action.this_week_action = brief.this_week_action;
+      }
+    });
+
     return res.status(200).json({
       generated_at: now.toISOString(),
       top_recommendation: topRecommendation,
+      market_pulse: pipelineStats.market_pulse || null,
       actions: deduped,
       pipeline_stats: pipelineStats,
+      opportunity_briefs: opportunityBriefs,
       new_declarations: recentDeclarations.map(d => ({
         title: d.declarationTitle,
         state: d.stateCode,
