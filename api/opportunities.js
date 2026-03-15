@@ -137,7 +137,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ exists: records.length > 0 });
     }
 
-    const filters = ["hgi_relevance=neq.LOW"];
+    const filters = ["status=eq.active"];
     if (vertical !== "all") filters.push(`vertical=eq.${vertical}`);
     if (state !== "all") filters.push(`state=eq.${state}`);
     if (urgency !== "all") filters.push(`urgency=eq.${urgency}`);
