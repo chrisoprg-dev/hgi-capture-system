@@ -62,6 +62,29 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
+    // ── POST — handle set_batch action ──
+    if (req.method === "POST" && req.body.action === "set_batch") {
+      const huntRunData = {
+        batch_number: req.body.batch,
+        status: 'completed',
+        run_at: new Date().toISOString()
+      };
+      
+      const res2 = await fetch(`${SUPABASE_URL}/rest/v1/hunt_runs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+        },
+        body: JSON.stringify(huntRunData),
+      });
+      
+      if (!res2.ok) throw new Error("Failed to insert hunt_run");
+      
+      return res.status(200).json({ success: true, batch: req.body.batch });
+    }
+
     // ── PATCH — update a single opportunity (save to tracker, status change) ──
     if (req.method === "PATCH") {
       const { id, ...updates } = req.body;
