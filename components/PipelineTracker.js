@@ -18,6 +18,9 @@ function PipelineTracker({ goToWorkflow }) {
   const [aiLoading, setAiLoading] = useState({});
   const [filterStage, setFilterStage] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
+  const [showLossAnalysis, setShowLossAnalysis] = useState({});
+  const [lossForm, setLossForm] = useState({});
+  const [lossSubmitted, setLossSubmitted] = useState({});
   const setF = (k,v) => setForm(f => ({...f, [k]:v}));
   const filtered = filterStage === "all" ? items : items.filter(i => i.stage === filterStage);
 
@@ -205,6 +208,38 @@ function PipelineTracker({ goToWorkflow }) {
     setAiLoading(a => ({...a, [item.id]:false}));
   };
 
+  const submitLossAnalysis = async (itemId) => {
+    const item = items.find(i => i.id === itemId);
+    const form = lossForm[itemId] || {};
+    
+    try {
+      const response = await fetch('/api/loss-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opportunity_title: item.title,
+          agency: item.agency,
+          vertical: item.type,
+          winner_name: form.winner_name || '',
+          winner_amount: form.winner_amount || '',
+          our_bid_amount: form.our_bid_amount || '',
+          notes: form.notes || '',
+          date: new Date().toISOString().split('T')[0]
+        })
+      });
+      
+      if (response.ok) {
+        setLossSubmitted(prev => ({...prev, [itemId]: true}));
+        setShowLossAnalysis(prev => ({...prev, [itemId]: false}));
+        setTimeout(() => {
+          setLossSubmitted(prev => ({...prev, [itemId]: false}));
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Failed to submit loss analysis:', error);
+    }
+  };
+
   const openItem = (item) => setSelectedItem(selectedItem && selectedItem.id === item.id ? null : item);
   const editBtn = (item) => {
     setForm({title:item.title,agency:item.agency||"",type:item.type||"",value:item.value||"",deadline:item.deadline||"",notes:item.notes||"",stage:item.stage,opiScore:item.opiScore||""});
@@ -296,6 +331,52 @@ function PipelineTracker({ goToWorkflow }) {
                       <Label text="MOVE TO STAGE" />
                       <Sel value={item.stage} onChange={v=>updateStage(item.id,v)}
                         options={STAGES.map(s=>({value:s.id,label:s.label}))} style={{width:"100%",marginBottom:10}} />
+                      
+                      {item.stage === 'lost' && (
+                        <div style={{marginTop:12,padding:12,background:BG2,borderRadius:4,border:`1px solid ${RED}33`}}>
+                          {lossSubmitted[item.id] ? (
+                            <div style={{color:GREEN,fontSize:12,fontWeight:700}}>Loss logged — competitive intel saved</div>
+                          ) : !showLossAnalysis[item.id] ? (
+                            <Btn small onClick={()=>setShowLossAnalysis(prev => ({...prev, [item.id]: true}))}>Log Loss Analysis</Btn>
+                          ) : (
+                            <div>
+                              <div style={{color:RED,fontSize:11,fontWeight:700,marginBottom:8}}>LOSS ANALYSIS</div>
+                              <div style={{display:"grid",gap:8}}>
+                                <Input 
+                                  value={lossForm[item.id]?.winner_name || ''} 
+                                  onChange={v=>setLossForm(prev => ({...prev, [item.id]: {...(prev[item.id]||{}), winner_name: v}}))} 
+                                  placeholder="Winner Name" 
+                                  style={{fontSize:11}} 
+                                />
+                                <Input 
+                                  value={lossForm[item.id]?.winner_amount || ''} 
+                                  onChange={v=>setLossForm(prev => ({...prev, [item.id]: {...(prev[item.id]||{}), winner_amount: v}}))} 
+                                  placeholder="Their Price" 
+                                  style={{fontSize:11}} 
+                                />
+                                <Input 
+                                  value={lossForm[item.id]?.our_bid_amount || ''} 
+                                  onChange={v=>setLossForm(prev => ({...prev, [item.id]: {...(prev[item.id]||{}), our_bid_amount: v}}))} 
+                                  placeholder="Our Price" 
+                                  style={{fontSize:11}} 
+                                />
+                                <Textarea 
+                                  value={lossForm[item.id]?.notes || ''} 
+                                  onChange={v=>setLossForm(prev => ({...prev, [item.id]: {...(prev[item.id]||{}), notes: v}}))} 
+                                  placeholder="What happened..." 
+                                  rows={2} 
+                                  style={{fontSize:11}} 
+                                />
+                                <div style={{display:"flex",gap:6,marginTop:4}}>
+                                  <Btn small onClick={()=>submitLossAnalysis(item.id)}>Submit</Btn>
+                                  <Btn small variant="secondary" onClick={()=>setShowLossAnalysis(prev => ({...prev, [item.id]: false}))}>Cancel</Btn>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
                       {item.notes && <div style={{fontSize:12,color:TEXT_D,fontStyle:"italic",marginTop:4}}>{item.notes}</div>}
                     </div>
                   </div>
