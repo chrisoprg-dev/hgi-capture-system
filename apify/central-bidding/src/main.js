@@ -12,14 +12,32 @@ const CB_USERNAME = process.env.CB_USERNAME || 'HGIGLOBAL';
 const CB_PASSWORD = process.env.CB_PASSWORD || 'Whatever1340!';
 
 const HGI_KEYWORDS = [
-    'grant management', 'grants management', 'grant administration', 
-'program management services', 'disaster recovery services', 
-'FEMA public assistance', 'FEMA grant', 'CDBG-DR', 
-'community development block grant', 'claims administration', 
-'third party administrator', 'housing assistance program', 
-'homeowner assistance', 'workforce development services', 
-'property tax appeal', 'hazard mitigation grant', 
-'emergency management services', 'case management services'
+    'grant management', 'grants management', 'grant administration',
+    'program management', 'project management services',
+    'disaster recovery', 'disaster services', 'debris removal', 'debris management',
+    'FEMA', 'public assistance', 'CDBG', 'community development block grant',
+    'claims administration', 'claims processing', 'claims management',
+    'third party administrator', 'TPA services',
+    'housing assistance', 'housing authority', 'homeowner assistance', 'affordable housing',
+    'workforce development', 'workforce services', 'unemployment', 'job training',
+    'property tax', 'tax appeal', 'ad valorem', 'tax consulting',
+    'hazard mitigation', 'mitigation planning',
+    'emergency management', 'emergency preparedness',
+    'case management', 'social services', 'human services',
+    'insurance', 'workers compensation', 'risk management',
+    'public health', 'health services', 'Medicaid',
+    'construction management', 'inspection services', 'infrastructure',
+    'consulting services', 'professional services', 'management consulting',
+    'compliance monitoring', 'audit services', 'financial management',
+    'temporary staffing', 'staffing services',
+    'flood', 'hurricane', 'storm', 'recovery program',
+    'transit', 'transportation planning',
+    'water management', 'sewer', 'utility',
+    'billing', 'appeals', 'dispute resolution',
+    'pension', 'benefits administration',
+    'environmental services', 'assessment services',
+    'data management', 'document management',
+    'training services', 'technical assistance'
 ];
 
 const EXPIRED_BID_IDS = ['rfp55622652'];
