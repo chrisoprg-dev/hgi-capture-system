@@ -50,16 +50,37 @@ const crawler = new PlaywrightCrawler({
             const afterUrl = page.url();
             log.info('After login URL: ' + afterUrl);
             
-            await page.goto('https://www.centralauctionhouse.com/rfp.php?&cid=1&statusFilter=open');
+            // Navigate to rfpc1-Louisiana.html
+            await page.goto('https://www.centralauctionhouse.com/rfpc1-Louisiana.html');
+            await page.waitForTimeout(3000);
             
-            const bidLinks = await page.$$eval('a', links => 
-                links.map(link => link.href)
-                     .filter(href => href && href.includes('centralauctionhouse.com/rfp') && href.endsWith('.html'))
+            const rfpLinks = await page.$$eval('a', links => 
+                links.filter(link => link.href && link.href.includes('centralauctionhouse.com/rfp'))
+                     .map(link => link.href)
             );
             
-            for (const link of bidLinks) {
-                await crawler.addRequests([{ url: link, label: 'BID' }]);
-            }
+            log.info(`Found ${rfpLinks.length} RFP links on rfpc1-Louisiana.html:`);
+            rfpLinks.forEach((link, index) => {
+                log.info(`RFP Link ${index + 1}: ${link}`);
+            });
+            
+            // Navigate to main.php
+            await page.goto('https://www.centralauctionhouse.com/main.php');
+            await page.waitForTimeout(3000);
+            
+            const pageTitle = await page.title();
+            log.info(`Main.php page title: ${pageTitle}`);
+            
+            const allLinks = await page.$$eval('a', links => 
+                links.filter(link => link.href)
+                     .map(link => link.href)
+                     .slice(0, 20)
+            );
+            
+            log.info(`First 20 links on main.php:`);
+            allLinks.forEach((link, index) => {
+                log.info(`Link ${index + 1}: ${link}`);
+            });
         }
         
         if (request.label === 'CATEGORY') {
