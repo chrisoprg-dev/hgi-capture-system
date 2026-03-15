@@ -61,6 +61,21 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
 
+  // ONE-TIME FIX: Patch HTHA record if due_date is still empty
+  try {
+    const hthaCheck = await supabaseGet('?id=eq.manualtest-manual-htha-2026-03-04-001&select=due_date');
+    if (hthaCheck.length > 0 && (!hthaCheck[0].due_date || hthaCheck[0].due_date === '')) {
+      await supabaseUpdate('manualtest-manual-htha-2026-03-04-001', {
+        due_date: '2026-03-19',
+        state: 'LA',
+        urgency: 'IMMEDIATE'
+      });
+      console.log('HTHA self-heal: patched due_date, state, urgency');
+    }
+  } catch(e) {
+    console.warn('HTHA self-heal failed:', e.message);
+  }
+
   try {
     // ── POST — handle set_batch action ──
     if (req.method === "POST" && req.body.action === "set_batch") {
