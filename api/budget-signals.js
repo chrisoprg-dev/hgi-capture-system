@@ -1,4 +1,4 @@
-const axios = require('axios');
+export const config = { maxDuration: 30 };
 
 const FEMA_API_URL = 'https://www.fema.gov/api/open/v1/grants?$orderby=announcementDate%20desc&$top=10';
 const HUD_API_URL = 'https://api.hud.gov/grants';
@@ -49,17 +49,22 @@ function estimateTimeline(announcementDate, type) {
 
 async function fetchFEMAGrants() {
   try {
-    const response = await axios.get(FEMA_API_URL, { timeout: 10000 });
-    if (response.data && response.data.value) {
-      return response.data.value.map(grant => ({
-        title: grant.title || 'FEMA Grant',
-        source: 'FEMA',
-        amount: grant.amount || 'Not specified',
-        geography: grant.location || 'National',
-        timeline: estimateTimeline(grant.announcementDate, 'grant'),
-        hgi_relevance: assessRelevance(grant.title || '', grant.description || '', grant.location || ''),
-        raw_data: grant
-      }));
+    const response = await fetch(FEMA_API_URL, { 
+      signal: AbortSignal.timeout(10000) 
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.value) {
+        return data.value.map(grant => ({
+          title: grant.title || 'FEMA Grant',
+          source: 'FEMA',
+          amount: grant.amount || 'Not specified',
+          geography: grant.location || 'National',
+          timeline: estimateTimeline(grant.announcementDate, 'grant'),
+          hgi_relevance: assessRelevance(grant.title || '', grant.description || '', grant.location || ''),
+          raw_data: grant
+        }));
+      }
     }
     return [];
   } catch (error) {
@@ -70,17 +75,22 @@ async function fetchFEMAGrants() {
 
 async function fetchHUDGrants() {
   try {
-    const response = await axios.get(HUD_API_URL, { timeout: 10000 });
-    if (response.data && Array.isArray(response.data)) {
-      return response.data.slice(0, 10).map(grant => ({
-        title: grant.title || grant.name || 'HUD Grant',
-        source: 'HUD',
-        amount: grant.amount || grant.funding || 'Not specified',
-        geography: grant.location || grant.state || 'National',
-        timeline: estimateTimeline(grant.date || grant.announcementDate, 'grant'),
-        hgi_relevance: assessRelevance(grant.title || grant.name || '', grant.description || '', grant.location || grant.state || ''),
-        raw_data: grant
-      }));
+    const response = await fetch(HUD_API_URL, { 
+      signal: AbortSignal.timeout(10000) 
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (data && Array.isArray(data)) {
+        return data.slice(0, 10).map(grant => ({
+          title: grant.title || grant.name || 'HUD Grant',
+          source: 'HUD',
+          amount: grant.amount || grant.funding || 'Not specified',
+          geography: grant.location || grant.state || 'National',
+          timeline: estimateTimeline(grant.date || grant.announcementDate, 'grant'),
+          hgi_relevance: assessRelevance(grant.title || grant.name || '', grant.description || '', grant.location || grant.state || ''),
+          raw_data: grant
+        }));
+      }
     }
     return [];
   } catch (error) {
@@ -97,35 +107,37 @@ async function fetchSAMPresolicitations() {
       return [];
     }
 
-    const params = {
-      limit: 10,
+    const params = new URLSearchParams({
+      limit: '10',
       postedFrom: 'LAST30DAYS',
       ptype: 'p',
       keyword: 'disaster recovery'
-    };
+    });
 
-    const response = await axios.get(SAMGOV_API_URL, {
-      params,
+    const response = await fetch(`${SAMGOV_API_URL}?${params}`, {
       headers: {
         'X-API-Key': apiKey
       },
-      timeout: 15000
+      signal: AbortSignal.timeout(15000)
     });
 
-    if (response.data && response.data.opportunitiesData) {
-      return response.data.opportunitiesData.map(opp => ({
-        title: opp.title || 'SAM.gov Presolicitation',
-        source: 'SAM.gov',
-        amount: opp.estimatedValue || 'Not specified',
-        geography: opp.placeOfPerformance || opp.officeAddress?.state || 'Not specified',
-        timeline: estimateTimeline(opp.postedDate, 'presolicitation'),
-        hgi_relevance: assessRelevance(
-          opp.title || '', 
-          opp.description || '', 
-          `${opp.placeOfPerformance || ''} ${opp.officeAddress?.state || ''}`
-        ),
-        raw_data: opp
-      }));
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.opportunitiesData) {
+        return data.opportunitiesData.map(opp => ({
+          title: opp.title || 'SAM.gov Presolicitation',
+          source: 'SAM.gov',
+          amount: opp.estimatedValue || 'Not specified',
+          geography: opp.placeOfPerformance || opp.officeAddress?.state || 'Not specified',
+          timeline: estimateTimeline(opp.postedDate, 'presolicitation'),
+          hgi_relevance: assessRelevance(
+            opp.title || '', 
+            opp.description || '', 
+            `${opp.placeOfPerformance || ''} ${opp.officeAddress?.state || ''}`
+          ),
+          raw_data: opp
+        }));
+      }
     }
     return [];
   } catch (error) {
@@ -134,7 +146,9 @@ async function fetchSAMPresolicitations() {
   }
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -201,4 +215,4 @@ module.exports = async function handler(req, res) {
       note: 'Service temporarily unavailable, returning empty results'
     });
   }
-};
+}
