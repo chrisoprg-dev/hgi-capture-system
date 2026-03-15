@@ -124,8 +124,11 @@ const checkDuplicate = async (sourceUrl, log) => {
         const response = await fetch(`${BATCH_API_URL}?source_url=${encodedUrl}`);
         if (response.ok) {
             const data = await response.json();
-            if (data && data.length > 0) {
-                return true; // Duplicate found
+            if (data && data.exists === true) {
+                return true;
+            }
+            if (Array.isArray(data) && data.length > 0) {
+                return true;
             }
         }
     } catch (error) {
