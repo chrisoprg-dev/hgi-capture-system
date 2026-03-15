@@ -213,15 +213,16 @@ export default async function handler(req, res) {
 
   // Only return 400 for completely empty or unparseable requests
   if (!req.body || Object.keys(req.body).length === 0) {
-    return res.status(400).json({
-      error: "Empty request body",
+    return res.status(200).json({
+      status: 'skipped',
+      reason: 'validation'
     });
   }
 
   if (!source || !source_id || !agency || !url) {
-    return res.status(400).json({
-      error: "Missing required fields",
-      required: ["source", "source_id", "agency", "url"],
+    return res.status(200).json({
+      status: 'skipped',
+      reason: 'validation'
     });
   }
 
