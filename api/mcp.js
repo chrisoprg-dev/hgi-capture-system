@@ -274,6 +274,39 @@ const handleTool = async (name, input) => {
       return await r.json();
     }
 
+    case 'run_orchestrator': {
+      const { opportunity_id } = input;
+      const r = await fetch('https://hgi-capture-system.vercel.app/api/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opportunity_id, trigger: 'mcp' })
+      });
+      if (!r.ok) throw new Error('Orchestrator returned ' + r.status);
+      return await r.json();
+    }
+
+    case 'update_opportunity': {
+      const { opportunity_id, updates } = input;
+      await fetch(SUPABASE_URL + '/rest/v1/opportunities?id=eq.' + encodeURIComponent(opportunity_id), {
+        method: 'PATCH',
+        headers: { ...supabaseHeaders, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ ...updates, last_updated: new Date().toISOString() })
+      });
+      return { success: true, opportunity_id, updated_fields: Object.keys(updates) };
+    }
+
+    case 'fetch_source_page': {
+      const { url } = input;
+      const r = await fetch('https://hgi-capture-system.vercel.app/api/fetch-rfp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      if (!r.ok) return { error: 'Fetch failed: ' + r.status };
+      const d = await r.json();
+      return { url, textContent: (d.textContent || '').slice(0, 5000), length: (d.textContent || '').length };
+    }
+
     default:
       return { error: 'Unknown tool: ' + name };
   }
