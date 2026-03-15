@@ -141,6 +141,8 @@ const crawler = new PlaywrightCrawler({
     requestHandler: async ({ page, request, log }) => {
         if (request.label === 'LOGIN') {
             const batch = await getCurrentBatch(log);
+            let stats = { batch: 0, categories_processed: 0, bids_reviewed: 0, relevant_found: 0, sent_to_intake: 0, filtered_out: 0, expired_skipped: 0, duplicates_skipped: 0 };
+            stats.batch = batch;
             log.info(`Starting batch ${batch}`);
             
             // Login on the same page
@@ -234,6 +236,7 @@ const crawler = new PlaywrightCrawler({
                         // Check if bid URL already exists in pipeline
                         if (await checkDuplicate(bidUrl, log)) {
                             log.info(`Already in pipeline: ${bidUrl}`);
+                            stats.duplicates_skipped++;
                             continue;
                         }
                         
@@ -241,6 +244,7 @@ const crawler = new PlaywrightCrawler({
                         const hasExpiredId = EXPIRED_BID_IDS.some(expiredId => bidUrl.includes(expiredId));
                         if (hasExpiredId) {
                             log.info(`Permanently skipping expired bid: ${bidUrl}`);
+                            stats.expired_skipped++;
                             continue;
                         }
                         
@@ -322,23 +326,28 @@ const crawler = new PlaywrightCrawler({
                                 continue;
                             }
                             
-                            // Check for expired bids
-                            if (bidData.deadline) {
-                                const endDate = parseDate(bidData.deadline);
-                                if (endDate && endDate < new Date()) {
-                                    log.info(`Skipping expired bid: ${finalTitle}`);
-                                    continue;
-                                }
-                            }
+                            stats.bids_reviewed++;
                             
                             // Check relevance against full page text
                             const combinedText = finalTitle + ' ' + (bidData.description || '');
                             if (!isRelevant(finalTitle, combinedText)) {
                                 log.info(`Not relevant: ${finalTitle}`);
+                                stats.filtered_out++;
                                 continue;
                             }
                             
+                            // Check for expired bids
+                            if (bidData.deadline) {
+                                const endDate = parseDate(bidData.deadline);
+                                if (endDate && endDate < new Date()) {
+                                    log.info(`Skipping expired bid: ${finalTitle}`);
+                                    stats.expired_skipped++;
+                                    continue;
+                                }
+                            }
+                            
                             log.info(`RELEVANT: ${finalTitle}`);
+                            stats.relevant_found++;
                             
                             // Prepare complete opportunity data
                             const opportunity = {
@@ -368,6 +377,7 @@ const crawler = new PlaywrightCrawler({
                                 
                                 if (intakeRes.ok) {
                                     log.info(`SENT TO HGI: ${finalTitle}`);
+                                    stats.sent_to_intake++;
                                 } else {
                                     const errorText = await intakeRes.text();
                                     console.log('Failed to send to HGI:', intakeRes.status, errorText);
@@ -388,12 +398,25 @@ const crawler = new PlaywrightCrawler({
                     log.error(`Error processing category ${categoryUrl}: ${error.message}`);
                 }
                 
+                stats.categories_processed++;
+                
                 // Add delay after processing each category for memory recovery
                 await new Promise(r => setTimeout(r, 500));
             }
             
             // Save next batch
             await saveBatch((batch + 1) % 96, log);
+            
+            try {
+                await fetch('https://hgi-capture-system.vercel.app/api/hunt-analytics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...stats, secret: 'hgi-intake-2026-secure' })
+                });
+                log.info('Run stats: ' + JSON.stringify(stats));
+            } catch(e) {
+                log.error('Failed to log analytics: ' + e.message);
+            }
             
             log.info(`Completed batch ${batch}. Next batch: ${(batch + 1) % 96}`);
         }
