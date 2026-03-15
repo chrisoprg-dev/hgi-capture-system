@@ -35,6 +35,11 @@ const crawler = new PlaywrightCrawler({
             await page.keyboard.press('Enter');
             await page.waitForTimeout(5000);
             
+            // Store cookies after successful login
+            const cookies = await page.context().cookies();
+            await Actor.setValue('cookies', cookies);
+            log.info('Stored login cookies');
+            
             await page.goto('https://www.centralauctionhouse.com/rfpc1-Louisiana.html');
             await page.waitForTimeout(3000);
             
@@ -52,6 +57,13 @@ const crawler = new PlaywrightCrawler({
             await Actor.setValue('batch', (batch + 1) % 25);
             
         } else if (request.label === 'CATEGORY') {
+            // Load cookies at the start of CATEGORY handler
+            const cookies = await Actor.getValue('cookies');
+            if (cookies) {
+                await page.context().addCookies(cookies);
+                log.info('Loaded authentication cookies');
+            }
+            
             await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
             
             const bidLinks = await page.$$eval('a', links => 
@@ -74,6 +86,12 @@ const crawler = new PlaywrightCrawler({
                 log.info(`Processing bid ${i + 1}/${limitedBidLinks.length}: ${bidUrl}`);
                 
                 try {
+                    // Add cookies before each individual bid page visit
+                    const cookies = await Actor.getValue('cookies');
+                    if (cookies) {
+                        await page.context().addCookies(cookies);
+                    }
+                    
                     // Extract title from URL slug
                     const urlMatch = bidUrl.match(/\/rfp\d+-([^\/]+)/);
                     if (!urlMatch || !urlMatch[1]) {
