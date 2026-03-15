@@ -116,42 +116,30 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     setLoading(false);
   };
 
-  // ── AUTO-GENERATE ALL SECTIONS ───────────────────────────────────────────
+  // ── AUTO-GENERATE imported from ProposalAutoGen ────────────────────
   const startAutoGenerate = async (selectedKeys) => {
-    abortRef.current = false;
-    setAutoRunning(true);
-    setAutoSections(selectedKeys);
-    setActiveView("auto");
-    const progress = selectedKeys.map(k => ({key:k, status:"pending"}));
-    setAutoProgress(progress);
-    const activeRfp = rfpText || sharedCtx.rfpText || "";
-    const currentDraft = {...proposalDraft};
-
-    // Query KB once before generating all sections
-    const vertical = sharedCtx.vertical || "disaster_recovery";
-    const kbInjection = await queryKB(vertical);
-    const pastPerformance = await getPastPerformance("disaster_recovery");
-
-    for (let i = 0; i < selectedKeys.length; i++) {
-      if (abortRef.current) break;
-      const key = selectedKeys[i];
-      const sLabel = SECTIONS.find(s => s.value === key)?.label || key;
-
-      setAutoProgress(prev => prev.map((p,idx) => idx===i ? {...p,status:"generating"} : p));
-
-      try {
-        const txt = await callClaude(buildPrompt(sLabel, activeRfp, kbInjection), buildSys(sLabel, kbInjection, pastPerformance), 4000);
-        currentDraft[key] = txt;
-        setProposalDraft({...currentDraft});
-        store.set("proposalDraft", {...currentDraft});
-        setAutoProgress(prev => prev.map((p,idx) => idx===i ? {...p,status:"done"} : p));
-      } catch(e) {
-        setAutoProgress(prev => prev.map((p,idx) => idx===i ? {...p,status:"error",error:e.message} : p));
-      }
-    }
-
-    setAutoRunning(false);
-    if (!abortRef.current) setActiveView("workspace");
+    const autoGenProps = {
+      selectedKeys,
+      abortRef,
+      setAutoRunning,
+      setAutoSections,
+      setActiveView,
+      setAutoProgress,
+      rfpText,
+      sharedCtx,
+      proposalDraft,
+      setProposalDraft,
+      SECTIONS,
+      buildPrompt,
+      buildSys,
+      queryKB,
+      getPastPerformance,
+      callClaude,
+      store
+    };
+    
+    const autoGen = new ProposalAutoGen(autoGenProps);
+    await autoGen.start();
   };
 
   // ── COMPLIANCE SCAN ───────────────────────────────────────────────────────
