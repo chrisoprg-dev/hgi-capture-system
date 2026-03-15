@@ -1,1 +1,26 @@
-{"functions":{"api/claude.js":{"maxDuration":300},"api/hunt.js":{"maxDuration":60},"api/fetch-rfp.js":{"maxDuration":60},"api/opportunities.js":{"maxDuration":30},"api/intake.js":{"maxDuration":120},"api/knowledge.js":{"maxDuration":120},"api/knowledge-query.js":{"maxDuration":30},"api/export-proposal.js":{"maxDuration":60}},"crons":[{"path":"/api/hunt","schedule":"0 7 * * *"}]}
+{
+  "functions": {
+    "api/orchestrate.js": { "maxDuration": 300 },
+    "api/claude.js": { "maxDuration": 300 },
+    "api/intake.js": { "maxDuration": 120 },
+    "api/mcp.js": { "maxDuration": 300 },
+    "api/intelligence.js": { "maxDuration": 120 },
+    "api/export-proposal.js": { "maxDuration": 120 },
+    "api/proposal-improve.js": { "maxDuration": 120 },
+    "api/executive-brief.js": { "maxDuration": 60 },
+    "api/knowledge.js": { "maxDuration": 120 },
+    "api/knowledge-query.js": { "maxDuration": 30 },
+    "api/fetch-rfp.js": { "maxDuration": 60 },
+    "api/opportunities.js": { "maxDuration": 30 },
+    "api/hunt.js": { "maxDuration": 60 },
+    "api/budget-signals.js": { "maxDuration": 60 },
+    "api/regulatory-monitor.js": { "maxDuration": 60 },
+    "api/presolicitation.js": { "maxDuration": 60 },
+    "api/loss-analysis.js": { "maxDuration": 60 },
+    "api/disaster-monitor.js": { "maxDuration": 60 },
+    "api/events.js": { "maxDuration": 30 },
+    "api/batch.js": { "maxDuration": 30 },
+    "api/hunt-analytics.js": { "maxDuration": 30 }
+  },
+  "crons": [{ "path": "/api/hunt", "schedule": "0 7 * * *" }]
+}
