@@ -85,6 +85,9 @@ const crawler = new PlaywrightCrawler({
             const batch = await Actor.getValue('batch') || 0;
             log.info(`Starting batch ${batch}`);
             
+            // Load processed bids for deduplication
+            const processedBids = new Set(await Actor.getValue('processed_bids') || []);
+            
             // Login on the same page
             await page.fill('input[name="username"]', CB_USERNAME);
             await page.fill('input[type="password"]', CB_PASSWORD);
@@ -173,6 +176,12 @@ const crawler = new PlaywrightCrawler({
                     
                     // For each bid link
                     for (const bidUrl of limitedBidLinks) {
+                        // Check if bid URL is already processed
+                        if (processedBids.has(bidUrl)) {
+                            log.info(`Already processed: ${bidUrl}`);
+                            continue;
+                        }
+                        
                         log.info(`Processing bid: ${bidUrl}`);
                         
                         try {
@@ -294,6 +303,8 @@ const crawler = new PlaywrightCrawler({
                                 
                                 if (response.ok) {
                                     log.info(`SENT TO HGI: ${finalTitle}`);
+                                    // Add to processed bids after successful sending
+                                    processedBids.add(bidUrl);
                                 } else {
                                     log.error(`Failed to send to HGI: ${response.status} ${response.statusText}`);
                                 }
@@ -316,6 +327,9 @@ const crawler = new PlaywrightCrawler({
             
             // Save next batch to key-value store
             await Actor.setValue('batch', (batch + 1) % 24);
+            
+            // Save updated processed bids set
+            await Actor.setValue('processed_bids', [...processedBids]);
             
             log.info(`Completed batch ${batch}. Next batch: ${(batch + 1) % 24}`);
         }
