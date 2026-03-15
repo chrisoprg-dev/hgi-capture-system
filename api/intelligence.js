@@ -313,9 +313,26 @@ export default async function handler(req, res) {
           ? '\nNEW FEMA DECLARATIONS: ' + recentDeclarations.map(d => d.declarationTitle + ' (' + d.stateCode + ')').join(', ')
           : '';
 
+        const currentDateStr = now.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+        const currentMonth = now.toLocaleString('en-US', { month:'long' });
+        const currentYear = now.getFullYear();
+
+        // Build real-data context for market pulse
+        const scraperContext = hunts.length > 0
+          ? 'Scraper last ran: ' + new Date(hunts[0].run_at).toLocaleString() + '. Batches completed today: ' + hunts.filter(h => h.source === 'apify_batch' && (now - new Date(h.run_at)) < 86400000).length
+          : 'Scraper status unknown';
+
+        const declarationContext = declarations.length > 0
+          ? 'Recent FEMA declarations in HGI states: ' + declarations.slice(0,3).map(d => d.declarationTitle + ' (' + d.stateCode + ', declared ' + new Date(d.declarationDate).toLocaleDateString() + ')').join('; ')
+          : 'No recent FEMA declarations in LA/TX/FL/MS/AL/GA';
+
+        const verticalBreakdown = opps.length > 0
+          ? Object.entries(opps.reduce((acc, o) => { acc[o.vertical||'unknown'] = (acc[o.vertical||'unknown']||0)+1; return acc; }, {})).map(([k,v]) => v + ' ' + k).join(', ')
+          : 'No active pipeline';
+
         const fullBrief = await callClaude(
-          'You are the HGI capture intelligence coordinator. Generate a complete morning briefing for Christopher Oney, President of HGI (Hammerman & Gainer LLC, disaster recovery specialists, 95 years, Louisiana-based).\n\nPIPELINE STATE:\n' + topOpps + '\n\nPENDING ACTIONS:\n' + actionSummary + declarationSummary + '\n\nGenerate a JSON response with this exact structure:\n{\n  "top_recommendation": "2-3 sentences, directive, names specific opportunity and exact action today",\n  "opportunity_briefs": [\n    {\n      "opportunity_id": "id from pipeline",\n      "headline": "1 sentence why this matters RIGHT NOW",\n      "win_case": "2-3 sentences: why HGI wins this, specific past performance that applies",\n      "risk": "1 sentence: biggest risk or obstacle",\n      "competitor_intel": "1 sentence: who else is likely bidding and their position",\n      "this_week_action": "exactly what to do this week, specific and directive"\n    }\n  ],\n  "market_pulse": "2-3 sentences on the overall market picture this week — any declarations, funding signals, recompetes worth watching"\n}\n\nReturn ONLY valid JSON. No markdown.',
-          'You are a world-class government contracting capture intelligence analyst. Be directive, specific, and brief. Name real competitors (ICF, Hagerty, Witt, Dewberry, CDM Smith, APTIM). Reference HGI real past performance: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 28 years. Return only valid JSON.'
+          'TODAY IS ' + currentDateStr + '. You are generating a REAL-TIME intelligence briefing. The current year is ' + currentYear + ', current month is ' + currentMonth + '. Do NOT reference 2024 or any past year as current.\n\nYou are the HGI capture intelligence coordinator briefing Christopher Oney, President of HGI (Hammerman & Gainer LLC, disaster recovery specialists, 95 years, Louisiana-based).\n\nLIVE PIPELINE DATA (as of right now):\n' + topOpps + '\n\nLIVE PENDING ACTIONS:\n' + actionSummary + '\n\nLIVE FEMA DATA: ' + declarationContext + '\n\nLIVE SCRAPER STATUS: ' + scraperContext + '\n\nPIPELINE VERTICAL MIX: ' + verticalBreakdown + '\n\nSEASONAL CONTEXT: It is ' + currentMonth + ' ' + currentYear + '. In Louisiana and Gulf Coast states, this is the period leading into the ' + currentYear + ' severe weather season. Any market pulse commentary must reflect conditions in ' + currentMonth + ' ' + currentYear + ', not any prior year.\n\nGenerate a JSON response with this exact structure:\n{\n  "top_recommendation": "2-3 sentences, directive, names specific opportunity and exact action today",\n  "opportunity_briefs": [\n    {\n      "opportunity_id": "id from pipeline",\n      "headline": "1 sentence why this matters RIGHT NOW in ' + currentMonth + ' ' + currentYear + '",\n      "win_case": "2-3 sentences: why HGI wins this, specific past performance that applies",\n      "risk": "1 sentence: biggest risk or obstacle",\n      "competitor_intel": "1 sentence: who else is likely bidding and their position",\n      "this_week_action": "exactly what to do this week, specific and directive"\n    }\n  ],\n  "market_pulse": "2-3 sentences on real market conditions RIGHT NOW in ' + currentMonth + ' ' + currentYear + ' — based on the actual FEMA declaration data and pipeline signals above. Reference specific real data provided. Do NOT mention 2024 or prior years as current."\n}\n\nReturn ONLY valid JSON. No markdown.',
+          'You are a world-class government contracting capture intelligence analyst operating in real-time on ' + currentDateStr + '. The current year is ' + currentYear + '. Never reference 2024 as the current year. Base all market commentary strictly on the live data provided in the prompt — FEMA declarations, pipeline state, scraper findings. Name real competitors (ICF, Hagerty, Witt, Dewberry, CDM Smith, APTIM). Reference HGI real past performance: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 28 years. Return only valid JSON.'
         );
 
         try {
