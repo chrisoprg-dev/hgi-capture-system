@@ -102,10 +102,30 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
   };
 
   const buildPromptB = (decomp, ctx) => {
-    return "Produce a leadership decision brief for HGI.\n\n" +
-      "HEADER BLOCK:\nOpportunity:\nDecision Recommendation: (GO / CONDITIONAL GO / NO-BID / WATCHLIST)\nPwin (0-100):\nOPI Score (0-100):\nPriority Tier: (Tier 1/2/3/Archive)\nRevenue Timing:\nStaffing Status: (Green/Yellow/Red)\nPricing Posture:\nEffort Level:\n\n" +
-      "Then provide:\n1) WHAT THIS IS - 5-8 bullets\n2) WHY HGI WINS - 6-8 bullets tied to eval criteria\n3) WHY HGI LOSES - 6-8 bullets on risks\n4) OPI + PWIN BREAKDOWN with sub-scores\n5) PRICING STRATEGY\n6) STAFFING FEASIBILITY\n7) 48-HOUR ACTION PLAN - 8 actions\n8) DECISION LOGIC - one paragraph\n\n" +
-      "DECOMPOSITION:\n" + decomp + "\n\nCONTEXT:\n" + ctx;
+    return "Produce a COMPREHENSIVE leadership decision brief for HGI (Hammerman & Gainer LLC). This is the document Christopher Oney, President, uses to make the bid/no-bid call. Be thorough, specific, and decisive. Every section must be fully completed.\n\n" +
+      "HEADER BLOCK (complete every field):\n" +
+      "Opportunity: [full title]\nAgency: [issuing agency]\nDecision Recommendation: GO / CONDITIONAL GO / NO-BID / WATCHLIST\nPwin: [0-100]%\nOPI Score: [0-100]\nPriority Tier: Tier 1 (OPI 70+) / Tier 2 (45-69) / Tier 3 (25-44) / Archive (<25)\nEstimated Value: [dollar amount]\nResponse Deadline: [date]\nRevenue Timing: Immediate (<90d) / Near-term (90-180d) / Medium (180-365d) / Long (365d+)\nStaffing Status: Green / Yellow / Red\nPricing Posture: Aggressive / Competitive / Premium\nIncumbent: [name or None/Unknown]\nEffort Level: Low / Medium / High / Very High\n\n" +
+      "1. WHAT THIS IS\n" +
+      "8-10 specific bullets naming the actual program, funding source, scope, deliverables, period of performance, and how this fits HGI core verticals.\n\n" +
+      "2. WHY HGI WINS THIS\n" +
+      "8-10 bullets. Tie each win factor to a specific eval criterion. Reference HGI actual past performance: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 28 years, Jefferson Parish, Terrebonne Parish, Restore Louisiana. Name the specific HGI capability mapping to each requirement.\n\n" +
+      "3. WHY HGI LOSES THIS\n" +
+      "6-8 bullets. Be brutally honest — incumbent relationships, missing certs, staffing gaps, price sensitivity, geographic disadvantage, past performance gaps. No sugarcoating.\n\n" +
+      "4. OPI SCORE BREAKDOWN\n" +
+      "Score each sub-factor 0-10 with one-line rationale:\n- Past Performance Match (0-10):\n- Technical Capability Match (0-10):\n- Staffing Depth (0-10):\n- Pricing Competitiveness (0-10):\n- Relationship / Incumbent Position (0-10):\n- Geographic Presence (0-10):\n- Budget Certainty (0-10):\n- Revenue Timing (0-10):\n- Strategic Importance (0-10):\n- Bid/No-Bid Risk (0-10):\nTOTAL OPI: [sum/10 scaled to 100]\nPWIN: [percentage with one-sentence reasoning]\n\n" +
+      "5. COMPETITIVE LANDSCAPE\n" +
+      "Who else is likely bidding? For each likely competitor: their position (incumbent/challenger), known strengths, relationship with this agency, and how HGI beats them. Name real firms: ICF, Hagerty, Witt O'Brien's, Dewberry, CDM Smith, APTIM, Guidehouse, IEM, Cloudburst.\n\n" +
+      "6. PRICING STRATEGY\n" +
+      "Recommended approach, target price range, indirect rate considerations, fee structure, PTW recommendation. Price to win or price for margin — make a call.\n\n" +
+      "7. STAFFING FEASIBILITY\n" +
+      "Key personnel required vs. HGI bench. Specific gaps. Teaming partners needed. Mobilization timeline risk.\n\n" +
+      "8. 48-HOUR ACTION PLAN\n" +
+      "10 specific, actionable steps. Not generic — name the actual deliverable, the actual person type, the actual deadline. E.g. 'Call agency POC to confirm procurement timeline — BD Director — today by EOD'.\n\n" +
+      "9. INTEL GAPS\n" +
+      "What do we NOT know that we need before submitting? What calls need to happen? What documents need to be retrieved?\n\n" +
+      "10. DECISION LOGIC\n" +
+      "One decisive paragraph. Make the call explicitly: GO, CONDITIONAL GO, NO-BID, or WATCHLIST. Explain exactly why. No hedging.\n\n" +
+      "DECOMPOSITION:\n" + decomp + "\n\nCONTEXT (use throughout your analysis):\n" + ctx;
   };
 
   const autoResearch = async (decomp, oppTitle, oppAgency) => {
