@@ -1,8 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+export const config = { maxDuration: 30 };
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const sbHeaders = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' };
+const sbGet = async (path) => { const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, { headers: sbHeaders }); return r.json(); };
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -11,16 +11,7 @@ export default async function handler(req, res) {
 
   try {
     // Query opportunities
-    const { data: opportunities, error } = await supabase
-      .from('opportunities')
-      .select('*')
-      .eq('status', 'active')
-      .order('opi_score', { ascending: false })
-      .limit(50);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    const opportunities = await sbGet('opportunities?status=eq.active&order=opi_score.desc&limit=50');
 
     // Calculate pipeline health
     const pipelineHealth = {
@@ -57,14 +48,10 @@ export default async function handler(req, res) {
     }));
 
     // Get last hunt run timestamp
-    const { data: huntData } = await supabase
-      .from('hunt_runs')
-      .select('created_at')
-      .order('created_at', { ascending: false })
-      .limit(1);
+    const huntData = await sbGet('hunt_runs?order=run_at.desc&limit=1');
 
     const weeklyDigestSummary = {
-      lastHuntRun: huntData?.[0]?.created_at || null
+      lastHuntRun: huntData?.[0]?.run_at || null
     };
 
     const briefData = {
