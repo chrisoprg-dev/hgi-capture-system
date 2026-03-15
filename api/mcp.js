@@ -187,7 +187,39 @@ const handleTool = async (name, input) => {
         sb('knowledge_documents?select=status,vertical,filename&limit=1000').catch(() => []),
         sb('hunt_runs?select=run_at,status&order=run_at.desc&limit=5').catch(() => [])
       ]);
-      return { pipeline: { total: opps.length, tier1: opps.filter(o => o.opi_score >= 70).length, pursuing: opps.filter(o => o.stage === 'pursuing').length, proposal: opps.filter(o => o.stage === 'proposal').length }, knowledge_base: { total: docs.length, extracted: docs.filter(d => d.status === 'extracted').length }, recent_hunts: hunts, timestamp: new Date().toISOString() };
+
+      // Apify scraper status check
+      let apifyStatus = null;
+      try {
+        const APIFY_TOKEN = 'apify_api_CFeI1ZehZ3HHClJFJfsVypn0KMPJSQ1b7nmO';
+        const actsRes = await fetch('https://api.apify.com/v2/acts?token=' + APIFY_TOKEN + '&my=true');
+        if (actsRes.ok) {
+          const actsData = await actsRes.json();
+          const actor = (actsData.data?.items || []).find(a => a.name === 'hgi-central-bidding-scraper');
+          if (actor) {
+            const runsRes = await fetch('https://api.apify.com/v2/acts/' + actor.id + '/runs?token=' + APIFY_TOKEN + '&limit=1&desc=true');
+            if (runsRes.ok) {
+              const runsData = await runsRes.json();
+              const lastRun = runsData.data?.items?.[0];
+              if (lastRun) {
+                const logRes = await fetch('https://api.apify.com/v2/actor-runs/' + lastRun.id + '/log?token=' + APIFY_TOKEN);
+                const logText = logRes.ok ? await logRes.text() : '';
+                apifyStatus = {
+                  actorId: actor.id,
+                  lastRunId: lastRun.id,
+                  status: lastRun.status,
+                  startedAt: lastRun.startedAt,
+                  finishedAt: lastRun.finishedAt,
+                  buildId: lastRun.buildId,
+                  log_tail: logText.slice(-3000)
+                };
+              }
+            }
+          }
+        }
+      } catch(e) { apifyStatus = { error: e.message }; }
+
+      return { pipeline: { total: opps.length, tier1: opps.filter(o => o.opi_score >= 70).length, pursuing: opps.filter(o => o.stage === 'pursuing').length, proposal: opps.filter(o => o.stage === 'proposal').length }, knowledge_base: { total: docs.length, extracted: docs.filter(d => d.status === 'extracted').length }, recent_hunts: hunts, apify: apifyStatus, timestamp: new Date().toISOString() };
     }
 
     case 'query_database': {
