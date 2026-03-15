@@ -48,180 +48,170 @@ const extractDetailsFromText = (text) => {
     return { agency, deadline, value };
 };
 
-let firstBidProcessed = false;
-
 const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: 300,
-    maxConcurrency: 3,
+    maxConcurrency: 1,
     requestHandlerTimeoutSecs: 120,
-    requestHandler: async ({ page, request, log, addRequests, pushData }) => {
+    requestHandler: async ({ page, request, log }) => {
         if (request.label === 'LOGIN') {
             const batch = await Actor.getValue('batch') || 0;
             log.info(`Starting batch ${batch}`);
             
+            // Login on the same page
             await page.fill('input[name="username"]', CB_USERNAME);
             await page.fill('input[type="password"]', CB_PASSWORD);
             await page.keyboard.press('Enter');
             await page.waitForTimeout(5000);
             
-            // Store cookies after successful login
-            const cookies = await page.context().cookies();
-            await Actor.setValue('cookies', cookies);
-            log.info('Stored login cookies');
+            log.info('Login completed');
             
+            // Navigate to the Louisiana page
             await page.goto('https://www.centralauctionhouse.com/rfpc1-Louisiana.html');
             await page.waitForTimeout(3000);
             
-            const categoryLinks = await page.$$eval('a[href*="/Category/"]', links => 
-                links.map(link => link.href).filter((href, index, arr) => arr.indexOf(href) === index)
-            );
+            // Get all category links
+            const categoryLinks = await page.evaluate(() => {
+                const links = Array.from(document.querySelectorAll('a[href*="/Category/"]'));
+                return links.map(link => link.href).filter((href, index, arr) => arr.indexOf(href) === index);
+            });
             
             log.info(`Found ${categoryLinks.length} category links`);
             
+            // Take only categories from index (batch*20) to ((batch+1)*20)
             const startIndex = batch * 20;
             const endIndex = (batch + 1) * 20;
             const batchCategories = categoryLinks.slice(startIndex, endIndex);
             
-            await addRequests(batchCategories.map(url => ({ url, label: 'CATEGORY' })));
-            await Actor.setValue('batch', (batch + 1) % 25);
+            log.info(`Processing categories ${startIndex} to ${endIndex - 1} (${batchCategories.length} categories)`);
             
-        } else if (request.label === 'CATEGORY') {
-            // Load cookies at the start of CATEGORY handler
-            const cookies = await Actor.getValue('cookies');
-            if (cookies) {
-                await page.context().addCookies(cookies);
-                log.info('Loaded authentication cookies');
-            }
-            
-            await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
-            
-            const bidLinks = await page.$$eval('a', links => 
-                links.map(link => link.href)
-                     .filter(href => href && href.includes('centralauctionhouse.com/rfp'))
-                     .filter(href => href.endsWith('.html') && /\/rfp\d+/.test(href))
-                     .filter((href, index, arr) => arr.indexOf(href) === index)
-            );
-            
-            log.info(`Found ${bidLinks.length} bid links in category`);
-            const limitedBidLinks = bidLinks.slice(0, 2); // Limit to 2 bid pages per category
-            
-            // Extract agency name from category URL
-            const categoryUrl = request.url;
-            const agencyMatch = categoryUrl.match(/\/Category\/([^\/]+)/);
-            const categoryAgency = agencyMatch ? agencyMatch[1] : '';
-            
-            for (let i = 0; i < limitedBidLinks.length; i++) {
-                const bidUrl = limitedBidLinks[i];
-                log.info(`Processing bid ${i + 1}/${limitedBidLinks.length}: ${bidUrl}`);
+            // For each category
+            for (const categoryUrl of batchCategories) {
+                log.info(`Processing category: ${categoryUrl}`);
                 
                 try {
-                    // Add cookies before each individual bid page visit
-                    const cookies = await Actor.getValue('cookies');
-                    if (cookies) {
-                        await page.context().addCookies(cookies);
-                    }
+                    // Navigate to category with page.goto
+                    await page.goto(categoryUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+                    await page.waitForTimeout(2000);
                     
-                    // 1) Load each bid page
-                    await page.goto(bidUrl, {waitUntil: 'domcontentloaded', timeout: 10000});
+                    // Get all rfp links ending in .html
+                    const bidLinks = await page.evaluate(() => {
+                        const links = Array.from(document.querySelectorAll('a'));
+                        return links.map(link => link.href)
+                                   .filter(href => href && href.includes('centralauctionhouse.com/rfp'))
+                                   .filter(href => href.endsWith('.html') && /\/rfp\d+/.test(href))
+                                   .filter((href, index, arr) => arr.indexOf(href) === index);
+                    });
                     
-                    // Screenshot and debug for first bid only
-                    if (!firstBidProcessed) {
-                        // Log the full page URL
-                        log.info(`Full page URL after navigation: ${page.url()}`);
+                    log.info(`Found ${bidLinks.length} bid links in category`);
+                    
+                    // Take first 2
+                    const limitedBidLinks = bidLinks.slice(0, 2);
+                    
+                    // Extract agency name from category URL
+                    const agencyMatch = categoryUrl.match(/\/Category\/([^\/]+)/);
+                    const categoryAgency = agencyMatch ? agencyMatch[1] : '';
+                    
+                    // For each bid link
+                    for (const bidUrl of limitedBidLinks) {
+                        log.info(`Processing bid: ${bidUrl}`);
                         
-                        // Get page text and log first 500 characters
-                        const pageText = await page.evaluate(() => document.body.innerText);
-                        log.info(`First 500 characters of page text: ${pageText.substring(0, 500)}`);
-                        
-                        // Take screenshot and save to key-value store
-                        await page.screenshot({path: 'bid-page.png'});
-                        await Actor.setValue('bid-screenshot', await page.screenshot(), {contentType: 'image/png'});
-                        log.info('Screenshot saved to key-value store');
-                        
-                        firstBidProcessed = true;
-                        break; // Break out of the loop after the first bid
-                    }
-                    
-                    // 2) Extract the full page text
-                    const fullPageText = await page.evaluate(() => document.body.innerText);
-                    
-                    // 3) Extract title from h1 or h2 first, fall back to URL slug
-                    let title = '';
-                    try {
-                        title = await page.evaluate(() => {
-                            const h1 = document.querySelector('h1');
-                            if (h1 && h1.innerText.trim()) {
-                                return h1.innerText.trim();
+                        try {
+                            // Navigate to bid with page.goto
+                            await page.goto(bidUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+                            await page.waitForTimeout(1000);
+                            
+                            // Get the full page text
+                            const fullPageText = await page.evaluate(() => document.body.innerText);
+                            
+                            // Extract title from h1/h2
+                            let title = '';
+                            try {
+                                title = await page.evaluate(() => {
+                                    const h1 = document.querySelector('h1');
+                                    if (h1 && h1.innerText.trim()) {
+                                        return h1.innerText.trim();
+                                    }
+                                    const h2 = document.querySelector('h2');
+                                    if (h2 && h2.innerText.trim()) {
+                                        return h2.innerText.trim();
+                                    }
+                                    return '';
+                                });
+                            } catch (error) {
+                                log.info(`Could not extract title from page elements: ${error.message}`);
                             }
-                            const h2 = document.querySelector('h2');
-                            if (h2 && h2.innerText.trim()) {
-                                return h2.innerText.trim();
+                            
+                            // Fall back to URL slug if no title found
+                            if (!title) {
+                                const urlMatch = bidUrl.match(/\/rfp\d+-([^\/]+)/);
+                                if (urlMatch && urlMatch[1]) {
+                                    title = urlMatch[1]
+                                        .replace(/\.html$/, '')
+                                        .replace(/-/g, ' ')
+                                        .split(' ')
+                                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                                        .join(' ');
+                                }
                             }
-                            return '';
-                        });
-                    } catch (error) {
-                        log.info(`Could not extract title from page elements: ${error.message}`);
-                    }
-                    
-                    // Fall back to URL slug if no title found
-                    if (!title) {
-                        const urlMatch = bidUrl.match(/\/rfp\d+-([^\/]+)/);
-                        if (urlMatch && urlMatch[1]) {
-                            title = urlMatch[1]
-                                .replace(/\.html$/, '')
-                                .replace(/-/g, ' ')
-                                .split(' ')
-                                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                                .join(' ');
+                            
+                            if (!title) {
+                                log.info(`Could not extract title from URL or page: ${bidUrl}`);
+                                continue;
+                            }
+                            
+                            // Check isRelevant against full text
+                            if (!isRelevant(title, fullPageText)) {
+                                log.info(`Not relevant: ${title}`);
+                                continue;
+                            }
+                            
+                            log.info(`RELEVANT: ${title}`);
+                            
+                            // Extract agency/deadline/value
+                            const extractedDetails = extractDetailsFromText(fullPageText);
+                            
+                            const opportunity = {
+                                title: title,
+                                agency: extractedDetails.agency || categoryAgency,
+                                source_url: bidUrl,
+                                state: 'LA',
+                                vertical: 'disaster',
+                                source: 'Central Bidding',
+                                deadline: extractedDetails.deadline,
+                                value: extractedDetails.value
+                            };
+                            
+                            // POST to intake URL
+                            try {
+                                await fetch(INTAKE_URL, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'x-intake-secret': INTAKE_SECRET
+                                    },
+                                    body: JSON.stringify(opportunity)
+                                });
+                            } catch (error) {
+                                log.error(`Failed to post to intake: ${error.message}`);
+                            }
+                            
+                            // Call Actor.pushData
+                            await Actor.pushData(opportunity);
+                            
+                        } catch (error) {
+                            log.error(`Error processing bid ${bidUrl}: ${error.message}`);
                         }
                     }
                     
-                    if (!title) {
-                        log.info(`Could not extract title from URL or page: ${bidUrl}`);
-                        continue;
-                    }
-                    
-                    // 4) Check isRelevant against BOTH the title AND the full page text
-                    if (!isRelevant(title, fullPageText)) {
-                        log.info(`Not relevant: ${title}`);
-                        continue;
-                    }
-                    
-                    log.info(`RELEVANT: ${title}`);
-                    
-                    // 5) If relevant, extract agency/deadline/value from the page text
-                    const extractedDetails = extractDetailsFromText(fullPageText);
-                    
-                    const opportunity = {
-                        title: title,
-                        agency: extractedDetails.agency || categoryAgency,
-                        source_url: bidUrl,
-                        state: 'LA',
-                        vertical: 'disaster',
-                        source: 'Central Bidding',
-                        deadline: extractedDetails.deadline,
-                        value: extractedDetails.value
-                    };
-                    
-                    await pushData(opportunity);
-                    
-                    try {
-                        await fetch(INTAKE_URL, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'x-intake-secret': INTAKE_SECRET
-                            },
-                            body: JSON.stringify(opportunity)
-                        });
-                    } catch (error) {
-                        log.error(`Failed to post to intake: ${error.message}`);
-                    }
-                    
                 } catch (error) {
-                    log.error(`Error processing bid ${bidUrl}: ${error.message}`);
+                    log.error(`Error processing category ${categoryUrl}: ${error.message}`);
                 }
             }
+            
+            // Save next batch to key-value store
+            await Actor.setValue('batch', (batch + 1) % 25);
+            
+            log.info(`Completed batch ${batch}. Next batch: ${(batch + 1) % 25}`);
         }
     }
 });
