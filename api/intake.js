@@ -232,7 +232,7 @@ export default async function handler(req, res) {
     });
   }
 
-  if (!source || !source_id || !agency || !url) {
+  if (!source || !source_id || !url) {
     return res.status(200).json({
       status: 'skipped',
       reason: 'validation'
@@ -241,6 +241,8 @@ export default async function handler(req, res) {
 
   // Derive title if missing or empty
   const title = (rawTitle && rawTitle.trim()) ? rawTitle : deriveTitleFromUrl(url);
+  // Default agency if not provided
+  const finalAgency = (agency && agency.trim()) ? agency : 'Louisiana Agency (via Central Bidding)';
 
   // ── Generate deterministic ID ────────────────────────────────────────────
   const sourcePrefix = source.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 10);
