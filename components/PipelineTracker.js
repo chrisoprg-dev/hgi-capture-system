@@ -92,10 +92,11 @@ function PipelineTracker({ goToWorkflow }) {
     try {
       if (editItem) {
         // Update existing opportunity
-        const response = await fetch(`/api/opportunities/${editItem.id}`, {
+        const response = await fetch('/api/opportunities', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            id: editItem.id,
             title: form.title,
             agency: form.agency,
             vertical: form.type,
