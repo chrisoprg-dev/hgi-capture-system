@@ -41,11 +41,11 @@ export default async function handler(req, res) {
       // Also update the opportunity record with the event timestamp if opportunity_id provided
       if (opportunity_id) {
         const updateMap = {
-          'workflow.completed': { stage: 'qualifying', last_updated: new Date().toISOString() },
+          'workflow.completed': { status: 'active', last_updated: new Date().toISOString() },
           'proposal.section_drafted': { last_updated: new Date().toISOString() },
           'opportunity.stage_changed': { last_updated: new Date().toISOString() },
-          'opportunity.won': { stage: 'won', last_updated: new Date().toISOString() },
-          'opportunity.lost': { stage: 'lost', last_updated: new Date().toISOString() },
+          'opportunity.won': { status: 'won', last_updated: new Date().toISOString() },
+          'opportunity.lost': { status: 'lost', last_updated: new Date().toISOString() },
           'proposal.exported': { last_updated: new Date().toISOString() }
         };
         const update = updateMap[event_type];
