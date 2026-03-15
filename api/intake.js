@@ -29,6 +29,58 @@ function stripScripts(html) {
     .trim();
 }
 
+function extractDaysUntilDeadline(dueDateString) {
+  if (!dueDateString) return null;
+  
+  const now = new Date();
+  let dueDate = null;
+  
+  // Try multiple date formats
+  const formats = [
+    // ISO format
+    /^\d{4}-\d{2}-\d{2}/,
+    // MM/DD/YYYY or MM-DD-YYYY
+    /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/,
+    // DD/MM/YYYY or DD-MM-YYYY (European)
+    /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/,
+    // Month DD, YYYY
+    /^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/,
+    // DD Month YYYY
+    /^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/
+  ];
+  
+  // First try direct Date parsing
+  dueDate = new Date(dueDateString);
+  if (!isNaN(dueDate.getTime())) {
+    const diffTime = dueDate - now;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+  
+  // If that fails, try manual parsing
+  const dateStr = dueDateString.trim();
+  
+  // Try ISO format first
+  if (formats[0].test(dateStr)) {
+    dueDate = new Date(dateStr);
+    if (!isNaN(dueDate.getTime())) {
+      const diffTime = dueDate - now;
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+  }
+  
+  // Try MM/DD/YYYY format
+  const mmddyyyy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (mmddyyyy) {
+    dueDate = new Date(mmddyyyy[3], mmddyyyy[1] - 1, mmddyyyy[2]);
+    if (!isNaN(dueDate.getTime())) {
+      const diffTime = dueDate - now;
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+  }
+  
+  return null;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -307,12 +359,37 @@ Return ONLY this exact JSON with no markdown:
     });
   }
 
+  // ── Apply deadline proximity adjustment ──────────────────────────────────
+  const days_until_deadline = extractDaysUntilDeadline(response_deadline);
+  let finalOpiScore = analysis.opi_score;
+  let finalStatus = "active";
+  let finalUrgency = analysis.urgency;
+  
+  if (days_until_deadline !== null) {
+    if (days_until_deadline <= 0) {
+      finalStatus = "filtered";
+      finalOpiScore = 0;
+    } else if (days_until_deadline >= 1 && days_until_deadline <= 6) {
+      finalOpiScore = Math.max(0, finalOpiScore - 35);
+      finalUrgency = "IMMEDIATE";
+    } else if (days_until_deadline >= 7 && days_until_deadline <= 13) {
+      finalOpiScore = Math.max(0, finalOpiScore - 20);
+      finalUrgency = "CRITICAL";
+    } else if (days_until_deadline >= 14 && days_until_deadline <= 20) {
+      finalOpiScore = Math.max(0, finalOpiScore - 10);
+      finalUrgency = "URGENT";
+    } else if (days_until_deadline >= 21 && days_until_deadline <= 30) {
+      finalOpiScore = Math.max(0, finalOpiScore - 5);
+      finalUrgency = "APPROACHING";
+    }
+  }
+
   // ── Save full analysis to Supabase ───────────────────────────────────────
   try {
-    await dbPatch("opportunities", recordId, {
+    const updateData = {
       vertical: analysis.vertical,
-      opi_score: analysis.opi_score,
-      urgency: analysis.urgency,
+      opi_score: finalOpiScore,
+      urgency: finalUrgency,
       strategic_importance: analysis.strategic_importance,
       hgi_relevance: analysis.hgi_relevance,
       hgi_fit: analysis.hgi_fit,
@@ -323,10 +400,16 @@ Return ONLY this exact JSON with no markdown:
       incumbent: analysis.incumbent || "",
       recompete: analysis.recompete || false,
       description: analysis.description || description.slice(0, 500),
-      status: "active",
+      status: finalStatus,
       analyzed_at: now,
       last_updated: now,
-    });
+    };
+    
+    if (days_until_deadline !== null) {
+      updateData.days_until_deadline = days_until_deadline;
+    }
+    
+    await dbPatch("opportunities", recordId, updateData);
   } catch (e) {
     console.error("Failed to save analysis:", e.message);
     return res.status(500).json({ error: "Analysis save failed", details: e.message });
@@ -349,9 +432,9 @@ Return ONLY this exact JSON with no markdown:
     success: true,
     id: recordId,
     title,
-    opi_score: analysis.opi_score,
+    opi_score: finalOpiScore,
     hgi_relevance: analysis.hgi_relevance,
-    urgency: analysis.urgency,
+    urgency: finalUrgency,
     vertical: analysis.vertical,
     strategic_importance: analysis.strategic_importance,
   });
