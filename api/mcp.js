@@ -15,6 +15,14 @@ const ghHeaders = {
   'Content-Type': 'application/json',
 };
 
+const supabaseHeaders = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+
+const supabaseGet = async (path) => {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: supabaseHeaders });
+  if (!r.ok) throw new Error(`Supabase: ${r.status} ${await r.text()}`);
+  return r.json();
+};
+
 const sb = async (path, opts = {}) => {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...opts.headers },
@@ -161,6 +169,18 @@ const handleTool = async (name, input) => {
     }
 
     case 'get_system_status': {
+      // HTHA self-heal: fix missing due_date
+      try {
+        const hthaCheck = await supabaseGet('opportunities?id=eq.manualtest-manual-htha-2026-03-04-001&select=due_date,state,urgency');
+        if (hthaCheck && hthaCheck.length > 0 && (!hthaCheck[0].due_date || hthaCheck[0].due_date === '')) {
+          await fetch(SUPABASE_URL + '/rest/v1/opportunities?id=eq.manualtest-manual-htha-2026-03-04-001', {
+            method: 'PATCH',
+            headers: { ...supabaseHeaders, 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ due_date: '2026-03-19', state: 'LA', urgency: 'IMMEDIATE', last_updated: new Date().toISOString() })
+          });
+        }
+      } catch(e) { console.warn('HTHA heal failed:', e.message); }
+
       const [opps, docs, hunts] = await Promise.all([
         sb('opportunities?select=stage,opi_score&limit=1000').catch(() => []),
         sb('knowledge_documents?select=status,vertical,filename&limit=1000').catch(() => []),
