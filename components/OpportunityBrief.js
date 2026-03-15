@@ -1,4 +1,3 @@
-```javascript
 function OpportunityBrief() {
   const [opps, setOpps] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -201,10 +200,10 @@ function OpportunityBrief() {
       // EXECUTIVE SUMMARY
       React.createElement(Card, {style:{marginBottom:16}},
         React.createElement('div', {style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:10}}, 'EXECUTIVE SUMMARY'),
-        o.description && React.createElement('div', {style:{marginBottom:12}}, ...renderMarkdown(o.description)),
+        o.description && React.createElement('div', {style:{marginBottom:12}}, ...(renderMarkdown(o.description) || [])),
         o.hgi_fit && React.createElement('div', {style:{background:BG3,borderRadius:4,padding:14,border:'1px solid '+GOLD+'22'}},
           React.createElement('div', {style:{color:GOLD,fontSize:10,fontWeight:700,letterSpacing:'0.08em',marginBottom:6}}, 'HGI FIT ANALYSIS'),
-          React.createElement('div', null, ...renderMarkdown(o.hgi_fit))
+          React.createElement('div', null, ...(renderMarkdown(o.hgi_fit) || []))
         )
       ),
 
@@ -223,7 +222,7 @@ function OpportunityBrief() {
         ),
         o.capture_action && React.createElement('div', {style:{padding:'10px 14px',background:GOLD+'11',border:'1px solid '+GOLD+'33',borderRadius:4,marginBottom:12}},
           React.createElement('div', {style:{color:GOLD,fontSize:10,fontWeight:700,letterSpacing:'0.08em',marginBottom:4}}, 'CAPTURE ACTION'),
-          React.createElement('div', null, ...renderMarkdown(o.capture_action))
+          React.createElement('div', null, ...(renderMarkdown(o.capture_action) || []))
         ),
         React.createElement('div', {style:{display:'flex',gap:20,fontSize:12,color:TEXT_D}},
           o.incumbent && React.createElement('span', null, 'Incumbent: ', React.createElement('strong', {style:{color:ORANGE}}, o.incumbent)),
@@ -285,4 +284,3 @@ function OpportunityBrief() {
     )
   );
 }
-```
