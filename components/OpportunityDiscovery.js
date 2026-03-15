@@ -276,6 +276,32 @@ Extract and return as JSON:
   // Load on mount
   useEffect(() => { loadOpportunities(); }, []);
 
+  useEffect(() => {
+    const fetchFemaDeclarations = async () => {
+      try {
+        const res = await fetch('/api/disaster-monitor');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setDisasterAlerts(prev => {
+              const combined = [...data, ...prev];
+              const seen = new Set();
+              return combined.filter(d => {
+                const key = d.disasterNumber || d.event || d.title || JSON.stringify(d);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+            });
+          }
+        }
+      } catch(e) {}
+    };
+    fetchFemaDeclarations();
+    const interval = setInterval(fetchFemaDeclarations, 300000); // every 5 min
+    return () => clearInterval(interval);
+  }, []);
+
   const sendToWorkflow = (opp) => {
     setSendingToWorkflow(opp.id);
     const rfpContext = `OPPORTUNITY: ${opp.title}\nAGENCY: ${opp.agency}\nSTATE: ${opp.state}\nVERTICAL: ${opp.vertical}\nESTIMATED VALUE: ${opp.estimatedValue}\nTIMING: ${opp.timing}\nSOURCE: ${opp.source}\nWHY HGI WINS: ${Array.isArray(opp.whyHgiWins) ? opp.whyHgiWins.join("; ") : opp.whyHgiWins}\nINCUMBENT: ${opp.incumbent || "Unknown"}\nOPI SCORE: ${opp.opiScore}`;
