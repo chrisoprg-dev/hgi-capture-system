@@ -170,22 +170,13 @@ const crawler = new PlaywrightCrawler({
                             log.info(`Page contains "99.99": ${contains99}, "Place a Bid": ${containsPlaceBid}, "Download": ${containsDownload}`);
                             
                             // Extract title from h1/h2
-                            let title = '';
-                            try {
-                                title = await page.evaluate(() => {
-                                    const h1 = document.querySelector('h1');
-                                    if (h1 && h1.innerText.trim()) {
-                                        return h1.innerText.trim();
-                                    }
-                                    const h2 = document.querySelector('h2');
-                                    if (h2 && h2.innerText.trim()) {
-                                        return h2.innerText.trim();
-                                    }
-                                    return '';
-                                });
-                            } catch (error) {
-                                log.info(`Could not extract title from page elements: ${error.message}`);
-                            }
+                            const title = await page.evaluate(() => {
+                                const h1 = document.querySelector('h1');
+                                if (h1 && h1.textContent.trim().length > 3) return h1.textContent.trim();
+                                const h2 = document.querySelector('h2');
+                                if (h2 && h2.textContent.trim().length > 3) return h2.textContent.trim();
+                                return document.title.replace('Central Bidding', '').trim();
+                            });
                             
                             // Fall back to URL slug if no title found
                             if (!title) {
