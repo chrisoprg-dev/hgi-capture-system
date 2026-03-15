@@ -241,7 +241,7 @@ const Sel = ({value, onChange, options, style}) => (
 const Label = ({text}) => <label style={{display:"block",fontSize:11,color:TEXT_D,marginBottom:4,letterSpacing:"0.06em"}}>{text}</label>;
 
 function renderMarkdown(text) {
-  if (!text) return null;
+  if (!text) return [React.createElement('span', {key:'empty'}, '')];
   const lines = text.split('\n');
   const elements = [];
   let i = 0;
@@ -306,7 +306,7 @@ const AIOut = ({content, loading, label="AI ANALYSIS"}) => {
   if (!content) return null;
   return React.createElement('div', {style:{background:BG3,border:'1px solid '+GOLD+'33',borderRadius:4,padding:14}},
     React.createElement('div', {style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:10}}, label),
-    ...renderMarkdown(content)
+    ...(renderMarkdown(content) || [])
   );
 };
 
