@@ -404,6 +404,19 @@ function Dashboard({ setActive }) {
         </div>
       )}
 
+      {/* MARKET PULSE */}
+      {intel?.market_pulse && (
+        <Card style={{marginBottom:20, border:`1px solid ${GOLD}22`, background:BG3}}>
+          <div style={{display:'flex', gap:12, alignItems:'flex-start'}}>
+            <span style={{fontSize:20}}>📡</span>
+            <div>
+              <div style={{color:GOLD, fontSize:10, fontWeight:700, letterSpacing:'0.1em', marginBottom:6}}>MARKET PULSE — THIS WEEK</div>
+              <div style={{color:TEXT_D, fontSize:13, lineHeight:1.7}}>{intel.market_pulse}</div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* INTELLIGENCE OPERATIONS */}
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:20}}>
         <Card>
