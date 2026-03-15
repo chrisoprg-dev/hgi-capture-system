@@ -21,6 +21,33 @@ const isRelevant = (title, description) => {
     return HGI_KEYWORDS.some(keyword => text.includes(keyword.toLowerCase()));
 };
 
+const extractDetailsFromText = (text) => {
+    let agency = '';
+    let deadline = '';
+    let value = '';
+    
+    // Extract agency - look for patterns like "Agency:" or "Department:"
+    const agencyMatch = text.match(/(?:agency|department|entity|organization):\s*([^\n\r]+)/i);
+    if (agencyMatch) {
+        agency = agencyMatch[1].trim();
+    }
+    
+    // Extract deadline - look for date patterns
+    const deadlineMatch = text.match(/(?:due|deadline|submission|closing)(?:\s+date)?:\s*([^\n\r]+)/i) ||
+                         text.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\w+\s+\d{1,2},\s+\d{4})/);
+    if (deadlineMatch) {
+        deadline = deadlineMatch[1].trim();
+    }
+    
+    // Extract value - look for dollar amounts
+    const valueMatch = text.match(/\$[\d,]+(?:\.\d{2})?/g);
+    if (valueMatch && valueMatch.length > 0) {
+        value = valueMatch[valueMatch.length - 1]; // Take the last/largest value found
+    }
+    
+    return { agency, deadline, value };
+};
+
 const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: 300,
     maxConcurrency: 3,
@@ -74,12 +101,12 @@ const crawler = new PlaywrightCrawler({
             );
             
             log.info(`Found ${bidLinks.length} bid links in category`);
-            const limitedBidLinks = bidLinks.slice(0, 3);
+            const limitedBidLinks = bidLinks.slice(0, 2); // Limit to 2 bid pages per category
             
             // Extract agency name from category URL
             const categoryUrl = request.url;
             const agencyMatch = categoryUrl.match(/\/Category\/([^\/]+)/);
-            const agency = agencyMatch ? agencyMatch[1] : '';
+            const categoryAgency = agencyMatch ? agencyMatch[1] : '';
             
             for (let i = 0; i < limitedBidLinks.length; i++) {
                 const bidUrl = limitedBidLinks[i];
@@ -92,34 +119,68 @@ const crawler = new PlaywrightCrawler({
                         await page.context().addCookies(cookies);
                     }
                     
-                    // Extract title from URL slug
-                    const urlMatch = bidUrl.match(/\/rfp\d+-([^\/]+)/);
-                    if (!urlMatch || !urlMatch[1]) {
-                        log.info(`Could not extract title from URL: ${bidUrl}`);
+                    // 1) Load each bid page
+                    await page.goto(bidUrl, {waitUntil: 'domcontentloaded', timeout: 10000});
+                    
+                    // 2) Extract the full page text
+                    const fullPageText = await page.evaluate(() => document.body.innerText);
+                    
+                    // 3) Extract title from h1 or h2 first, fall back to URL slug
+                    let title = '';
+                    try {
+                        title = await page.evaluate(() => {
+                            const h1 = document.querySelector('h1');
+                            if (h1 && h1.innerText.trim()) {
+                                return h1.innerText.trim();
+                            }
+                            const h2 = document.querySelector('h2');
+                            if (h2 && h2.innerText.trim()) {
+                                return h2.innerText.trim();
+                            }
+                            return '';
+                        });
+                    } catch (error) {
+                        log.info(`Could not extract title from page elements: ${error.message}`);
+                    }
+                    
+                    // Fall back to URL slug if no title found
+                    if (!title) {
+                        const urlMatch = bidUrl.match(/\/rfp\d+-([^\/]+)/);
+                        if (urlMatch && urlMatch[1]) {
+                            title = urlMatch[1]
+                                .replace(/\.html$/, '')
+                                .replace(/-/g, ' ')
+                                .split(' ')
+                                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                                .join(' ');
+                        }
+                    }
+                    
+                    if (!title) {
+                        log.info(`Could not extract title from URL or page: ${bidUrl}`);
                         continue;
                     }
                     
-                    let title = urlMatch[1]
-                        .replace(/\.html$/, '')
-                        .replace(/-/g, ' ')
-                        .split(' ')
-                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                        .join(' ');
-                    
-                    if (!isRelevant(title, '')) {
+                    // 4) Check isRelevant against BOTH the title AND the full page text
+                    if (!isRelevant(title, fullPageText)) {
                         log.info(`Not relevant: ${title}`);
                         continue;
                     }
                     
                     log.info(`RELEVANT: ${title}`);
                     
+                    // 5) If relevant, extract agency/deadline/value from the page text
+                    const extractedDetails = extractDetailsFromText(fullPageText);
+                    
                     const opportunity = {
                         title: title,
-                        agency: agency,
+                        agency: extractedDetails.agency || categoryAgency,
                         source_url: bidUrl,
                         state: 'LA',
                         vertical: 'disaster',
-                        source: 'Central Bidding'
+                        source: 'Central Bidding',
+                        deadline: extractedDetails.deadline,
+                        value: extractedDetails.value
                     };
                     
                     await pushData(opportunity);
