@@ -155,8 +155,8 @@ export default async function handler(req, res) {
       '\n\nFINANCIAL ANALYSIS:\n' + financialAnalysis.slice(0, 1500) +
       '\n\nRESEARCH:\n' + researchBrief.slice(0, 1000) +
       '\n\nHGI KB:\n' + kbContext.slice(0, 1000) +
-      '\n\nScore 0-100 based on: Past Performance Match (30pts), Technical Capability (20pts), Competitive Position (15pts), Relationship Strength (15pts), Strategic Value (10pts), Financial Attractiveness (10pts).\n\nReturn ONLY a single line: REVISED_OPI: [number]',
-      'Return ONLY: REVISED_OPI: [number]. Nothing else.', 100
+      '\n\nSCORING RULES:\n- If the scope analysis found this is NOT HGI core work (insurance brokerage, health insurance TPA, physical construction, debris removal, IT, engineering, architecture, environmental, medical) — score BELOW 25 regardless of other factors.\n- If scope is HGI-adjacent but not core — score 25-50.\n- If scope is HGI core work — score based on: Past Performance Match (30pts), Technical Capability (20pts), Competitive Position (15pts), Relationship Strength (15pts), Strategic Value (10pts), Financial Attractiveness (10pts).\n\nThe sub-vertical classification from scope analysis is the MOST IMPORTANT input. If the work type does not match what HGI actually does, nothing else matters.\n\nReturn ONLY a single line: REVISED_OPI: [number]',
+      'You are the OPI calibration engine. The sub-vertical classification from scope analysis overrides all other factors. If the work is not HGI core work, the score MUST be below 25. Return ONLY: REVISED_OPI: [number]', 100
     );
     const opiMatch = scoreResponse.match(/REVISED_OPI:\s*(\d+)/i);
     if (opiMatch) {
