@@ -1,22 +1,28 @@
-const { createClient } = require('@supabase/supabase-js');
+export const config = { maxDuration: 30 };
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const H = { 
+  'apikey': supabaseKey, 
+  'Authorization': 'Bearer ' + supabaseKey, 
+  'Content-Type': 'application/json', 
+  'Accept': 'application/json' 
+};
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
   if (req.method === 'GET') {
     try {
-      const { data, error } = await supabase
-        .from('hunt_runs')
-        .select('*')
-        .order('run_at', { ascending: false })
-        .limit(50);
-
-      if (error) {
-        return res.status(500).json({ error: error.message });
+      const r = await fetch(supabaseUrl + '/rest/v1/hunt_runs?order=run_at.desc&limit=50', { headers: H });
+      const data = await r.json();
+      
+      if (!r.ok) {
+        return res.status(500).json({ error: data.message || 'Failed to fetch hunt analytics' });
       }
-
+      
       return res.status(200).json(data);
     } catch (error) {
       return res.status(500).json({ error: 'Failed to fetch hunt analytics' });
@@ -35,7 +41,7 @@ module.exports = async (req, res) => {
         expired_skipped, 
         duplicates_skipped, 
         secret 
-      } = req.body;
+      } = req.body || {};
 
       if (secret !== 'hgi-intake-2026-secure') {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -60,12 +66,15 @@ module.exports = async (req, res) => {
         notes: JSON.stringify(statsObject)
       };
 
-      const { data, error } = await supabase
-        .from('hunt_runs')
-        .insert([insertData]);
+      const r = await fetch(supabaseUrl + '/rest/v1/hunt_runs', {
+        method: 'POST',
+        headers: { ...H, 'Prefer': 'return=minimal' },
+        body: JSON.stringify(insertData)
+      });
 
-      if (error) {
-        return res.status(500).json({ error: error.message });
+      if (!r.ok) {
+        const error = await r.json();
+        return res.status(500).json({ error: error.message || 'Failed to create hunt analytics record' });
       }
 
       return res.status(200).json({ success: true });
@@ -75,4 +84,4 @@ module.exports = async (req, res) => {
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
-};
+}
