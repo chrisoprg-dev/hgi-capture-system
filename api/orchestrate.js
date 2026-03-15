@@ -228,7 +228,7 @@ export default async function handler(req, res) {
         '## 1. COMPLIANCE MATRIX\n' +
         'Map every RFP requirement to where it is addressed in the proposal. Format: Requirement | Section | Status (Compliant/Partial/Gap)\n\n' +
         '## 2. KEY PERSONNEL ASSIGNMENTS\n' +
-        'Map each RFP-required role to the HGI position that fills it. For each: RFP Role | HGI Title | HGI Rate | Justification. Use the HGI rate card: Principal $180, Program Director $165, SME $155, Sr Grant Mgr $150, Grant Mgr $120, Sr PM $150, PM $140, Grant Writer $105, Cost Estimator $125, Appeals Specialist $145, Admin Support $65.\n\n' +
+        'Map each RFP-required role to the HGI position title and rate that fills it. Do NOT assign specific people by name — leave all personnel as TBD. Format: RFP Role | HGI Title | HGI Rate | Personnel: TBD | Justification. Use the HGI rate card: Principal $180, Program Director $165, SME $155, Sr Grant Mgr $150, Grant Mgr $120, Sr PM $150, PM $140, Grant Writer $105, Cost Estimator $125, Appeals Specialist $145, Admin Support $65.\n\n' +
         '## 3. PRICING EXHIBIT\n' +
         'Build the pricing table matching the RFP format exactly. Show every position requested in the RFP with the proposed fully-burdened hourly rate from HGI rate card.\n\n' +
         '## 4. TECHNICAL APPROACH\n' +
