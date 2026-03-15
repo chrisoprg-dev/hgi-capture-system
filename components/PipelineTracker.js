@@ -63,7 +63,8 @@ function PipelineTracker({ goToWorkflow }) {
         if (response.ok) {
           const data = await response.json();
           // Map Supabase columns to frontend field names
-          const mappedData = data.map(item => ({
+          const opps = data.opportunities || data || [];
+          const mappedData = opps.map(item => ({
             id: item.id,
             title: item.title,
             agency: item.agency,
