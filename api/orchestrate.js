@@ -210,24 +210,43 @@ export default async function handler(req, res) {
   } catch(e) { results.winnability_error = e.message; }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // STEP 6: AUTO-PROPOSAL — Only if GO and revised OPI >= 80
+  // STEP 6: AUTO-PROPOSAL PACKAGE — Generate complete proposal from RFP
   // ══════════════════════════════════════════════════════════════════════════
-  if ((recommendation === 'GO' || recommendation === 'CONDITIONAL GO') && revisedOpi >= 80) {
+  if ((recommendation === 'GO' || recommendation === 'CONDITIONAL GO') && revisedOpi >= 75) {
     try {
-      const execSummary = await claudeCall(
-        'Write Executive Summary for HGI proposal. Use ALL intelligence gathered:\n\n' +
-        'Opportunity: ' + opp.title + '\nAgency: ' + opp.agency +
-        '\nScope: ' + scopeAnalysis.slice(0, 800) +
-        '\nFinancial: ' + financialAnalysis.slice(0, 600) +
-        '\nWin Strategy: ' + researchBrief.slice(0, 600) +
-        '\nPwin: ' + pwin + '% | ' + recommendation +
-        '\nHGI KB:\n' + kbContext.slice(0, 1500) +
-        '\n\n600+ words. Address evaluation criteria from scope analysis. Reference financial value proposition. Cite specific HGI past performance.',
-        'HGI senior proposal writer. Every claim must trace back to scope requirements, financial analysis, or verified past performance.', 3000
+      // Parse the RFP to extract evaluation criteria, required sections, and key personnel
+      var rfpContext = (opp.rfp_text || '').slice(0, 6000);
+      
+      var proposalPackage = await claudeCall(
+        'Generate a COMPLETE proposal package for HGI based on the RFP, scope analysis, financial analysis, and research.\n\n' +
+        'RFP TEXT:\n' + rfpContext + '\n\n' +
+        'SCOPE ANALYSIS:\n' + scopeAnalysis.slice(0, 1500) + '\n\n' +
+        'FINANCIAL ANALYSIS:\n' + financialAnalysis.slice(0, 1500) + '\n\n' +
+        'RESEARCH:\n' + researchBrief.slice(0, 1000) + '\n\n' +
+        'HGI KB:\n' + kbContext.slice(0, 2000) + '\n\n' +
+        'Generate ALL of the following sections:\n\n' +
+        '## 1. COMPLIANCE MATRIX\n' +
+        'Map every RFP requirement to where it is addressed in the proposal. Format: Requirement | Section | Status (Compliant/Partial/Gap)\n\n' +
+        '## 2. KEY PERSONNEL ASSIGNMENTS\n' +
+        'Map each RFP-required role to the HGI position that fills it. For each: RFP Role | HGI Title | HGI Rate | Justification. Use the HGI rate card: Principal $180, Program Director $165, SME $155, Sr Grant Mgr $150, Grant Mgr $120, Sr PM $150, PM $140, Grant Writer $105, Cost Estimator $125, Appeals Specialist $145, Admin Support $65.\n\n' +
+        '## 3. PRICING EXHIBIT\n' +
+        'Build the pricing table matching the RFP format exactly. Show every position requested in the RFP with the proposed fully-burdened hourly rate from HGI rate card.\n\n' +
+        '## 4. TECHNICAL APPROACH\n' +
+        'Draft the technical approach section (600+ words) addressing the evaluation criteria. Reference specific scope requirements and how HGI addresses each one.\n\n' +
+        '## 5. PAST PERFORMANCE MATRIX\n' +
+        'List 3 relevant past performance references with: Program Name, Client, Contract Value, Period, HGI Role, Key Outcomes, Relevance to this RFP. Use real HGI past performance only.\n\n' +
+        '## 6. STAFFING & CAPACITY\n' +
+        'Describe HGI staffing approach, surge capacity, and current workload availability. Address the RFP requirement to demonstrate available capacity.\n\n' +
+        '## 7. QUESTIONS FOR THE AGENCY\n' +
+        'List the formal written questions to submit before the question deadline. Each question should reference the specific RFP section it relates to.\n\n' +
+        '## 8. SUBMISSION TIMELINE\n' +
+        'Create a day-by-day timeline from today through submission deadline showing every milestone: question submission, team assignments, draft sections, internal review, red team, final assembly, submission.',
+        'You are HGI senior proposal manager. Generate a COMPLETE submission-ready proposal package. Use real HGI past performance only: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 28 years, Orleans Parish School Board 22 years, City of New Orleans WC TPA. Every section must directly address the RFP evaluation criteria.', 4000
       );
-      await patchOpp(opportunity_id, { rfp_text: ('=== AUTO-GENERATED EXECUTIVE SUMMARY ===\n' + execSummary + '\n\n' + (opp.rfp_text || '').slice(0, 6000)).slice(0, 10000) });
-      await logEvent('proposal.auto_drafted', opportunity_id, opp.title, { section: 'executive_summary', pwin });
-      results.steps_completed.push('proposal_executive_summary');
+
+      await patchOpp(opportunity_id, { rfp_text: proposalPackage });
+      await logEvent('proposal.package_generated', opportunity_id, opp.title, { sections: 8, auto: true });
+      results.steps_completed.push('proposal_package');
     } catch(e) { results.proposal_error = e.message; }
   }
 
