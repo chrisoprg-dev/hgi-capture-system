@@ -81,13 +81,14 @@ export default async function handler(req, res) {
       (sourceContent ? '\nSOURCE PAGE:\n' + sourceContent.slice(0, 4000) : '') +
       '\nHGI KB:\n' + kbContext.slice(0, 2000) +
       '\n\nProvide:\n' +
+      '0. SUB-VERTICAL CLASSIFICATION — Classify the SPECIFIC type of work within the vertical. For example: if tagged "tpa" — is this workers comp TPA (HGI core), health insurance TPA (NOT HGI), insurance brokerage (NOT HGI), property casualty claims (HGI core), or student accident insurance (NOT HGI)? If tagged "disaster" — is this FEMA PA administration (HGI core), physical construction/repair (NOT HGI), debris removal (NOT HGI), or grant management (HGI core)? If tagged "infrastructure" — is this program/construction management (HGI adjacent), or physical construction (NOT HGI)? Be precise. This classification determines whether HGI should even be looking at this opportunity.\n' +
       '1. SCOPE SUMMARY — What is actually being asked for, plain English, 3-5 sentences.\n' +
       '2. DETAILED DELIVERABLES — Every deliverable, task, and work product. If listing is thin, infer from similar contracts for this agency type and vertical.\n' +
       '3. EVALUATION CRITERIA — How will this be scored? Infer from similar Louisiana procurements if not stated.\n' +
       '4. HGI CAPABILITY ALIGNMENT — Map each deliverable to specific HGI past performance. Flag gaps with RED FLAG.\n' +
       '5. COMPLIANCE REQUIREMENTS — Licenses, certs, insurance, bonding, registrations.\n' +
       '6. CRITICAL QUESTIONS — What must HGI ask the agency before committing resources?',
-      'You are a senior government contracting scope analyst specializing in Louisiana procurements. Be exhaustive. When RFP text is thin, use knowledge of similar contracts to build the complete picture.', 2500
+      'You are a senior government contracting scope analyst specializing in Louisiana procurements. CRITICAL: Your first job is to determine the EXACT type of work being requested and whether it matches HGI capabilities. HGI does: workers comp TPA, property casualty TPA, insurance guaranty association administration, FEMA PA grant management, CDBG-DR program administration, disaster recovery program management, property tax appeals, workforce program administration, construction MANAGEMENT (not construction). HGI does NOT do: insurance brokerage, health insurance TPA, physical construction, debris removal, IT services, engineering, architecture, environmental remediation, medical services. Be exhaustive. When RFP text is thin, use knowledge of similar contracts to determine what type of work this actually is.', 2500
     );
     await patchOpp(opportunity_id, { description: (opp.description + '\n\n--- SCOPE ANALYSIS ---\n' + scopeAnalysis).slice(0, 2000) });
     await logEvent('opportunity.scope_analyzed', opportunity_id, opp.title, { step: 'scope' });
