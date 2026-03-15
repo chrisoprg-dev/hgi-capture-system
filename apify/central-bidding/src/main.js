@@ -5,6 +5,8 @@ await Actor.init();
 
 const INTAKE_URL = 'https://hgi-capture-system.vercel.app/api/intake';
 const INTAKE_SECRET = 'hgi-intake-2026-secure';
+const BATCH_API_URL = 'https://hgi-capture-system.vercel.app/api/opportunities';
+const BRIDGE_API_URL = 'https://hgi-capture-system.vercel.app/api/bridge';
 const CB_USERNAME = process.env.CB_USERNAME || 'HGIGLOBAL';
 const CB_PASSWORD = process.env.CB_PASSWORD || 'Whatever1340!';
 
@@ -76,17 +78,87 @@ const parseDate = (dateStr) => {
     return null;
 };
 
+const getCurrentBatch = async (log) => {
+    try {
+        // Try opportunities endpoint first
+        const response = await fetch(`${BATCH_API_URL}?action=get_batch`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data && typeof data.batch === 'number') {
+                log.info(`Got batch ${data.batch} from opportunities endpoint`);
+                return data.batch;
+            }
+        }
+    } catch (error) {
+        log.info(`Failed to get batch from opportunities endpoint: ${error.message}`);
+    }
+
+    try {
+        // Try bridge endpoint as fallback
+        const response = await fetch(`${BRIDGE_API_URL}?action=get_batch`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data && typeof data.batch === 'number') {
+                log.info(`Got batch ${data.batch} from bridge endpoint`);
+                return data.batch;
+            }
+        }
+    } catch (error) {
+        log.info(`Failed to get batch from bridge endpoint: ${error.message}`);
+    }
+
+    // Fallback to Apify key-value store
+    const fallbackBatch = await Actor.getValue('batch') || 0;
+    log.info(`Using fallback batch ${fallbackBatch} from Apify key-value store`);
+    return fallbackBatch;
+};
+
+const saveBatch = async (batch, log) => {
+    // Save to HGI endpoint
+    try {
+        const response = await fetch(BATCH_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'set_batch', batch })
+        });
+        if (response.ok) {
+            log.info(`Saved batch ${batch} to HGI endpoint`);
+        } else {
+            log.error(`Failed to save batch to HGI endpoint: ${response.status}`);
+        }
+    } catch (error) {
+        log.error(`Error saving batch to HGI endpoint: ${error.message}`);
+    }
+
+    // Always save to Apify as backup
+    await Actor.setValue('batch', batch);
+    log.info(`Saved batch ${batch} to Apify key-value store as backup`);
+};
+
+const checkDuplicate = async (sourceUrl, log) => {
+    try {
+        const encodedUrl = encodeURIComponent(sourceUrl);
+        const response = await fetch(`${BATCH_API_URL}?source_url=${encodedUrl}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.length > 0) {
+                return true; // Duplicate found
+            }
+        }
+    } catch (error) {
+        log.error(`Error checking duplicate: ${error.message}`);
+    }
+    return false;
+};
+
 const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: 300,
     maxConcurrency: 1,
     requestHandlerTimeoutSecs: 120,
     requestHandler: async ({ page, request, log }) => {
         if (request.label === 'LOGIN') {
-            const batch = await Actor.getValue('batch') || 0;
+            const batch = await getCurrentBatch(log);
             log.info(`Starting batch ${batch}`);
-            
-            // Load processed bids for deduplication
-            const processedBids = new Set(await Actor.getValue('processed_bids') || []);
             
             // Login on the same page
             await page.fill('input[name="username"]', CB_USERNAME);
@@ -176,9 +248,9 @@ const crawler = new PlaywrightCrawler({
                     
                     // For each bid link
                     for (const bidUrl of limitedBidLinks) {
-                        // Check if bid URL is already processed
-                        if (processedBids.has(bidUrl)) {
-                            log.info(`Already processed: ${bidUrl}`);
+                        // Check if bid URL already exists in pipeline
+                        if (await checkDuplicate(bidUrl, log)) {
+                            log.info(`Already in pipeline: ${bidUrl}`);
                             continue;
                         }
                         
@@ -303,8 +375,6 @@ const crawler = new PlaywrightCrawler({
                                 
                                 if (intakeRes.ok) {
                                     log.info(`SENT TO HGI: ${finalTitle}`);
-                                    // Add to processed bids after successful sending
-                                    processedBids.add(bidUrl);
                                 } else {
                                     const errorText = await intakeRes.text();
                                     console.log('Failed to send to HGI:', intakeRes.status, errorText);
@@ -326,11 +396,8 @@ const crawler = new PlaywrightCrawler({
                 }
             }
             
-            // Save next batch to key-value store
-            await Actor.setValue('batch', (batch + 1) % 24);
-            
-            // Save updated processed bids set
-            await Actor.setValue('processed_bids', [...processedBids]);
+            // Save next batch
+            await saveBatch((batch + 1) % 24, log);
             
             log.info(`Completed batch ${batch}. Next batch: ${(batch + 1) % 24}`);
         }
