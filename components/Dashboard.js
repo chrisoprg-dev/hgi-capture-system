@@ -4,6 +4,7 @@ function Dashboard({ setActive }) {
   const [hthaCountdown, setHthaCountdown] = useState({ days: 0, hours: 0 });
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [pipelineStats, setPipelineStats] = useState({ total: 0, tier1: 0, pursuing: 0, proposal: 0, submitted: 0 });
+  const [scraperStats, setScraperStats] = useState({ lastRun: null, batch: 0, totalBids: 0, totalSent: 0, totalFiltered: 0, totalExpired: 0, runs: [] });
   
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -56,6 +57,30 @@ function Dashboard({ setActive }) {
     };
     fetchStats();
     const interval = setInterval(fetchStats, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchScraperStats = async () => {
+      try {
+        const res = await fetch('/api/hunt-analytics');
+        if (res.ok) {
+          const data = await res.json();
+          const runs = data.runs || data || [];
+          if (runs.length > 0) {
+            const last = runs[0];
+            setScraperStats({
+              lastRun: last.run_at,
+              batch: last.opportunities_found || 0,
+              runs: runs.slice(0, 5),
+              totalSent: runs.reduce((s, r) => s + (r.opportunities_found || 0), 0)
+            });
+          }
+        }
+      } catch (e) {}
+    };
+    fetchScraperStats();
+    const interval = setInterval(fetchScraperStats, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -164,6 +189,37 @@ function Dashboard({ setActive }) {
               </div>
             ))}
           </div>
+        </Card>
+      </div>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+        gap: 16,
+        marginBottom: 20
+      }}>
+        <Card>
+          <div style={{color:GOLD,fontWeight:700,fontSize:Math.max(13,13),marginBottom:12}}>SCRAPER STATUS</div>
+          <div style={{fontSize:12,color:TEXT_D,marginBottom:8}}>
+            Central Bidding · Every 30 min · 479 Louisiana agencies
+          </div>
+          {scraperStats.lastRun ? (
+            <div>
+              <div style={{fontSize:11,color:GREEN,marginBottom:6}}>
+                ✓ Last run: {new Date(scraperStats.lastRun).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
+              </div>
+              <div style={{fontSize:11,color:TEXT_D,marginBottom:4}}>
+                Batch {scraperStats.batch} of 96 · {Math.round(scraperStats.batch/96*100)}% complete
+              </div>
+              <div style={{height:4,background:BG3,borderRadius:2,marginBottom:8}}>
+                <div style={{height:'100%',width:(scraperStats.batch/96*100)+'%',background:GOLD,borderRadius:2}} />
+              </div>
+              <div style={{fontSize:11,color:TEXT_D}}>
+                Total sent to pipeline: <span style={{color:GOLD,fontWeight:700}}>{scraperStats.totalSent}</span>
+              </div>
+            </div>
+          ) : (
+            <div style={{fontSize:12,color:TEXT_D}}>Waiting for first run...</div>
+          )}
         </Card>
       </div>
       <Card style={{border:`1px solid ${GOLD}22`}}>
