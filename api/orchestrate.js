@@ -192,6 +192,15 @@ export default async function handler(req, res) {
     recommendation = recMatch ? recMatch[1] : 'UNDETERMINED';
 
     await patchOpp(opportunity_id, { capture_action: ('PWIN: ' + pwin + '% | ' + recommendation + '\n\n' + winnability).slice(0, 2000) });
+
+    // Auto-filter NO-BID opportunities out of active views
+    if (recommendation === 'NO-BID') {
+      await patchOpp(opportunity_id, { status: 'no_bid' });
+      results.auto_filtered = true;
+    } else if (recommendation === 'CONDITIONAL GO') {
+      await patchOpp(opportunity_id, { status: 'active' });
+    }
+
     await logEvent('opportunity.winnability_scored', opportunity_id, opp.title, { pwin, recommendation });
     results.steps_completed.push('winnability');
     results.pwin = pwin;
