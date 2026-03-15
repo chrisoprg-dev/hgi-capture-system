@@ -8,6 +8,9 @@ function OpportunityBrief() {
   const [scoringResult, setScoringResult] = useState('');
   const [orchestrating, setOrchestrating] = useState(false);
   const [orchestrateResult, setOrchestrateResult] = useState(null);
+  const [scopeAnalysis, setScopeAnalysis] = useState('');
+  const [analyzingScope, setAnalyzingScope] = useState(false);
+  const [fetchingSource, setFetchingSource] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -97,6 +100,57 @@ function OpportunityBrief() {
       if (updated) setSelected(updated);
     } catch(e) { setOrchestrateResult({ error: e.message }); }
     setOrchestrating(false);
+  };
+
+  const runDeepScope = async () => {
+    if (!selected) return;
+    setAnalyzingScope(true);
+    setScopeAnalysis('');
+    
+    // Step 1: Try to fetch the actual source page for more detail
+    let sourceContent = '';
+    if (selected.source_url) {
+      setFetchingSource(true);
+      try {
+        const fetchR = await fetch('/api/fetch-rfp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: selected.source_url })
+        });
+        if (fetchR.ok) {
+          const fetchD = await fetchR.json();
+          sourceContent = (fetchD.textContent || '').slice(0, 8000);
+        }
+      } catch(e) { console.warn('Source fetch failed:', e.message); }
+      setFetchingSource(false);
+    }
+
+    const kb = await queryKB(selected.vertical || 'disaster');
+    const txt = await callClaude(
+      'Deep scope of work analysis for HGI go/no-go decision.\n\n' +
+      'OPPORTUNITY: ' + selected.title + '\n' +
+      'AGENCY: ' + selected.agency + '\n' +
+      'VERTICAL: ' + (selected.vertical || 'general') + '\n' +
+      'OPI SCORE: ' + selected.opi_score + '\n' +
+      'DESCRIPTION: ' + (selected.description || '') + '\n' +
+      'CURRENT SCOPE BULLETS: ' + (selected.scope_of_work || []).join('; ') + '\n' +
+      'KEY REQUIREMENTS: ' + (selected.key_requirements || []).join('; ') + '\n' +
+      'RFP TEXT: ' + (selected.rfp_text || '').slice(0, 3000) + '\n' +
+      (sourceContent ? '\nSOURCE PAGE CONTENT:\n' + sourceContent.slice(0, 5000) : '') +
+      '\n\nHGI KB:\n' + (kb || '').slice(0, 2000) +
+      '\n\nProvide a COMPREHENSIVE scope analysis with these sections:\n\n' +
+      '1. SCOPE SUMMARY — What is actually being asked for? Rewrite in plain English, 3-5 sentences.\n\n' +
+      '2. DETAILED DELIVERABLES — Break down every deliverable, task, and work product the winning firm must produce. Be exhaustive. If the RFP text is thin, infer from the opportunity type and agency what the full scope likely includes based on similar contracts.\n\n' +
+      '3. EVALUATION CRITERIA — What will the agency evaluate? If not stated, predict based on similar Louisiana school board procurements.\n\n' +
+      '4. STAFFING IMPLICATIONS — What roles and how many staff would HGI need? Reference the HGI rate card.\n\n' +
+      '5. HGI CAPABILITY ALIGNMENT — For each deliverable, map it to specific HGI past performance. Red flag any gaps.\n\n' +
+      '6. COMPLIANCE REQUIREMENTS — Licenses, certifications, insurance, bonding, registrations needed.\n\n' +
+      '7. MISSING INFORMATION — What critical details are not available from the listing? What questions should HGI ask the agency before bidding?\n\n' +
+      '8. ESTIMATED LEVEL OF EFFORT — Hours by role, total estimated cost to HGI, suggested pricing range.',
+      'You are a senior government contracting analyst with deep expertise in Louisiana school board procurements and insurance/TPA services. Be specific and thorough. This analysis determines whether HGI commits resources to pursue this opportunity. When the RFP text is thin, use your knowledge of similar procurements to fill in what the full scope likely includes. Reference HGI rate card: Principal $180/hr, Program Director $165/hr, SME $155/hr, PM $140/hr, Grant Manager $120/hr, Admin Support $65/hr.', 4000
+    );
+    setScopeAnalysis(txt);
+    setAnalyzingScope(false);
   };
 
   if (loading) return React.createElement('div', {style:{color:GOLD,padding:40,textAlign:'center',animation:'pulse 1.2s infinite'}}, 'Loading pipeline...');
@@ -189,9 +243,22 @@ function OpportunityBrief() {
       ),
 
       // SCOPE
-      o.scope_of_work && o.scope_of_work.length > 0 && React.createElement(Card, {style:{marginBottom:16}},
+      React.createElement(Card, {style:{marginBottom:16}},
         React.createElement('div', {style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:10}}, 'SCOPE OF WORK'),
-        o.scope_of_work.map((s, i) => React.createElement('div', {key:i,style:{fontSize:12,color:TEXT_D,marginBottom:6,paddingLeft:12,borderLeft:'2px solid '+GOLD+'44'}}, s))
+        (o.scope_of_work && o.scope_of_work.length > 0) 
+          ? o.scope_of_work.map((s, i) => React.createElement('div', {key:i,style:{fontSize:12,color:TEXT_D,marginBottom:6,paddingLeft:12,borderLeft:'2px solid '+GOLD+'44'}}, s))
+          : React.createElement('div', {style:{fontSize:12,color:TEXT_D,marginBottom:10,fontStyle:'italic'}}, 'No scope details extracted from listing. Run Deep Scope Analysis to generate a comprehensive breakdown.'),
+        React.createElement('div', {style:{marginTop:12}},
+          React.createElement(Btn, {onClick:runDeepScope,disabled:analyzingScope,small:true},
+            fetchingSource ? 'Fetching source document...' : analyzingScope ? 'Analyzing scope in depth...' : 'Deep Scope Analysis'
+          )
+        )
+      ),
+
+      // DEEP SCOPE ANALYSIS OUTPUT
+      scopeAnalysis && React.createElement(Card, {style:{marginBottom:16,border:'1px solid '+GOLD+'44'}},
+        React.createElement('div', {style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:10}}, 'DEEP SCOPE ANALYSIS'),
+        React.createElement('div', {style:{color:TEXT_D,fontSize:12,lineHeight:1.8,whiteSpace:'pre-wrap'}}, scopeAnalysis)
       ),
 
       // ACTION BUTTONS
