@@ -5,6 +5,7 @@ function Dashboard({ setActive }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [pipelineStats, setPipelineStats] = useState({ total: 0, tier1: 0, pursuing: 0, proposal: 0, submitted: 0 });
   const [scraperStats, setScraperStats] = useState({ lastRun: null, batch: 0, totalBids: 0, totalSent: 0, totalFiltered: 0, totalExpired: 0, runs: [] });
+  const [winAnalytics, setWinAnalytics] = useState(null);
   
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -82,6 +83,21 @@ function Dashboard({ setActive }) {
     fetchScraperStats();
     const interval = setInterval(fetchScraperStats, 60000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchWinAnalytics = async () => {
+      try {
+        const res = await fetch('/api/win-analytics');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.win_rate !== undefined) {
+            setWinAnalytics(data);
+          }
+        }
+      } catch(e) {}
+    };
+    fetchWinAnalytics();
   }, []);
 
   const tracker = store.get("tracker") || [];
@@ -219,6 +235,20 @@ function Dashboard({ setActive }) {
             </div>
           ) : (
             <div style={{fontSize:12,color:TEXT_D}}>Waiting for first run...</div>
+          )}
+        </Card>
+        <Card>
+          <div style={{color:GOLD,fontWeight:700,fontSize:Math.max(13,13),marginBottom:12}}>WIN RATE ANALYTICS</div>
+          {winAnalytics && winAnalytics.win_rate !== undefined ? (
+            <div>
+              <div style={{fontSize:28,fontWeight:800,color:GREEN,marginBottom:4}}>{Math.round(winAnalytics.win_rate)}%</div>
+              <div style={{fontSize:10,color:TEXT_D,letterSpacing:'0.06em',marginBottom:8}}>OVERALL WIN RATE</div>
+              <div style={{fontSize:11,color:TEXT_D,marginBottom:4}}>Avg OPI won: <span style={{color:GREEN,fontWeight:700}}>{winAnalytics.avg_opi_won}</span></div>
+              <div style={{fontSize:11,color:TEXT_D,marginBottom:8}}>Avg OPI lost: <span style={{color:RED,fontWeight:700}}>{winAnalytics.avg_opi_lost}</span></div>
+              <div style={{fontSize:10,color:winAnalytics.calibration_health&&winAnalytics.calibration_health.includes('GOOD')?GREEN:ORANGE}}>{winAnalytics.calibration_health}</div>
+            </div>
+          ) : (
+            <div style={{fontSize:12,color:TEXT_D}}>No win/loss data yet — update opportunity stages to won or lost to calibrate.</div>
           )}
         </Card>
       </div>
