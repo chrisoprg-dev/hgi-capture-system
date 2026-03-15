@@ -72,13 +72,14 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  // ── Validate required fields with title salvaging ──────────────────────
+  // ── Completely permissive validation with smart defaults ────────────────
   let {
     source,
     source_id,
     title,
     agency,
     url,
+    source_url,
     posted_date = "",
     response_deadline = "",
     estimated_value = "",
@@ -90,16 +91,52 @@ export default async function handler(req, res) {
     raw_html = "",
   } = req.body || {};
 
-  if (!source || !source_id || !agency || !url) {
-    return res.status(400).json({
-      error: "Missing required fields",
-      required: ["source", "source_id", "agency", "url"],
-    });
+  // Accept any request with title OR source_url/url
+  const hasMinimumData = title || url || source_url;
+  if (!hasMinimumData) {
+    // Even if no minimum data, still process with defaults
+    title = "Government Opportunity";
+    url = source_url || "https://example.gov/opportunity";
   }
 
-  // ── Title salvaging logic ────────────────────────────────────────────────
+  // Use source_url as fallback for url
+  if (!url && source_url) {
+    url = source_url;
+  }
+
+  // Generate defaults for missing required fields
   if (!title || title.trim() === "" || title === "$99.99" || title.toLowerCase().includes("$99.99")) {
-    title = generateTitleFromUrl(url);
+    if (url || source_url) {
+      title = generateTitleFromUrl(url || source_url);
+    } else {
+      title = "Government Opportunity";
+    }
+  }
+
+  if (!agency || agency.trim() === "") {
+    agency = "Louisiana Government";
+  }
+
+  if (!state || state.trim() === "") {
+    state = "LA";
+  }
+
+  if (!source || source.trim() === "") {
+    source = "Central Bidding";
+  }
+
+  if (!source_id || source_id.trim() === "") {
+    // Generate source_id from URL or timestamp
+    if (url) {
+      try {
+        const urlObj = new URL(url);
+        source_id = urlObj.pathname.split('/').pop() || Date.now().toString();
+      } catch (e) {
+        source_id = Date.now().toString();
+      }
+    } else {
+      source_id = Date.now().toString();
+    }
   }
 
   // ── Generate deterministic ID ────────────────────────────────────────────
@@ -172,9 +209,9 @@ export default async function handler(req, res) {
       id: recordId,
       title: title.slice(0, 500),
       agency: agency.slice(0, 300),
-      state: state.slice(0, 10) || "Unknown",
+      state: state.slice(0, 10),
       source,
-      source_url: url.slice(0, 1000),
+      source_url: (url || "").slice(0, 1000),
       solicitation_number: source_id.slice(0, 100),
       naics: naics.slice(0, 10),
       set_aside: set_aside.slice(0, 100),
@@ -207,7 +244,7 @@ export default async function handler(req, res) {
     if (t.match(/health|medicaid|public.health|hhs|nursing/)) return "health";
     if (t.match(/construction|infrastructure|transit|capital.program/)) return "construction";
     if (t.match(/federal|pbgc|pension|trust.admin/)) return "federal";
-    return "general";
+    return "disaster"; // Default vertical for Louisiana Government
   })();
 
   let hgiKnowledge = "";
@@ -240,7 +277,7 @@ Wins through: relationships, recompetes, crisis-triggered programs, replicable r
 OPPORTUNITY DATA:
 Title: ${title}
 Agency: ${agency}
-State: ${state || "Unknown"}
+State: ${state}
 Source: ${source}
 URL: ${url}
 NAICS: ${naics || "Unknown"}
