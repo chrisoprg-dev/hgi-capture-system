@@ -527,8 +527,11 @@ Return ONLY this exact JSON with no markdown:
     
     await dbPatch("opportunities", recordId, updateData);
 
-    // ── ORCHESTRATION: Trigger full capture intelligence workflow for high-scoring opportunities ──
-    if (finalOpiScore >= 70) {
+    // ── ORCHESTRATION: Full intelligence workflow for any opportunity that passes initial screen ──
+    // The initial OPI is a preliminary screen only. The orchestrator runs scope analysis,
+    // financial analysis, research, and re-scoring to produce the REAL OPI score.
+    // Threshold: anything above 40 gets the full treatment. Below 40 was already filtered.
+    if (finalOpiScore >= 40 && finalStatus === 'active') {
       fetch('https://hgi-capture-system.vercel.app/api/orchestrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
