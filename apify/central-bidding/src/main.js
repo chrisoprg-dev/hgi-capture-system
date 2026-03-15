@@ -221,7 +221,7 @@ const crawler = new PlaywrightCrawler({
             
             // Take only categories from index (batch*8) to ((batch+1)*8)
             const startIndex = batch * 8;
-            const endIndex = (batch + 1) * 8;
+            const endIndex = Math.min((batch + 1) * 8, categoryLinks.length);
             const batchCategories = categoryLinks.slice(startIndex, endIndex);
             
             log.info(`Processing categories ${startIndex} to ${endIndex - 1} (${batchCategories.length} categories)`);
