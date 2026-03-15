@@ -68,7 +68,7 @@ export default async function handler(req, res) {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // STEP 1: SCOPE ANALYSIS — What is actually being asked for?
+  // STEP 1: DEEP SCOPE ANALYSIS — What is actually being asked for?
   // ══════════════════════════════════════════════════════════════════════════
   let scopeAnalysis = '';
   try {
@@ -124,7 +124,26 @@ export default async function handler(req, res) {
   } catch(e) { results.financial_error = e.message; }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // STEP 3: REVISED OPI SCORE — Now score with real scope and financial data
+  // STEP 3: RESEARCH — Competitive intel informed by real scope
+  // ══════════════════════════════════════════════════════════════════════════
+  let researchBrief = '';
+  try {
+    researchBrief = await claudeCall(
+      'Capture intelligence brief for HGI. You have the scope and financial analysis — use them.\n\n' +
+      'Opportunity: ' + opp.title + '\nAgency: ' + opp.agency + '\nOriginal OPI: ' + opp.opi_score +
+      '\nSCOPE:\n' + scopeAnalysis.slice(0, 1200) +
+      '\nFINANCIAL:\n' + financialAnalysis.slice(0, 1200) +
+      '\nHGI KB:\n' + kbContext.slice(0, 1500) +
+      '\n\nProvide:\n1. AGENCY PROFILE — budget, leadership, procurement patterns\n2. COMPETITIVE LANDSCAPE — who will bid, their strengths/weaknesses relative to HGI, informed by the scope requirements\n3. HGI WIN STRATEGY — 3 differentiators mapped to evaluation criteria from scope analysis\n4. RED FLAGS — from scope, financial, and competitive angles\n5. 48-HOUR ACTION PLAN — exactly what to do, who to call',
+      'HGI senior capture intelligence analyst. Every recommendation must reference specific scope requirements or financial data from the analysis.', 2000
+    );
+    await patchOpp(opportunity_id, { hgi_fit: researchBrief.slice(0, 2000) });
+    await logEvent('opportunity.researched', opportunity_id, opp.title, { step: 'research' });
+    results.steps_completed.push('research');
+  } catch(e) { results.research_error = e.message; }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // STEP 4: REVISED OPI SCORE — Now score with real scope and financial data
   // ══════════════════════════════════════════════════════════════════════════
   let revisedOpi = opp.opi_score;
   try {
@@ -133,6 +152,7 @@ export default async function handler(req, res) {
       'Title: ' + opp.title + '\nAgency: ' + opp.agency + '\nOriginal OPI: ' + opp.opi_score +
       '\n\nSCOPE ANALYSIS:\n' + scopeAnalysis.slice(0, 1500) +
       '\n\nFINANCIAL ANALYSIS:\n' + financialAnalysis.slice(0, 1500) +
+      '\n\nRESEARCH:\n' + researchBrief.slice(0, 1000) +
       '\n\nHGI KB:\n' + kbContext.slice(0, 1000) +
       '\n\nScore 0-100 based on: Past Performance Match (30pts), Technical Capability (20pts), Competitive Position (15pts), Relationship Strength (15pts), Strategic Value (10pts), Financial Attractiveness (10pts).\n\nReturn ONLY a single line: REVISED_OPI: [number]',
       'Return ONLY: REVISED_OPI: [number]. Nothing else.', 100
@@ -146,25 +166,6 @@ export default async function handler(req, res) {
     }
     results.steps_completed.push('revised_scoring');
   } catch(e) { results.scoring_error = e.message; }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // STEP 4: RESEARCH — Competitive intel informed by real scope
-  // ══════════════════════════════════════════════════════════════════════════
-  let researchBrief = '';
-  try {
-    researchBrief = await claudeCall(
-      'Capture intelligence brief for HGI. You have the scope and financial analysis — use them.\n\n' +
-      'Opportunity: ' + opp.title + '\nAgency: ' + opp.agency + '\nRevised OPI: ' + revisedOpi +
-      '\nSCOPE:\n' + scopeAnalysis.slice(0, 1200) +
-      '\nFINANCIAL:\n' + financialAnalysis.slice(0, 1200) +
-      '\nHGI KB:\n' + kbContext.slice(0, 1500) +
-      '\n\nProvide:\n1. AGENCY PROFILE — budget, leadership, procurement patterns\n2. COMPETITIVE LANDSCAPE — who will bid, their strengths/weaknesses relative to HGI, informed by the scope requirements\n3. HGI WIN STRATEGY — 3 differentiators mapped to evaluation criteria from scope analysis\n4. RED FLAGS — from scope, financial, and competitive angles\n5. 48-HOUR ACTION PLAN — exactly what to do, who to call',
-      'HGI senior capture intelligence analyst. Every recommendation must reference specific scope requirements or financial data from the analysis.', 2000
-    );
-    await patchOpp(opportunity_id, { hgi_fit: researchBrief.slice(0, 2000) });
-    await logEvent('opportunity.researched', opportunity_id, opp.title, { step: 'research' });
-    results.steps_completed.push('research');
-  } catch(e) { results.research_error = e.message; }
 
   // ══════════════════════════════════════════════════════════════════════════
   // STEP 5: WINNABILITY — GO/NO-GO with full intelligence package
