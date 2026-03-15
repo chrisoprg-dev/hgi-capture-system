@@ -110,101 +110,136 @@ function Dashboard({ setActive }) {
 
   const ActionCard = ({ action, index }) => {
     const isExpanded = expanded[index];
-    const timeToDeadline = action.deadline ? Math.ceil((new Date(action.deadline) - new Date()) / (1000 * 60 * 60 * 24)) : null;
-    
+    const borderColor = urgencyBorder(action.urgency);
     return (
       <div style={{
         background: urgencyBg(action.urgency),
-        border: `1px solid ${urgencyBorder(action.urgency)}44`,
-        borderLeft: `4px solid ${urgencyBorder(action.urgency)}`,
+        border: `1px solid ${borderColor}33`,
+        borderLeft: `4px solid ${borderColor}`,
         borderRadius: 6,
-        padding: '14px 16px',
         marginBottom: 10,
-        cursor: 'pointer',
-        position: 'relative'
-      }} onClick={() => setExpanded(e => ({...e, [index]: !e[index]}))}>
-        
-        {action.classified && (
-          <div style={{
-            position: 'absolute', top: 8, right: 8,
-            background: RED, color: 'white', fontSize: 9,
-            padding: '2px 6px', borderRadius: 3, fontWeight: 700
-          }}>CLASSIFIED</div>
-        )}
-        
-        <div style={{display:'flex', alignItems:'flex-start', gap:12}}>
-          <span style={{fontSize:20, flexShrink:0}}>{action.icon}</span>
+        overflow: 'hidden'
+      }}>
+        {/* COLLAPSED ROW — always visible */}
+        <div style={{display:'flex', alignItems:'flex-start', gap:12, padding:'14px 16px', cursor:'pointer'}}
+          onClick={() => setExpanded(e => ({...e, [index]: !e[index]}))}>
+          <span style={{fontSize:20, flexShrink:0, marginTop:2}}>{action.icon}</span>
           <div style={{flex:1, minWidth:0}}>
             <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:4, flexWrap:'wrap'}}>
-              <span style={{fontWeight:700, color:TEXT, fontSize:14}}>{action.agency || action.title}</span>
+              <span style={{fontWeight:700, color:TEXT, fontSize:14}}>{action.title || action.agency}</span>
               {action.opi && <OPIBadge score={action.opi} />}
-              {timeToDeadline && (
-                <Badge color={timeToDeadline <= 1 ? RED : timeToDeadline <= 3 ? ORANGE : GOLD}>
-                  {timeToDeadline}d remaining
-                </Badge>
-              )}
-              {action.funding_amount && (
-                <Badge color={GREEN}>${(action.funding_amount / 1000000).toFixed(1)}M</Badge>
-              )}
+              {action.days_until_deadline && <Badge color={RED}>{action.days_until_deadline}d left</Badge>}
+              {action.estimated_value && <span style={{color:GREEN, fontSize:11, fontWeight:600}}>{action.estimated_value}</span>}
+              {action.recompete && <Badge color={BLUE}>RECOMPETE</Badge>}
             </div>
-            
-            <div style={{color: urgencyBorder(action.urgency), fontWeight:600, fontSize:13, marginBottom:4}}>
-              {action.headline}
-            </div>
-            
-            {action.intelligence_summary && (
-              <div style={{
-                background: BG3, border: `1px solid ${BORDER}`,
-                borderRadius: 4, padding: 10, marginBottom: 8,
-                fontSize: 12, color: TEXT_D, lineHeight: 1.5
-              }}>
-                <strong>INTEL:</strong> {action.intelligence_summary}
-              </div>
-            )}
-            
-            {isExpanded && (
-              <div>
-                <div style={{color:TEXT_D, fontSize:12, marginBottom:10, lineHeight:1.6}}>
-                  {action.detail}
-                </div>
-                
-                {action.risk_assessment && (
-                  <div style={{
-                    border: `1px solid ${RED}44`, background: RED+'08',
-                    borderRadius: 4, padding: 8, marginBottom: 8
-                  }}>
-                    <div style={{color:RED, fontSize:11, fontWeight:700, marginBottom:4}}>RISK ASSESSMENT</div>
-                    <div style={{fontSize:11, color:TEXT_D}}>{action.risk_assessment}</div>
-                  </div>
-                )}
-                
-                {action.recommended_actions && (
-                  <div style={{fontSize:11, color:TEXT_D, marginBottom:8}}>
-                    <strong>RECOMMENDED ACTIONS:</strong>
-                    <ul style={{margin:'4px 0', paddingLeft:16}}>
-                      {action.recommended_actions.map((rec, i) => (
-                        <li key={i} style={{marginBottom:2}}>{rec}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+            <div style={{color:borderColor, fontWeight:600, fontSize:13}}>{action.headline}</div>
+            {/* Intel headline — the single most important intel point */}
+            {action.intel_headline && (
+              <div style={{color:TEXT_D, fontSize:12, marginTop:4, fontStyle:'italic'}}>{action.intel_headline}</div>
             )}
           </div>
-          
           <div style={{flexShrink:0, display:'flex', flexDirection:'column', gap:6, alignItems:'flex-end'}}>
             <Btn small onClick={(e) => { e.stopPropagation(); setActive(action.action_module || 'workflow'); }}
-              style={{
-                background: urgencyBorder(action.urgency)+'22',
-                color: urgencyBorder(action.urgency),
-                border:`1px solid ${urgencyBorder(action.urgency)}44`,
-                whiteSpace:'nowrap'
-              }}>
-              {action.action_label || 'EXECUTE'} →
+              style={{background:borderColor+'22', color:borderColor, border:`1px solid ${borderColor}44`, whiteSpace:'nowrap'}}>
+              {action.action_label || 'Take Action'} →
             </Btn>
-            <span style={{color:TEXT_D, fontSize:10}}>{isExpanded ? '▲ COLLAPSE' : '▼ EXPAND'}</span>
+            <span style={{color:TEXT_D, fontSize:10, cursor:'pointer'}}>{isExpanded ? '▲ hide intel' : '▼ full intel'}</span>
           </div>
         </div>
+
+        {/* EXPANDED INTEL PACKAGE */}
+        {isExpanded && (
+          <div style={{borderTop:`1px solid ${borderColor}22`, background:BG3, padding:'14px 16px'}}>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16}}>
+
+              {/* WHY HGI WINS */}
+              {action.win_case && (
+                <div>
+                  <div style={{color:GREEN, fontSize:10, fontWeight:700, letterSpacing:'0.08em', marginBottom:6}}>WHY HGI WINS</div>
+                  <div style={{color:TEXT_D, fontSize:12, lineHeight:1.6}}>{action.win_case}</div>
+                  {Array.isArray(action.why_hgi_wins) && action.why_hgi_wins.length > 0 && (
+                    <div style={{marginTop:8}}>
+                      {action.why_hgi_wins.slice(0,3).map((w,i) => (
+                        <div key={i} style={{fontSize:11, color:TEXT_D, marginBottom:3}}>✓ {w}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* COMPETITIVE INTEL */}
+              {action.competitor_intel && (
+                <div>
+                  <div style={{color:ORANGE, fontSize:10, fontWeight:700, letterSpacing:'0.08em', marginBottom:6}}>COMPETITIVE INTEL</div>
+                  <div style={{color:TEXT_D, fontSize:12, lineHeight:1.6}}>{action.competitor_intel}</div>
+                  {action.incumbent && action.incumbent !== '' && (
+                    <div style={{marginTop:6, fontSize:11, color:ORANGE}}>Incumbent: <strong>{action.incumbent}</strong></div>
+                  )}
+                </div>
+              )}
+
+              {/* RISK */}
+              {action.risk && (
+                <div>
+                  <div style={{color:RED, fontSize:10, fontWeight:700, letterSpacing:'0.08em', marginBottom:6}}>KEY RISK</div>
+                  <div style={{color:TEXT_D, fontSize:12, lineHeight:1.6}}>{action.risk}</div>
+                </div>
+              )}
+
+              {/* SCOPE */}
+              {Array.isArray(action.scope_of_work) && action.scope_of_work.length > 0 && (
+                <div>
+                  <div style={{color:BLUE, fontSize:10, fontWeight:700, letterSpacing:'0.08em', marginBottom:6}}>SCOPE</div>
+                  {action.scope_of_work.slice(0,3).map((s,i) => (
+                    <div key={i} style={{fontSize:11, color:TEXT_D, marginBottom:3}}>· {s}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* HGI FIT */}
+            {action.hgi_fit && (
+              <div style={{padding:'8px 12px', background:GREEN+'11', border:`1px solid ${GREEN}22`, borderRadius:4, marginBottom:12, fontSize:12, color:TEXT}}>
+                <strong style={{color:GREEN}}>HGI FIT: </strong>{action.hgi_fit}
+              </div>
+            )}
+
+            {/* THIS WEEK ACTION — the most directive element */}
+            {action.this_week_action && (
+              <div style={{padding:'10px 14px', background:borderColor+'11', border:`1px solid ${borderColor}33`, borderRadius:4, marginBottom:12}}>
+                <div style={{color:borderColor, fontSize:10, fontWeight:700, letterSpacing:'0.08em', marginBottom:4}}>⚡ THIS WEEK — DO THIS</div>
+                <div style={{color:TEXT, fontSize:13, fontWeight:600, lineHeight:1.5}}>{action.this_week_action}</div>
+              </div>
+            )}
+
+            {/* KEY REQUIREMENTS */}
+            {Array.isArray(action.key_requirements) && action.key_requirements.length > 0 && (
+              <div style={{marginBottom:12}}>
+                <div style={{color:TEXT_D, fontSize:10, fontWeight:700, letterSpacing:'0.08em', marginBottom:6}}>KEY REQUIREMENTS</div>
+                <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+                  {action.key_requirements.map((r,i) => (
+                    <Badge key={i} color={TEXT_D}>{r}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SOURCE LINK + ACTION BUTTONS */}
+            <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
+              <Btn small onClick={() => setActive(action.action_module || 'workflow')}
+                style={{background:borderColor+'22', color:borderColor, border:`1px solid ${borderColor}44`}}>
+                {action.action_label || 'Take Action'} →
+              </Btn>
+              {action.source_url && (
+                <a href={action.source_url} target="_blank" rel="noopener noreferrer"
+                  style={{padding:'5px 12px', borderRadius:4, fontSize:11, fontWeight:700, background:BLUE+'22', color:BLUE, border:`1px solid ${BLUE}44`, textDecoration:'none'}}>
+                  View Source →
+                </a>
+              )}
+              <span style={{color:TEXT_D, fontSize:11, marginLeft:'auto'}}>{action.agency}</span>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
