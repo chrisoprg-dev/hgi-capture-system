@@ -54,6 +54,54 @@ function deriveTitleFromUrl(url) {
   return "Untitled Opportunity";
 }
 
+function calculateDaysUntilDeadline(dueDateString) {
+  if (!dueDateString) return null;
+  
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  let dueDate = null;
+  
+  // First try direct Date parsing
+  dueDate = new Date(dueDateString);
+  if (!isNaN(dueDate.getTime())) {
+    dueDate.setHours(0, 0, 0, 0);
+    const diffTime = dueDate - now;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+  
+  // Try manual parsing for common formats
+  const dateStr = dueDateString.trim();
+  
+  // Try MM/DD/YYYY format
+  const mmddyyyy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (mmddyyyy) {
+    dueDate = new Date(mmddyyyy[3], mmddyyyy[1] - 1, mmddyyyy[2]);
+    if (!isNaN(dueDate.getTime())) {
+      dueDate.setHours(0, 0, 0, 0);
+      const diffTime = dueDate - now;
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+  }
+  
+  // Try Month DD, YYYY format
+  const monthMatch = dateStr.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/);
+  if (monthMatch) {
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                       'july', 'august', 'september', 'october', 'november', 'december'];
+    const monthIndex = monthNames.findIndex(m => m.toLowerCase().startsWith(monthMatch[1].toLowerCase().slice(0, 3)));
+    if (monthIndex !== -1) {
+      dueDate = new Date(monthMatch[3], monthIndex, monthMatch[2]);
+      if (!isNaN(dueDate.getTime())) {
+        dueDate.setHours(0, 0, 0, 0);
+        const diffTime = dueDate - now;
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
+    }
+  }
+  
+  return null;
+}
+
 function extractDaysUntilDeadline(dueDateString) {
   if (!dueDateString) return null;
   
@@ -244,9 +292,17 @@ export default async function handler(req, res) {
 
   const now = new Date().toISOString();
 
+  // ── DEADLINE SCORING: Calculate days until deadline ──────────────────────
+  const days_until_deadline = calculateDaysUntilDeadline(response_deadline);
+  let initialStatus = "pending";
+  
+  if (days_until_deadline !== null && days_until_deadline <= 0) {
+    initialStatus = "filtered";
+  }
+
   // ── Save raw record to Supabase immediately ──────────────────────────────
   try {
-    await dbUpsert("opportunities", {
+    const rawRecord = {
       id: recordId,
       title: title.slice(0, 500),
       agency: agency.slice(0, 300),
@@ -262,10 +318,17 @@ export default async function handler(req, res) {
       estimated_value: estimated_value.slice(0, 100),
       description: description.slice(0, 2000),
       rfp_text: (stripScripts(raw_html) + " " + description).slice(0, 10000),
-      status: "pending",
+      status: initialStatus,
       discovered_at: now,
       last_updated: now,
-    });
+    };
+
+    // Add days_until_deadline if calculated
+    if (days_until_deadline !== null) {
+      rawRecord.days_until_deadline = days_until_deadline;
+    }
+
+    await dbUpsert("opportunities", rawRecord);
   } catch (e) {
     console.error("Failed to save raw record:", e.message);
     return res.status(500).json({ error: "Database save failed", details: e.message });
@@ -411,7 +474,6 @@ Return ONLY this exact JSON with no markdown:
   }
 
   // ── Apply deadline proximity adjustment ──────────────────────────────────
-  const days_until_deadline = extractDaysUntilDeadline(response_deadline);
   let finalOpiScore = analysis.opi_score;
   let finalStatus = "active";
   let finalUrgency = analysis.urgency;
@@ -419,7 +481,6 @@ Return ONLY this exact JSON with no markdown:
   if (days_until_deadline !== null) {
     if (days_until_deadline <= 0) {
       finalStatus = "filtered";
-      finalOpiScore = 0;
     } else if (days_until_deadline >= 1 && days_until_deadline <= 6) {
       finalOpiScore = Math.max(0, finalOpiScore - 35);
       finalUrgency = "IMMEDIATE";
@@ -462,23 +523,20 @@ Return ONLY this exact JSON with no markdown:
     
     await dbPatch("opportunities", recordId, updateData);
 
-    // ── Trigger research brief for high-scoring opportunities ────────────────
-    if (finalOpiScore >= 75 && analysis.capture_action && analysis.why_hgi_wins) {
-      // Check if fields are empty before triggering research
-      try {
-        const currentRecord = await dbGet("opportunities", `?id=eq.${encodeURIComponent(recordId)}&select=capture_action,why_hgi_wins`);
-        const record = currentRecord[0];
-        
-        if (record && (!record.capture_action || !record.why_hgi_wins || 
-            (Array.isArray(record.why_hgi_wins) && record.why_hgi_wins.length === 0))) {
-          // Fire and forget research brief generation
-          triggerResearchBrief(title, agency, description, analysis.vertical);
-        }
-      } catch (e) {
-        console.warn("Failed to check existing fields for research brief:", e.message);
-        // Still trigger research brief on error to be safe
-        triggerResearchBrief(title, agency, description, analysis.vertical);
-      }
+    // ── AUTO-RESEARCH: Fire and forget research brief for high-scoring opportunities ──
+    if (finalOpiScore >= 75) {
+      fetch("https://hgi-capture-system.vercel.app/api/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{
+            role: 'user',
+            content: 'Research this opportunity and provide a 3-sentence decision brief: ' + title + ' | Agency: ' + agency + ' | Vertical: ' + analysis.vertical
+          }]
+        })
+      }).catch(error => {
+        console.warn("Auto-research failed:", error.message);
+      });
     }
     
   } catch (e) {
