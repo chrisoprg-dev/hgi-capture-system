@@ -185,8 +185,10 @@ function PipelineTracker({ goToWorkflow }) {
       
       for (const item of toDelete) {
         try {
-          await fetch(`/api/opportunities/${item.id}`, {
-            method: 'DELETE'
+          await fetch('/api/opportunities', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: item.id, status: 'archived' })
           });
         } catch (error) {
           console.error('Failed to delete opportunity:', error);
