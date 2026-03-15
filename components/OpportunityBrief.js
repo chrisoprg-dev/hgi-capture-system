@@ -190,6 +190,7 @@ function OpportunityBrief() {
           React.createElement('div', {style:{display:'flex',flexDirection:'column',gap:6,alignItems:'flex-end'}},
             React.createElement('div', {style:{fontSize:48,fontWeight:800,color:o.opi_score>=70?GREEN:o.opi_score>=45?GOLD:RED,lineHeight:1}}, o.opi_score || '?'),
             React.createElement('div', {style:{fontSize:10,color:TEXT_D,letterSpacing:'0.08em'}}, 'OPI SCORE'),
+            React.createElement('div', {style:{fontSize:9,color:o.capture_action && o.capture_action.startsWith('PWIN') ? GREEN : ORANGE,marginTop:2}}, o.capture_action && o.capture_action.startsWith('PWIN') ? 'FULLY ANALYZED' : 'PRELIMINARY SCORE'),
             o.due_date && React.createElement('div', {style:{fontSize:12,color:daysColor,fontWeight:600}}, 'Due: ' + o.due_date),
             o.source_url && React.createElement('a', {href:o.source_url,target:'_blank',rel:'noopener noreferrer',style:{padding:'4px 12px',borderRadius:4,fontSize:11,fontWeight:700,background:BLUE+'22',color:BLUE,border:'1px solid '+BLUE+'44',textDecoration:'none'}}, 'View Source →')
           )
@@ -237,7 +238,7 @@ function OpportunityBrief() {
           : React.createElement('div', {style:{fontSize:12,color:TEXT_D,marginBottom:10,fontStyle:'italic'}}, 'No scope details extracted from listing. Run Deep Scope Analysis to generate a comprehensive breakdown.'),
         React.createElement('div', {style:{marginTop:12}},
           React.createElement(Btn, {onClick:runDeepScope,disabled:analyzingScope,small:true},
-            analyzingScope ? 'Analyzing scope in depth...' : 'Deep Scope Analysis'
+            analyzingScope ? 'Analyzing scope in depth...' : 'Re-Analyze Scope + Full Vetting'
           )
         )
       ),
@@ -252,7 +253,7 @@ function OpportunityBrief() {
       React.createElement(Card, {style:{marginBottom:16}},
         React.createElement('div', {style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:12}}, 'DECISION ACTIONS'),
         React.createElement('div', {style:{display:'flex',gap:10,flexWrap:'wrap'}},
-          React.createElement(Btn, {onClick:runOrchestrate,disabled:orchestrating,style:{background:GREEN,color:'#000'}}, orchestrating ? 'Running Full Intelligence Workflow...' : 'Run Full Intelligence Workflow'),
+          React.createElement(Btn, {onClick:runOrchestrate,disabled:orchestrating,style:{background:GREEN,color:'#000'}}, orchestrating ? 'Re-Analyzing...' : 'Re-Run Full Analysis'),
           React.createElement(Btn, {onClick:runResearch,disabled:researching}, researching ? 'Researching...' : 'Run Full Research'),
           React.createElement(Btn, {onClick:runWinnability,disabled:scoring,variant:'secondary'}, scoring ? 'Scoring...' : 'Score Winnability'),
           React.createElement(Btn, {variant:'ghost',onClick:()=>alert('Navigate to Proposal Engine and paste this RFP context to start drafting.')}, 'Start Proposal →'),
