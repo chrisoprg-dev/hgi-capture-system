@@ -39,8 +39,8 @@ const crawler = new PlaywrightCrawler({
             );
             
             log.info(`Found ${categoryLinks.length} category links`);
-            const firstThirty = categoryLinks.slice(0, 30);
-            await addRequests(firstThirty.map(url => ({ url, label: 'CATEGORY' })));
+            const firstTwenty = categoryLinks.slice(0, 20);
+            await addRequests(firstTwenty.map(url => ({ url, label: 'CATEGORY' })));
             
         } else if (request.label === 'CATEGORY') {
             await page.waitForLoadState('networkidle', { timeout: 15000 });
@@ -48,14 +48,16 @@ const crawler = new PlaywrightCrawler({
             const bidLinks = await page.$$eval('a', links => 
                 links.map(link => link.href)
                      .filter(href => href && href.includes('centralauctionhouse.com/rfp'))
+                     .filter(href => href.endsWith('.html') && /\/rfp\d+/.test(href))
                      .filter((href, index, arr) => arr.indexOf(href) === index)
             );
             
             log.info(`Found ${bidLinks.length} bid links in category`);
-            if (bidLinks.length > 0) {
-                log.info(`First 5 hrefs: ${bidLinks.slice(0, 5).join(', ')}`);
+            const limitedBidLinks = bidLinks.slice(0, 5);
+            if (limitedBidLinks.length > 0) {
+                log.info(`Processing ${limitedBidLinks.length} hrefs: ${limitedBidLinks.join(', ')}`);
             }
-            await addRequests(bidLinks.map(url => ({ url, label: 'BID' })));
+            await addRequests(limitedBidLinks.map(url => ({ url, label: 'BID' })));
             
         } else if (request.label === 'BID') {
             await page.waitForLoadState('networkidle', { timeout: 15000 });
