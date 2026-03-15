@@ -130,18 +130,6 @@ const crawler = new PlaywrightCrawler({
                             
                             // Extract data using page.evaluate
                             const bidData = await page.evaluate(() => {
-                                // Extract title
-                                let title = '';
-                                const h1 = document.querySelector('h1');
-                                if (h1 && h1.textContent.trim()) {
-                                    title = h1.textContent.trim();
-                                } else {
-                                    const h2 = document.querySelector('h2');
-                                    if (h2 && h2.textContent.trim()) {
-                                        title = h2.textContent.trim();
-                                    }
-                                }
-                                
                                 // Extract agency - text after "Louisiana >"
                                 let agency = '';
                                 const fullText = document.body.innerText;
@@ -171,11 +159,20 @@ const crawler = new PlaywrightCrawler({
                                     description = descMatch[1].trim();
                                 }
                                 
-                                return { title, agency, deadline, value, description };
+                                return { agency, deadline, value, description };
+                            });
+                            
+                            // Extract title using the specified method
+                            const title = await page.evaluate(() => {
+                                const h1 = document.querySelector('h1');
+                                if (h1 && h1.textContent.trim().length > 3 && !h1.textContent.includes('99')) return h1.textContent.trim();
+                                const h2 = document.querySelector('h2');
+                                if (h2 && h2.textContent.trim().length > 3 && !h2.textContent.includes('99')) return h2.textContent.trim();
+                                return '';
                             });
                             
                             // Use extracted title, or fall back to URL parsing
-                            let finalTitle = bidData.title;
+                            let finalTitle = title;
                             if (!finalTitle) {
                                 const urlMatch = bidUrl.match(/\/rfp\d+-([^\/]+)/);
                                 if (urlMatch && urlMatch[1]) {
