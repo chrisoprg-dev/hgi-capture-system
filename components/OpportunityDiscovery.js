@@ -302,6 +302,32 @@ Extract and return as JSON:
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const fetchBudgetSignals = async () => {
+      try {
+        const res = await fetch('/api/budget-signals');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setFundingAlerts(prev => {
+              const combined = [...data, ...prev];
+              const seen = new Set();
+              return combined.filter(d => {
+                const key = d.title || JSON.stringify(d);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+            });
+          }
+        }
+      } catch(e) {}
+    };
+    fetchBudgetSignals();
+    const interval = setInterval(fetchBudgetSignals, 600000); // every 10 min
+    return () => clearInterval(interval);
+  }, []);
+
   const sendToWorkflow = (opp) => {
     setSendingToWorkflow(opp.id);
     const rfpContext = `OPPORTUNITY: ${opp.title}\nAGENCY: ${opp.agency}\nSTATE: ${opp.state}\nVERTICAL: ${opp.vertical}\nESTIMATED VALUE: ${opp.estimatedValue}\nTIMING: ${opp.timing}\nSOURCE: ${opp.source}\nWHY HGI WINS: ${Array.isArray(opp.whyHgiWins) ? opp.whyHgiWins.join("; ") : opp.whyHgiWins}\nINCUMBENT: ${opp.incumbent || "Unknown"}\nOPI SCORE: ${opp.opiScore}`;
