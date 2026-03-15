@@ -348,10 +348,7 @@ export default async function handler(req, res) {
       last_updated: now,
     };
 
-    // Add days_until_deadline if calculated
-    if (days_until_deadline !== null) {
-      rawRecord.days_until_deadline = days_until_deadline;
-    }
+
 
     await dbUpsert("opportunities", rawRecord);
   } catch (e) {
