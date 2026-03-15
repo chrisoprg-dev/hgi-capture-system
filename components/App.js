@@ -13,6 +13,7 @@ const MODULES = [
   {id:"digest", label:"Weekly Digest", icon:"◇"},
   {id:"crm", label:"Relationship Intelligence", icon:"◑"},
   {id:"content", label:"Content Engine", icon:"✦"},
+  {id:"execbrief", label:"Executive Brief", icon:"◈"},
   {id:"knowledge", label:"Knowledge Base", icon:"⬡"},
 ];
 
@@ -50,6 +51,7 @@ function App() {
     digest: <WeeklyDigest />,
     crm: <CRM />,
     content: <ContentEngine />,
+    execbrief: React.createElement('div', {style:{padding:20}}, React.createElement('h2', {style:{color:GOLD,marginBottom:16}}, 'Executive Intelligence Brief'), React.createElement('p', {style:{color:TEXT_D,marginBottom:20}}, 'Read-only intelligence dashboard for HGI leadership. Share the link below with Lou and Larry.'), React.createElement('a', {href:'/api/executive-brief?format=html', target:'_blank', style:{color:GOLD,fontSize:14,padding:'10px 20px',border:'1px solid ' + GOLD, borderRadius:4, textDecoration:'none', display:'inline-block', marginBottom:20}}, 'Open Executive Brief →'), React.createElement('p', {style:{color:TEXT_D,fontSize:12}}, 'Direct URL: https://hgi-capture-system.vercel.app/api/executive-brief?format=html')),
     knowledge: <KnowledgeBase />,
   };
 
