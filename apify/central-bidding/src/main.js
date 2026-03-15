@@ -273,7 +273,7 @@ const crawler = new PlaywrightCrawler({
                     log.info(`Found ${bidLinks.length} bid links in category`);
                     
                     // Take first 2
-                    const limitedBidLinks = bidLinks.slice(0, 2);
+                    const limitedBidLinks = bidLinks.slice(0, 5);
                     
                     // For each bid link
                     for (const bidUrl of limitedBidLinks) {
