@@ -24,6 +24,37 @@ function PipelineTracker({ goToWorkflow }) {
   const setF = (k,v) => setForm(f => ({...f, [k]:v}));
   const filtered = filterStage === "all" ? items : items.filter(i => i.stage === filterStage);
 
+  const WIN_PATH = ['identified','qualifying','pursuing','proposal','submitted','won'];
+  const WIN_PATH_LABELS = {
+    identified: 'Discovered',
+    qualifying: 'Scored',
+    pursuing: 'Workflow Done',
+    proposal: 'Drafting',
+    submitted: 'Submitted',
+    won: 'WON'
+  };
+  
+  const WinPathBar = ({ currentStage }) => {
+    const currentIdx = WIN_PATH.indexOf(currentStage);
+    return (
+      <div style={{display:'flex', alignItems:'center', gap:2, marginTop:6, flexWrap:'wrap'}}>
+        {WIN_PATH.map((stage, i) => (
+          <div key={stage} style={{display:'flex', alignItems:'center', gap:2}}>
+            <div style={{
+              padding:'2px 6px', borderRadius:3, fontSize:9, fontWeight:600,
+              background: i < currentIdx ? GREEN+'33' : i === currentIdx ? GOLD+'33' : BG3,
+              color: i < currentIdx ? GREEN : i === currentIdx ? GOLD : TEXT_D,
+              border: `1px solid ${i < currentIdx ? GREEN+'44' : i === currentIdx ? GOLD+'44' : BORDER}`
+            }}>
+              {i < currentIdx ? '✓ ' : i === currentIdx ? '▶ ' : ''}{WIN_PATH_LABELS[stage]}
+            </div>
+            {i < WIN_PATH.length - 1 && <span style={{color:BORDER, fontSize:8}}>›</span>}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   // Fetch opportunities on mount
   useEffect(() => {
     const fetchOpportunities = async () => {
