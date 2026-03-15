@@ -52,6 +52,20 @@ const callClaude = async (prompt, system, maxTokens = 4000) => {
 
 const TOOLS = [
   { name: 'read_file', description: 'Read the current content of any file in the HGI Capture System codebase from GitHub before modifying it. Always use this before modify_system to avoid blind edits.', inputSchema: { type: 'object', properties: { filename: { type: 'string', description: 'File path e.g. api/intake.js or components/Dashboard.js' } }, required: ['filename'] } },
+  {
+    name: 'read_file',
+    description: 'Read the current raw content of any file in the HGI codebase from GitHub. Always call this before modify_system to avoid blind edits.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filename: {
+          type: 'string',
+          description: 'File path e.g. api/intake.js or components/Dashboard.js'
+        }
+      },
+      required: ['filename']
+    }
+  },
   { name: 'modify_system', description: 'Modify or create any file in the HGI Capture System. Deploys in ~60 seconds.', inputSchema: { type: 'object', properties: { instruction: { type: 'string' }, filename: { type: 'string' } }, required: ['instruction', 'filename'] } },
   { name: 'restore_file_from_git', description: 'Restore any file to its last known good version before MCP modifications. Use when a file gets corrupted.', inputSchema: { type: 'object', properties: { filename: { type: 'string', description: 'File to restore e.g. components/KnowledgeBase.js' } }, required: ['filename'] } },
   { name: 'query_pipeline', description: 'Query the HGI opportunity pipeline.', inputSchema: { type: 'object', properties: { min_opi: { type: 'number' }, stage: { type: 'string' }, vertical: { type: 'string' }, state: { type: 'string' }, limit: { type: 'number' } } } },
@@ -72,33 +86,18 @@ const handleTool = async (name, input) => {
 
     case 'read_file': {
       const { filename } = input;
-      try {
-        const r = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filename}`, {
-          headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
-        });
-        
-        if (!r.ok) {
-          if (r.status === 404) {
-            return { error: `File not found: ${filename}` };
-          }
-          return { error: `GitHub API error: ${r.status} ${await r.text()}` };
+      const ghRes = await fetch(`https://api.github.com/repos/chrisoprg-dev/hgi-capture-system/contents/${filename}`, {
+        headers: {
+          'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json'
         }
-        
-        const data = await r.json();
-        const content = Buffer.from(data.content, 'base64').toString('utf-8');
-        const lines = content.split('\n').length;
-        const size = Buffer.byteLength(content, 'utf8');
-        
-        return {
-          filename,
-          content,
-          size_bytes: size,
-          lines: lines,
-          sha: data.sha
-        };
-      } catch (error) {
-        return { error: `Failed to read file: ${error.message}` };
-      }
+      });
+      if (!ghRes.ok) return { content: [{ type: 'text', text: `File not found: ${filename}` }] };
+      const data = await ghRes.json();
+      const content = Buffer.from(data.content, 'base64').toString('utf8');
+      const lines = content.split('\n').length;
+      const size = Buffer.byteLength(content, 'utf8');
+      return { content: [{ type: 'text', text: `File: ${filename}\nSize: ${size} bytes | ${lines} lines\n\n${content}` }] };
     }
 
     case 'modify_system': {
