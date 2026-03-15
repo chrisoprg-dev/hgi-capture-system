@@ -43,7 +43,9 @@ const crawler = new PlaywrightCrawler({
         if (request.label === 'LOGIN') {
             await page.fill('input[name="username"]', CB_USERNAME);
             await page.fill('input[type="password"]', CB_PASSWORD);
-            await page.click('input[type="submit"]');
+            await page.click('button[type="submit"], input[type="submit"], button:has-text("Sign"), button:has-text("Login"), button:has-text("Log In"), .login-btn, #login-btn, button.btn').catch(async () => {
+                await page.keyboard.press('Enter');
+            });
             await page.waitForNavigation();
             
             await page.goto('https://www.centralauctionhouse.com/rfpc1-Louisiana.html');
