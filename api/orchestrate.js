@@ -119,8 +119,8 @@ export default async function handler(req, res) {
       '9. FINANCIAL RECOMMENDATION — PURSUE / CONDITIONAL / PASS with specific financial reasoning.',
       'You are HGI CFO-level financial analyst. Be specific with numbers. Use the HGI rate card provided. Every number must be justified.', 2000
     );
-    const currentRfp = opp.rfp_text || '';
-    await patchOpp(opportunity_id, { rfp_text: (currentRfp + '\n\n=== FINANCIAL ANALYSIS ===\n' + financialAnalysis).slice(0, 10000) });
+    var finSummary = financialAnalysis.slice(0, 200);
+    await patchOpp(opportunity_id, { estimated_value: finSummary });
     await logEvent('opportunity.financial_analyzed', opportunity_id, opp.title, { step: 'financial' });
     results.steps_completed.push('financial_analysis');
   } catch(e) { results.financial_error = e.message; }
@@ -193,7 +193,7 @@ export default async function handler(req, res) {
     pwin = pwinMatch ? parseInt(pwinMatch[1]) : 0;
     recommendation = recMatch ? recMatch[1] : 'UNDETERMINED';
 
-    await patchOpp(opportunity_id, { capture_action: ('PWIN: ' + pwin + '% | ' + recommendation + '\n\n' + winnability).slice(0, 2000) });
+    await patchOpp(opportunity_id, { capture_action: ('PWIN: ' + pwin + '% | ' + recommendation + '\n\n' + winnability + '\n\n--- FINANCIAL & STAFFING ANALYSIS ---\n' + financialAnalysis).slice(0, 4000) });
 
     // Auto-filter NO-BID opportunities out of active views
     if (recommendation === 'NO-BID') {
@@ -225,8 +225,7 @@ export default async function handler(req, res) {
         '\n\n600+ words. Address evaluation criteria from scope analysis. Reference financial value proposition. Cite specific HGI past performance.',
         'HGI senior proposal writer. Every claim must trace back to scope requirements, financial analysis, or verified past performance.', 3000
       );
-      const currentRfp = opp.rfp_text || '';
-      await patchOpp(opportunity_id, { rfp_text: (currentRfp + '\n\n=== AUTO-GENERATED EXECUTIVE SUMMARY ===\n' + execSummary).slice(0, 10000) });
+      await patchOpp(opportunity_id, { rfp_text: ('=== AUTO-GENERATED EXECUTIVE SUMMARY ===\n' + execSummary + '\n\n' + (opp.rfp_text || '').slice(0, 6000)).slice(0, 10000) });
       await logEvent('proposal.auto_drafted', opportunity_id, opp.title, { section: 'executive_summary', pwin });
       results.steps_completed.push('proposal_executive_summary');
     } catch(e) { results.proposal_error = e.message; }
