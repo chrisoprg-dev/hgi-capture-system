@@ -72,6 +72,8 @@ export default async function handler(req, res) {
 
     // ── GET — fetch opportunities with filters ──
     const {
+      action,
+      source_url,
       vertical = "all",
       state = "all",
       urgency = "all",
@@ -81,6 +83,35 @@ export default async function handler(req, res) {
       includeSignals = "false",
       includeRuns = "false",
     } = req.query;
+
+    // Handle get_batch action
+    if (action === "get_batch") {
+      const res2 = await fetch(`${SUPABASE_URL}/rest/v1/hunt_runs?status=eq.completed&order=run_at.desc&limit=1&select=batch_number`, {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Accept": "application/json",
+        },
+      });
+      if (!res2.ok) return res.status(500).json({ error: "Failed to query hunt_runs" });
+      const runs = await res2.json();
+      const batch = runs.length > 0 ? runs[0].batch_number : 0;
+      return res.status(200).json({ batch });
+    }
+
+    // Handle source_url check
+    if (source_url) {
+      const res2 = await fetch(`${SUPABASE_URL}/rest/v1/opportunities?source_url=eq.${encodeURIComponent(source_url)}&select=id&limit=1`, {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Accept": "application/json",
+        },
+      });
+      if (!res2.ok) return res.status(500).json({ error: "Failed to check source_url" });
+      const records = await res2.json();
+      return res.status(200).json({ exists: records.length > 0 });
+    }
 
     const filters = ["hgi_relevance=neq.LOW"];
     if (vertical !== "all") filters.push(`vertical=eq.${vertical}`);
