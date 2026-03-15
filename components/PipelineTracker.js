@@ -74,7 +74,7 @@ function PipelineTracker({ goToWorkflow }) {
             notes: item.description,
             stage: item.stage || 'identified',
             opiScore: item.opi_score,
-            addedDate: item.created_at
+            addedDate: item.discovered_at
           }));
           setItems(mappedData);
         }
