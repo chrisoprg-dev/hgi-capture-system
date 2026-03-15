@@ -37,7 +37,7 @@ const isRelevant = (title, description) => {
 };
 
 const crawler = new PlaywrightCrawler({
-    maxRequestsPerCrawl: 500,
+    maxRequestsPerCrawl: 1000,
     requestHandlerTimeoutSecs: 90,
     requestHandler: async ({ page, request, enqueueLinks, log }) => {
         if (request.label === 'LOGIN') {
@@ -50,14 +50,15 @@ const crawler = new PlaywrightCrawler({
             const afterUrl = page.url();
             log.info('After login URL: ' + afterUrl);
             
-            await page.goto('https://www.centralauctionhouse.com/rfpc1-Louisiana.html');
+            await page.goto('https://www.centralauctionhouse.com/rfp.php?&cid=1&statusFilter=open');
             
-            const categoryLinks = await page.$$eval('a[href*="/Category/"]', links => 
+            const bidLinks = await page.$$eval('a', links => 
                 links.map(link => link.href)
+                     .filter(href => href && href.includes('centralauctionhouse.com/rfp') && href.endsWith('.html'))
             );
             
-            for (const link of categoryLinks) {
-                await crawler.addRequests([{ url: link, label: 'CATEGORY' }]);
+            for (const link of bidLinks) {
+                await crawler.addRequests([{ url: link, label: 'BID' }]);
             }
         }
         
