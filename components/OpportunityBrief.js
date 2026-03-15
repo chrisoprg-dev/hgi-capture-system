@@ -200,7 +200,21 @@ function OpportunityBrief() {
       // EXECUTIVE SUMMARY
       React.createElement(Card, {style:{marginBottom:16}},
         React.createElement('div', {style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:10}}, 'EXECUTIVE SUMMARY'),
-        o.description && React.createElement('div', {style:{marginBottom:12}}, renderMarkdown(o.description)),
+        o.description && React.createElement('div', {style:{marginBottom:12}},
+          (function() {
+            var desc = o.description || '';
+            var scopeIdx = desc.indexOf('--- SCOPE ANALYSIS ---');
+            var summary = scopeIdx >= 0 ? desc.slice(0, scopeIdx).trim() : desc;
+            var scope = scopeIdx >= 0 ? desc.slice(scopeIdx + 22).trim() : '';
+            var parts = [];
+            if (summary) parts.push(React.createElement('div', {key:'sum',style:{fontSize:13,color:TEXT,lineHeight:1.7,marginBottom:scope?12:0}}, summary));
+            if (scope) parts.push(React.createElement('div', {key:'scope',style:{background:BG3,borderRadius:4,padding:14,border:'1px solid '+BLUE+'22'}},
+              React.createElement('div', {style:{color:BLUE,fontSize:10,fontWeight:700,letterSpacing:'0.08em',marginBottom:8}}, 'SCOPE ANALYSIS'),
+              React.createElement('div', null, renderMarkdown(scope))
+            ));
+            return parts.length > 0 ? parts : summary;
+          })()
+        ),
         o.hgi_fit && React.createElement('div', {style:{background:BG3,borderRadius:4,padding:14,border:'1px solid '+GOLD+'22'}},
           React.createElement('div', {style:{color:GOLD,fontSize:10,fontWeight:700,letterSpacing:'0.08em',marginBottom:6}}, 'HGI FIT ANALYSIS'),
           React.createElement('div', null, renderMarkdown(o.hgi_fit))
