@@ -65,7 +65,7 @@ Focus on what makes this voice distinctive and authoritative.`;
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-3-sonnet-20240229',
+            model: 'claude-sonnet-4-20250514',
             max_tokens: 2000,
             messages: [{
               role: 'user',
@@ -114,7 +114,7 @@ Rewrite this to sound authentically like HGI while maintaining the core informat
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-3-sonnet-20240229',
+            model: 'claude-sonnet-4-20250514',
             max_tokens: 3000,
             messages: [{
               role: 'user',
