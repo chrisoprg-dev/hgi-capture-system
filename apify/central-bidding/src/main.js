@@ -20,6 +20,8 @@ const HGI_KEYWORDS = [
     'benefits administration'
 ];
 
+const EXPIRED_BID_IDS = ['rfp55622652'];
+
 const isRelevant = (title, description) => {
     const text = `${title} ${description}`.toLowerCase();
     return HGI_KEYWORDS.some(keyword => text.includes(keyword.toLowerCase()));
@@ -216,9 +218,9 @@ const crawler = new PlaywrightCrawler({
             
             log.info(`Found ${categoryLinks.length} category links`);
             
-            // Take only categories from index (batch*20) to ((batch+1)*20)
-            const startIndex = batch * 20;
-            const endIndex = (batch + 1) * 20;
+            // Take only categories from index (batch*10) to ((batch+1)*10)
+            const startIndex = batch * 10;
+            const endIndex = (batch + 1) * 10;
             const batchCategories = categoryLinks.slice(startIndex, endIndex);
             
             log.info(`Processing categories ${startIndex} to ${endIndex - 1} (${batchCategories.length} categories)`);
@@ -251,6 +253,19 @@ const crawler = new PlaywrightCrawler({
                         // Check if bid URL already exists in pipeline
                         if (await checkDuplicate(bidUrl, log)) {
                             log.info(`Already in pipeline: ${bidUrl}`);
+                            continue;
+                        }
+                        
+                        // Check for expired bid IDs
+                        const hasExpiredId = EXPIRED_BID_IDS.some(expiredId => bidUrl.includes(expiredId));
+                        if (hasExpiredId) {
+                            log.info(`Permanently skipping expired bid: ${bidUrl}`);
+                            continue;
+                        }
+                        
+                        // Check for expired bids after relevance check
+                        if (!isRelevant(finalTitle, bidData.description || '')) {
+                            log.info(`Not relevant: ${finalTitle}`);
                             continue;
                         }
                         
@@ -341,12 +356,6 @@ const crawler = new PlaywrightCrawler({
                                 }
                             }
                             
-                            // Check isRelevant against title + description combined
-                            if (!isRelevant(finalTitle, bidData.description || '')) {
-                                log.info(`Not relevant: ${finalTitle}`);
-                                continue;
-                            }
-                            
                             log.info(`RELEVANT: ${finalTitle}`);
                             
                             // Prepare complete opportunity data
@@ -394,12 +403,15 @@ const crawler = new PlaywrightCrawler({
                 } catch (error) {
                     log.error(`Error processing category ${categoryUrl}: ${error.message}`);
                 }
+                
+                // Add delay after processing each category for memory recovery
+                await new Promise(r => setTimeout(r, 500));
             }
             
             // Save next batch
-            await saveBatch((batch + 1) % 24, log);
+            await saveBatch((batch + 1) % 48, log);
             
-            log.info(`Completed batch ${batch}. Next batch: ${(batch + 1) % 24}`);
+            log.info(`Completed batch ${batch}. Next batch: ${(batch + 1) % 48}`);
         }
     }
 });
