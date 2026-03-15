@@ -65,6 +65,42 @@ const crawler = new PlaywrightCrawler({
             
             log.info('Login completed');
             
+            // Inject auth cookies after login and before any page.goto calls
+            await page.context().addCookies([
+                {
+                    name: 'centralbidding[username]',
+                    value: 'CAJXPGRVBBhWd34lEgQHEiMA',
+                    domain: '.centralauctionhouse.com',
+                    path: '/'
+                },
+                {
+                    name: 'centralbidding[userid]',
+                    value: 'Dn1STGUtAGIFUA%3D%3D',
+                    domain: '.centralauctionhouse.com',
+                    path: '/'
+                },
+                {
+                    name: 'centralbidding[password]',
+                    value: 'Xn0EEWN%2FBmkBX3NWFncAMCx2MUcFNCJuBiYBT1ZTDmNvF3dmRGklW3EMHkEMO2BzUiVfABthIntGBDEAXClRVg%3D%3D',
+                    domain: '.centralauctionhouse.com',
+                    path: '/'
+                },
+                {
+                    name: 'centralbidding[lastvisit]',
+                    value: '2026-03-14%2020%3A23%3A18',
+                    domain: '.centralauctionhouse.com',
+                    path: '/'
+                },
+                {
+                    name: 'centralbidding[lastactivity]',
+                    value: '2026-03-14%2020%3A27%3A13',
+                    domain: '.centralauctionhouse.com',
+                    path: '/'
+                }
+            ]);
+            
+            log.info('Injected auth cookies');
+            
             // Navigate to the Louisiana page
             await page.goto('https://www.centralauctionhouse.com/rfpc1-Louisiana.html');
             await page.waitForTimeout(3000);
