@@ -29,6 +29,31 @@ function stripScripts(html) {
     .trim();
 }
 
+function deriveTitleFromUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    const pathSegments = urlObj.pathname.split('/').filter(segment => segment.length > 0);
+    const lastSegment = pathSegments[pathSegments.length - 1];
+    
+    if (lastSegment) {
+      // Remove file extensions and clean up
+      const cleaned = lastSegment
+        .replace(/\.(html?|php|aspx?|jsp)$/i, '')
+        .replace(/[-_]/g, ' ')
+        .trim();
+      
+      // Title case the result
+      return cleaned.replace(/\w\S*/g, (txt) => 
+        txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+      );
+    }
+  } catch (e) {
+    console.warn("Failed to derive title from URL:", e.message);
+  }
+  
+  return "Untitled Opportunity";
+}
+
 function extractDaysUntilDeadline(dueDateString) {
   if (!dueDateString) return null;
   
@@ -124,7 +149,7 @@ export default async function handler(req, res) {
   const {
     source,
     source_id,
-    title,
+    title: rawTitle,
     agency,
     url,
     posted_date = "",
@@ -138,12 +163,22 @@ export default async function handler(req, res) {
     raw_html = "",
   } = req.body || {};
 
-  if (!source || !source_id || !title || !agency || !url) {
+  // Only return 400 for completely empty or unparseable requests
+  if (!req.body || Object.keys(req.body).length === 0) {
     return res.status(400).json({
-      error: "Missing required fields",
-      required: ["source", "source_id", "title", "agency", "url"],
+      error: "Empty request body",
     });
   }
+
+  if (!source || !source_id || !agency || !url) {
+    return res.status(400).json({
+      error: "Missing required fields",
+      required: ["source", "source_id", "agency", "url"],
+    });
+  }
+
+  // Derive title if missing or empty
+  const title = (rawTitle && rawTitle.trim()) ? rawTitle : deriveTitleFromUrl(url);
 
   // ── Generate deterministic ID ────────────────────────────────────────────
   const sourcePrefix = source.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 10);
