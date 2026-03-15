@@ -35,7 +35,7 @@ function RecruitingBench() {
 
   const generateJobDescription = async () => {
     setAutoRecruitLoading(prev => ({...prev, jobDesc: true}));
-    const prompt = `Generate a comprehensive job description for HGI (Haven Group International) for the following role:
+    const prompt = `Generate a comprehensive job description for Hammerman & Gainer LLC (HGI) for the following role:
     
 Role: ${autoRecruitForm.role}
 Context: ${autoRecruitForm.context}
@@ -51,7 +51,7 @@ Include: job title, summary, key responsibilities, required qualifications, pref
 
   const generateLinkedInPost = async () => {
     setAutoRecruitLoading(prev => ({...prev, linkedInPost: true}));
-    const prompt = `Create an engaging LinkedIn recruiting post for HGI (Haven Group International) for this role:
+    const prompt = `Create an engaging LinkedIn recruiting post for Hammerman & Gainer LLC (HGI) for this role:
     
 Role: ${autoRecruitForm.role}
 Context: ${autoRecruitForm.context}
@@ -67,7 +67,7 @@ Make it engaging, highlight the meaningful impact of the work, include relevant 
 
   const generateScreeningQuestions = async () => {
     setAutoRecruitLoading(prev => ({...prev, screeningQuestions: true}));
-    const prompt = `Generate 8-10 screening questions for this role at HGI:
+    const prompt = `Generate 8-10 screening questions for this role at Hammerman & Gainer LLC (HGI):
     
 Role: ${autoRecruitForm.role}
 Context: ${autoRecruitForm.context}
