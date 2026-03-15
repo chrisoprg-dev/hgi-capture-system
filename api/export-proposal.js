@@ -351,7 +351,7 @@ export default async function handler(req, res) {
             documentChildren.push(table);
           } else {
             // Process as regular text
-            processTextContent(content, documentChildren);
+            processTextContent(content, documentChildren, { Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat });
           }
         } else if (sectionKey === 'compliance_matrix') {
           const lines = content.split('\n').filter(line => line.trim());
@@ -398,10 +398,10 @@ export default async function handler(req, res) {
             });
             documentChildren.push(table);
           } else {
-            processTextContent(content, documentChildren);
+            processTextContent(content, documentChildren, { Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat });
           }
         } else {
-          processTextContent(content, documentChildren);
+          processTextContent(content, documentChildren, { Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat });
         }
 
         documentChildren.push(new Paragraph({ children: [new PageBreak()] }));
@@ -459,7 +459,7 @@ export default async function handler(req, res) {
   }
 }
 
-function processTextContent(content, documentChildren) {
+function processTextContent(content, documentChildren, { Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat }) {
   const lines = content.split('\n').filter(line => line.trim());
   let bulletItems = [];
 
