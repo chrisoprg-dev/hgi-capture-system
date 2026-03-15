@@ -253,6 +253,26 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
   const saveToTracker = (proposalSections) => {
     const tracker = store.get("tracker") || [];
     const entry = buildTrackerEntry(proposalSections);
+    
+    // Fire-and-forget Supabase save
+    fetch('/api/opportunities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: entry.title,
+        agency: entry.agency,
+        estimated_value: entry.value,
+        due_date: entry.deadline,
+        vertical: entry.type || 'disaster',
+        state: 'LA',
+        description: entry.notes,
+        opi_score: entry.opiScore,
+        stage: entry.stage,
+        source: 'Full Workflow',
+        rfp_text: entry.decomposition?.slice(0, 10000)
+      })
+    }).catch(() => {}); // Fire-and-forget
+    
     store.set("tracker", [entry, ...tracker]);
     // Also update sharedCtx with extracted info so it flows through the system
     saveSharedCtx({ title: entry.title, agency: entry.agency, value: entry.value, deadline: entry.deadline, type: entry.type });
