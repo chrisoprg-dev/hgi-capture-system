@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>HGI AI Capture System v1.1</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <style>
-    body { background: #0A0A0A; color: #E8E0D0; font-family: Georgia, serif; margin: 0; }
+    * { -webkit-tap-highlight-color: transparent; }
+    body { background: #0A0A0A; color: #E8E0D0; font-family: Georgia, serif; margin: 0; overflow-x: hidden; }
     * { box-sizing: border-box; }
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-thumb { background: #8B6E2E; }
@@ -16,6 +17,7 @@
     select option { background: #191919; }
     @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
     @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
+    @media (max-width: 768px) { body { font-size: 14px; } }
   </style>
 </head>
 <body>
