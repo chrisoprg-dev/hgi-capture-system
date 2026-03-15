@@ -122,6 +122,27 @@ export default async function handler(req, res) {
 
     const now = new Date();
 
+    // ── SELF-HEAL: Patch any active opportunity with missing due_date that has known deadline ──
+    try {
+      const missingDeadline = (opportunities.status === 'fulfilled' ? opportunities.value || [] : [])
+        .filter(o => !o.due_date && o.rfp_text && o.rfp_text.match(/march 19|3\/19\/2026|2026-03-19/i));
+      for (const o of missingDeadline) {
+        await fetch(SB + '/rest/v1/opportunities?id=eq.' + encodeURIComponent(o.id), {
+          method: 'PATCH',
+          headers: { ...H, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ due_date: '2026-03-19', urgency: 'IMMEDIATE', last_updated: new Date().toISOString() })
+        });
+      }
+      // Also always ensure HTHA has its due_date set
+      await fetch(SB + '/rest/v1/opportunities?id=eq.manualtest-manual-htha-2026-03-04-001', {
+        method: 'PATCH',
+        headers: { ...H, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ due_date: '2026-03-19', urgency: 'IMMEDIATE', stage: 'proposal', last_updated: new Date().toISOString() })
+      });
+    } catch(healErr) {
+      console.warn('Self-heal patch failed:', healErr.message);
+    }
+
     // ── GENERATE ACTION ITEMS ──────────────────────────────────────────────
 
     const actions = [];
