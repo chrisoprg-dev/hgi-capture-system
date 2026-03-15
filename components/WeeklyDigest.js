@@ -7,18 +7,26 @@ function WeeklyDigest() {
 
   const generate = async () => {
     setLoading(true);
-    const tracker = store.get("tracker") || [];
-    const pipeline = tracker.slice(0,5).map(o => "- " + o.title + " (" + o.stage + (o.opiScore?", OPI:"+o.opiScore:"") + ")").join("\n") || "No active pipeline entries";
-    const dateStr = new Date().toLocaleDateString("en-US", {weekday:"long",year:"numeric",month:"long",day:"numeric"});
-    const txt = await callClaude(
-      "Generate HGI Weekly Capture Intelligence Digest for week of " + dateStr + ".\n\n" +
-      (focus ? "SPECIAL FOCUS: " + focus + "\n\n" : "") +
-      "ACTIVE PIPELINE:\n" + pipeline + "\n\n" +
-      "Include:\n## EXECUTIVE SUMMARY\n## HOT OPPORTUNITIES\n## RECOMPETE WATCHLIST\n## INTELLIGENCE UPDATES\n## COMPETITIVE INTEL\n## THIS WEEK CAPTURE PRIORITIES\n## UPCOMING DEADLINES\n## MARKET TRENDS"
-    );
-    setResult(txt);
-    const newDigests = [{date:dateStr, content:txt}, ...digests].slice(0,10);
-    setDigests(newDigests); store.set("digests", newDigests);
+    try {
+      const pipelineRes = await fetch('/api/opportunities?limit=50&sort=opi_score.desc');
+      const pipelineData = pipelineRes.ok ? await pipelineRes.json() : { opportunities: [] };
+      const opps = pipelineData.opportunities || [];
+      const pipeline = opps.slice(0, 10).map(o => '- ' + o.title + ' | ' + o.agency + ' | OPI: ' + o.opi_score + ' | Due: ' + (o.due_date || 'TBD') + ' | ' + (o.urgency || '')).join('\n') || 'No active pipeline entries yet';
+      const dateStr = new Date().toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+      const txt = await callClaude(
+        'Generate HGI Weekly Capture Intelligence Digest for week of ' + dateStr + '.\n\n' +
+        (focus ? 'SPECIAL FOCUS: ' + focus + '\n\n' : '') +
+        'LIVE PIPELINE (' + opps.length + ' active opportunities):\n' + pipeline + '\n\n' +
+        'HGI CONTEXT: Hammerman & Gainer LLC, 95 years, disaster recovery, FEMA PA, CDBG-DR, TPA/claims, property tax appeals, workforce services. Louisiana-based.\n\n' +
+        'Include:\n## EXECUTIVE SUMMARY\n## HOT OPPORTUNITIES (top 3 to pursue NOW)\n## RECOMPETE WATCHLIST\n## UPCOMING DEADLINES\n## THIS WEEK CAPTURE PRIORITIES\n## MARKET INTELLIGENCE'
+      );
+      setResult(txt);
+      const newDigests = [{date: dateStr, content: txt}, ...digests].slice(0, 10);
+      setDigests(newDigests);
+      store.set('digests', newDigests);
+    } catch(e) {
+      setResult('Error generating digest: ' + e.message);
+    }
     setLoading(false);
   };
 
