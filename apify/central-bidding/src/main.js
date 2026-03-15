@@ -47,11 +47,14 @@ const crawler = new PlaywrightCrawler({
             
             const bidLinks = await page.$$eval('a', links => 
                 links.map(link => link.href)
-                     .filter(href => href && /centralauctionhouse\.com\/rfp\d+\.html$/.test(href))
+                     .filter(href => href && href.includes('centralauctionhouse.com/rfp'))
                      .filter((href, index, arr) => arr.indexOf(href) === index)
             );
             
             log.info(`Found ${bidLinks.length} bid links in category`);
+            if (bidLinks.length > 0) {
+                log.info(`First 5 hrefs: ${bidLinks.slice(0, 5).join(', ')}`);
+            }
             await addRequests(bidLinks.map(url => ({ url, label: 'BID' })));
             
         } else if (request.label === 'BID') {
