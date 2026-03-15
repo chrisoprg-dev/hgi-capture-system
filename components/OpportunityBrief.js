@@ -6,6 +6,8 @@ function OpportunityBrief() {
   const [scoring, setScoring] = useState(false);
   const [researchResult, setResearchResult] = useState('');
   const [scoringResult, setScoringResult] = useState('');
+  const [orchestrating, setOrchestrating] = useState(false);
+  const [orchestrateResult, setOrchestrateResult] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -72,6 +74,29 @@ function OpportunityBrief() {
     );
     setScoringResult(txt);
     setScoring(false);
+  };
+
+  const runOrchestrate = async () => {
+    if (!selected) return;
+    setOrchestrating(true);
+    setOrchestrateResult(null);
+    try {
+      const r = await fetch('/api/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opportunity_id: selected.id, trigger: 'manual' })
+      });
+      const d = await r.json();
+      setOrchestrateResult(d);
+      // Reload the opportunity data to show updated fields
+      const r2 = await fetch('/api/opportunities?sort=opi_score.desc&limit=20');
+      const d2 = await r2.json();
+      const list = (d2.opportunities || d2 || []).filter(o => o.status === 'active');
+      setOpps(list);
+      const updated = list.find(o => o.id === selected.id);
+      if (updated) setSelected(updated);
+    } catch(e) { setOrchestrateResult({ error: e.message }); }
+    setOrchestrating(false);
   };
 
   if (loading) return React.createElement('div', {style:{color:GOLD,padding:40,textAlign:'center',animation:'pulse 1.2s infinite'}}, 'Loading pipeline...');
@@ -173,6 +198,7 @@ function OpportunityBrief() {
       React.createElement(Card, {style:{marginBottom:16}},
         React.createElement('div', {style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:12}}, 'DECISION ACTIONS'),
         React.createElement('div', {style:{display:'flex',gap:10,flexWrap:'wrap'}},
+          React.createElement(Btn, {onClick:runOrchestrate,disabled:orchestrating,style:{background:GREEN,color:'#000'}}, orchestrating ? 'Running Full Intelligence Workflow...' : 'Run Full Intelligence Workflow'),
           React.createElement(Btn, {onClick:runResearch,disabled:researching}, researching ? 'Researching...' : 'Run Full Research'),
           React.createElement(Btn, {onClick:runWinnability,disabled:scoring,variant:'secondary'}, scoring ? 'Scoring...' : 'Score Winnability'),
           React.createElement(Btn, {variant:'ghost',onClick:()=>alert('Navigate to Proposal Engine and paste this RFP context to start drafting.')}, 'Start Proposal →'),
@@ -188,6 +214,17 @@ function OpportunityBrief() {
       // WINNABILITY OUTPUT
       scoringResult && React.createElement('div', {style:{marginBottom:16}},
         React.createElement(AIOut, {content:scoringResult,label:'WINNABILITY ASSESSMENT'})
+      ),
+
+      orchestrateResult && React.createElement(Card, {style:{marginBottom:16,border:'1px solid '+GREEN+'44'}},
+        React.createElement('div', {style:{color:GREEN,fontSize:11,fontWeight:700,letterSpacing:'0.1em',marginBottom:8}}, 'ORCHESTRATION RESULT'),
+        React.createElement('div', {style:{fontSize:12,color:TEXT_D}},
+          'Steps: ' + (orchestrateResult.steps_completed || []).join(' → ')),
+        orchestrateResult.pwin && React.createElement('div', {style:{fontSize:16,fontWeight:800,color:orchestrateResult.pwin>=60?GREEN:orchestrateResult.pwin>=40?GOLD:RED,marginTop:8}},
+          'Pwin: ' + orchestrateResult.pwin + '% | ' + orchestrateResult.recommendation),
+        orchestrateResult.duration_ms && React.createElement('div', {style:{fontSize:11,color:TEXT_D,marginTop:4}},
+          'Completed in ' + Math.round(orchestrateResult.duration_ms/1000) + ' seconds'),
+        orchestrateResult.error && React.createElement('div', {style:{color:RED,fontSize:12,marginTop:4}}, orchestrateResult.error)
       )
     )
   );
