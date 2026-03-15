@@ -7,6 +7,7 @@ const INTAKE_URL = 'https://hgi-capture-system.vercel.app/api/intake';
 const INTAKE_SECRET = 'hgi-intake-2026-secure';
 const BATCH_API_URL = 'https://hgi-capture-system.vercel.app/api/opportunities';
 const BRIDGE_API_URL = 'https://hgi-capture-system.vercel.app/api/bridge';
+const BATCH_URL = 'https://hgi-capture-system.vercel.app/api/batch';
 const CB_USERNAME = process.env.CB_USERNAME || 'HGIGLOBAL';
 const CB_PASSWORD = process.env.CB_PASSWORD || 'Whatever1340!';
 
@@ -83,59 +84,38 @@ const parseDate = (dateStr) => {
 
 const getCurrentBatch = async (log) => {
     try {
-        // Try opportunities endpoint first
-        const response = await fetch(`${BATCH_API_URL}?action=get_batch`);
+        const response = await fetch(BATCH_URL);
         if (response.ok) {
             const data = await response.json();
-            if (data && typeof data.batch === 'number') {
-                log.info(`Got batch ${data.batch} from opportunities endpoint`);
+            if (typeof data.batch === 'number') {
+                log.info('Got batch ' + data.batch + ' from batch endpoint');
                 return data.batch;
             }
         }
     } catch (error) {
-        log.info(`Failed to get batch from opportunities endpoint: ${error.message}`);
+        log.info('Batch endpoint failed: ' + error.message);
     }
-
-    try {
-        // Try bridge endpoint as fallback
-        const response = await fetch(`${BRIDGE_API_URL}?action=get_batch`);
-        if (response.ok) {
-            const data = await response.json();
-            if (data && typeof data.batch === 'number') {
-                log.info(`Got batch ${data.batch} from bridge endpoint`);
-                return data.batch;
-            }
-        }
-    } catch (error) {
-        log.info(`Failed to get batch from bridge endpoint: ${error.message}`);
-    }
-
-    // Fallback to Apify key-value store
-    const fallbackBatch = await Actor.getValue('batch') || 0;
-    log.info(`Using fallback batch ${fallbackBatch} from Apify key-value store`);
-    return fallbackBatch;
+    const fallback = await Actor.getValue('batch') || 0;
+    log.info('Using fallback batch ' + fallback);
+    return fallback;
 };
 
 const saveBatch = async (batch, log) => {
-    // Save to HGI endpoint
     try {
-        const response = await fetch(BATCH_API_URL, {
+        const response = await fetch(BATCH_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'set_batch', batch })
+            body: JSON.stringify({ batch, secret: 'hgi-intake-2026-secure' })
         });
         if (response.ok) {
-            log.info(`Saved batch ${batch} to HGI endpoint`);
+            log.info('Saved batch ' + batch + ' to batch endpoint');
         } else {
-            log.error(`Failed to save batch to HGI endpoint: ${response.status}`);
+            log.error('Failed to save batch: ' + response.status);
         }
     } catch (error) {
-        log.error(`Error saving batch to HGI endpoint: ${error.message}`);
+        log.error('Batch save error: ' + error.message);
     }
-
-    // Always save to Apify as backup
     await Actor.setValue('batch', batch);
-    log.info(`Saved batch ${batch} to Apify key-value store as backup`);
 };
 
 const checkDuplicate = async (sourceUrl, log) => {
