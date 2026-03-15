@@ -2,6 +2,7 @@
 function WinnabilityScoring() {
   const [f, setF] = useState({title:"",agency:"",value:"",type:"",hgiPP:5,budget:5,timeline:5,incumbent:"",competitors:"",teaming:"",revenueTimeline:"near",context:""});
   const [score, setScore] = useState("");
+  const [simResult, setSimResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const upd = (k,v) => setF(p => ({...p, [k]:v}));
 
@@ -10,7 +11,30 @@ function WinnabilityScoring() {
     const txt = await callClaude(
       "Score HGI winnability AND OPI:\nOpportunity: " + f.title + "\nAgency: " + f.agency + "\nType: " + f.type + "\nValue: " + f.value + "\nRevenue Timeline: " + f.revenueTimeline + "\nHGI PP Match (1-10): " + f.hgiPP + "\nIncumbent: " + (f.incumbent||"Unknown") + "\nTeaming: " + (f.teaming||"Unknown") + "\nBudget certainty (1-10): " + f.budget + "\nCompetitors: " + (f.competitors||"Unknown") + "\nContext: " + f.context + "\n\nProvide:\n1. Pwin X/100 with sub-scores\n2. OPI X/100 with sub-scores\n3. Priority Tier (Tier 1/2/3/Archive)\n4. Recommendation\n5. Top 3 actions to increase win probability"
     );
-    setScore(txt); setLoading(false);
+    setScore(txt);
+    
+    // Parallel win simulation call
+    fetch('/api/win-simulation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: f.title,
+        agency: f.agency,
+        vertical: f.type,
+        opi_score: f.hgiPP * 10,
+        competitors: f.competitors,
+        incumbent: f.incumbent,
+        relationship_strength: 'Warm',
+        budget_certainty: f.budget,
+        hgi_pp_match: f.hgiPP,
+        notes: f.context
+      })
+    })
+    .then(res => res.json())
+    .then(data => setSimResult(data))
+    .catch(err => console.log('Win simulation error:', err));
+    
+    setLoading(false);
   };
 
   return (
@@ -56,6 +80,33 @@ function WinnabilityScoring() {
         </Card>
       </div>
       {(loading||score) && <div style={{marginTop:20}}><AIOut content={score} loading={loading} label="PWIN + OPI ANALYSIS" /></div>}
+      {simResult && (
+        <div style={{marginTop:20}}>
+          <Card>
+            <h3 style={{color:GOLD,margin:"0 0 14px",fontSize:14}}>WIN SIMULATION</h3>
+            <div style={{display:"flex",flexDirection:"column",gap:16}}>
+              <div>
+                <div style={{fontSize:36,fontWeight:800,color:GOLD}}>{simResult.pwin}%</div>
+                <Label text="PWIN" />
+              </div>
+              <div>
+                <div style={{fontSize:18,fontWeight:700,color:WHITE}}>{simResult.opi_recommended}</div>
+                <Label text="RECOMMENDED OPI" />
+              </div>
+              {simResult.top_3_actions && (
+                <div>
+                  <Label text="TOP 3 ACTIONS" />
+                  <ul style={{margin:"4px 0 0 16px",padding:0,color:WHITE}}>
+                    {simResult.top_3_actions.map((action, i) => (
+                      <li key={i} style={{marginBottom:4}}>{action}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
