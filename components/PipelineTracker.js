@@ -180,6 +180,17 @@ function PipelineTracker({ goToWorkflow }) {
       
       if (response.ok) {
         setItems(items.map(i => i.id === itemId ? {...i, stage: newStage} : i));
+        // Broadcast stage change event
+        fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_type: newStage === 'won' ? 'opportunity.won' : newStage === 'lost' ? 'opportunity.lost' : 'opportunity.stage_changed',
+            opportunity_id: itemId,
+            source_module: 'pipeline_tracker',
+            data: { new_stage: newStage }
+          })
+        }).catch(() => {});
       }
     } catch (error) {
       console.error('Failed to update stage:', error);
