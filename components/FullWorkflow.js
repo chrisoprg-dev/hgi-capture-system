@@ -294,14 +294,21 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
         title: entry.title,
         agency: entry.agency,
         estimated_value: entry.value,
-        due_date: entry.deadline,
-        vertical: entry.type || 'disaster',
-        state: 'LA',
+        due_date: entry.deadline || sharedCtx.deadline || '',
+        urgency: entry.deadline ? 'IMMEDIATE' : 'ACTIVE',
+        vertical: entry.type || sharedCtx.type || 'disaster',
+        state: entry.geography ? entry.geography.slice(0,2).toUpperCase() : 'LA',
         description: entry.notes,
         opi_score: entry.opiScore,
         stage: entry.stage,
+        status: 'active',
         source: 'Full Workflow',
-        rfp_text: entry.decomposition?.slice(0, 10000)
+        source_url: rfpUrl || '',
+        hgi_relevance: (entry.opiScore||0) >= 70 ? 'HIGH' : (entry.opiScore||0) >= 45 ? 'MEDIUM' : 'LOW',
+        strategic_importance: (entry.opiScore||0) >= 75 ? 'TIER_1' : (entry.opiScore||0) >= 50 ? 'TIER_2' : 'TIER_3',
+        rfp_text: entry.decomposition?.slice(0, 10000),
+        discovered_at: new Date().toISOString(),
+        last_updated: new Date().toISOString()
       })
     }).catch(() => {}); // Fire-and-forget
     
