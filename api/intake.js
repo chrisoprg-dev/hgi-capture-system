@@ -177,18 +177,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  // Enhanced debug logging
-  try {
-    const body = req.body || {};
-    const debugInfo = [body.source || 'no-source', body.source_id || 'no-id', body.title?.slice(0,80) || 'no-title', body.url?.slice(0,80) || 'no-url', body.agency?.slice(0,50) || 'no-agency'].join(' | ');
-    const SUPABASE_URL_LOG = process.env.SUPABASE_URL;
-    const SUPABASE_KEY_LOG = process.env.SUPABASE_SERVICE_KEY;
-    await fetch(SUPABASE_URL_LOG + '/rest/v1/hunt_runs', {
-      method: 'POST',
-      headers: { 'apikey': SUPABASE_KEY_LOG, 'Authorization': 'Bearer ' + SUPABASE_KEY_LOG, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ source: 'intake_debug', status: debugInfo.slice(0, 200), run_at: new Date().toISOString(), opportunities_found: 0 })
-    });
-  } catch(e) {}
+
 
   // ── Environment variables ────────────────────────────────────────────────
   const SUPABASE_URL = process.env.SUPABASE_URL;
