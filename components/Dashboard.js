@@ -3,6 +3,7 @@ function Dashboard({ setActive }) {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString("en-US", { hour: 'numeric', minute: '2-digit' }));
   const [hthaCountdown, setHthaCountdown] = useState({ days: 0, hours: 0 });
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [pipelineStats, setPipelineStats] = useState({ total: 0, tier1: 0, pursuing: 0, proposal: 0, submitted: 0 });
   
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -31,6 +32,30 @@ function Dashboard({ setActive }) {
     updateTime();
     const interval = setInterval(updateTime, 60000);
     
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/opportunities?select=opi_score,status,stage&limit=1000');
+        if (res.ok) {
+          const data = await res.json();
+          const active = data.filter(o => o.status === 'active');
+          setPipelineStats({
+            total: active.length,
+            tier1: active.filter(o => o.opi_score >= 70).length,
+            pursuing: active.filter(o => o.stage === 'pursuing').length,
+            proposal: active.filter(o => o.stage === 'proposal').length,
+            submitted: active.filter(o => o.stage === 'submitted').length
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to fetch pipeline stats:', e.message);
+      }
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -72,11 +97,11 @@ function Dashboard({ setActive }) {
         gap: 12,
         marginBottom: 20
       }}>
-        {statBox("TOTAL TRACKED", tracker.length, GOLD, "tracker")}
-        {statBox("TIER 1 (OPI 70+)", t1.length, GREEN, "tracker")}
-        {statBox("PURSUING", pursuing.length, GOLD, "tracker")}
-        {statBox("IN PROPOSAL", proposal.length, ORANGE, "tracker")}
-        {statBox("SUBMITTED", submitted.length, BLUE, "tracker")}
+        {statBox("TOTAL TRACKED", pipelineStats.total, GOLD, "tracker")}
+        {statBox("TIER 1 (OPI 70+)", pipelineStats.tier1, GREEN, "tracker")}
+        {statBox("PURSUING", pipelineStats.pursuing, GOLD, "tracker")}
+        {statBox("IN PROPOSAL", pipelineStats.proposal, ORANGE, "tracker")}
+        {statBox("SUBMITTED", pipelineStats.submitted, BLUE, "tracker")}
       </div>
       <div style={{
         background: alertBg,
