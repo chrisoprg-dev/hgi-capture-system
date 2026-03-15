@@ -29,6 +29,26 @@ function stripScripts(html) {
     .trim();
 }
 
+function generateTitleFromUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    const pathSegments = urlObj.pathname.split('/').filter(seg => seg.length > 0);
+    const lastSegment = pathSegments[pathSegments.length - 1] || 'Opportunity';
+    // Remove file extensions and convert hyphens/underscores to spaces
+    const cleanSegment = lastSegment
+      .replace(/\.[a-zA-Z]{2,4}$/, '') // remove file extensions
+      .replace(/[-_]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    // Capitalize first letter of each word
+    return cleanSegment.split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ') || 'Government Opportunity';
+  } catch (e) {
+    return 'Government Opportunity';
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -52,8 +72,8 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  // ── Validate required fields ─────────────────────────────────────────────
-  const {
+  // ── Validate required fields with title salvaging ──────────────────────
+  let {
     source,
     source_id,
     title,
@@ -70,11 +90,16 @@ export default async function handler(req, res) {
     raw_html = "",
   } = req.body || {};
 
-  if (!source || !source_id || !title || !agency || !url) {
+  if (!source || !source_id || !agency || !url) {
     return res.status(400).json({
       error: "Missing required fields",
-      required: ["source", "source_id", "title", "agency", "url"],
+      required: ["source", "source_id", "agency", "url"],
     });
+  }
+
+  // ── Title salvaging logic ────────────────────────────────────────────────
+  if (!title || title.trim() === "" || title === "$99.99" || title.toLowerCase().includes("$99.99")) {
+    title = generateTitleFromUrl(url);
   }
 
   // ── Generate deterministic ID ────────────────────────────────────────────
