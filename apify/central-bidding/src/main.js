@@ -246,8 +246,8 @@ const crawler = new PlaywrightCrawler({
                     
                     log.info(`Found ${bidLinks.length} bid links in category`);
                     
-                    // Take first 1
-                    const limitedBidLinks = bidLinks.slice(0, 1);
+                    // Take first 2
+                    const limitedBidLinks = bidLinks.slice(0, 2);
                     
                     // For each bid link
                     for (const bidUrl of limitedBidLinks) {
@@ -261,12 +261,6 @@ const crawler = new PlaywrightCrawler({
                         const hasExpiredId = EXPIRED_BID_IDS.some(expiredId => bidUrl.includes(expiredId));
                         if (hasExpiredId) {
                             log.info(`Permanently skipping expired bid: ${bidUrl}`);
-                            continue;
-                        }
-                        
-                        // Check for expired bids after relevance check
-                        if (!isRelevant(finalTitle, bidData.description || '')) {
-                            log.info(`Not relevant: ${finalTitle}`);
                             continue;
                         }
                         
@@ -366,10 +360,12 @@ const crawler = new PlaywrightCrawler({
                                 deadline: bidData.deadline || '',
                                 value: bidData.value || '',
                                 description: bidData.description || '',
-                                url: bidUrl,source: 'Central Bidding': source_id: bidUrl.split('/').pop().replace(/\.html?$/i, ''),
+                                url: bidUrl,
+                                source: 'Central Bidding',
+                                source_id: bidUrl.split('/').pop().replace(/\.html?$/i, ''),
+                                response_deadline: bidData.deadline || '',
                                 state: 'LA',
-                                vertical: 'disaster',
-                                source: 'Central Bidding'
+                                vertical: 'disaster'
                             };
                             
                             // Send ALL data to intake endpoint
