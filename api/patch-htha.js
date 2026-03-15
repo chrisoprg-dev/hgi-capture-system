@@ -25,7 +25,6 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         due_date: '2026-03-19',
         state: 'LA',
-        stage: 'proposal',
         urgency: 'IMMEDIATE',
         last_updated: new Date().toISOString()
       })
