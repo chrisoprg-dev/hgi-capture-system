@@ -1,5 +1,6 @@
 function CRM() {
-  const [contacts, setContacts] = useState(() => store.get('crm_contacts') || []);
+  const [contacts, setContacts] = useState([]);
+  const [dbLoading, setDbLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({name:'',title:'',agency:'',email:'',phone:'',relationship_strength:'Cold',last_contact:'',notes:'',vertical:''});
@@ -9,7 +10,46 @@ function CRM() {
   const [aiResults, setAiResults] = useState({});
   const setF = (k,v) => setForm(f=>({...f,[k]:v}));
 
-  const save = (c) => { setContacts(c); store.set('crm_contacts', c); };
+  useEffect(() => {
+    const loadContacts = async () => {
+      try {
+        const r = await fetch('/api/contacts');
+        if (r.ok) {
+          const d = await r.json();
+          const dbContacts = d.contacts || [];
+          // Merge with any localStorage contacts (one-time migration)
+          const localContacts = store.get('crm_contacts') || [];
+          if (localContacts.length > 0 && dbContacts.length === 0) {
+            // First load — migrate localStorage to Supabase
+            await fetch('/api/contacts', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contacts: localContacts })
+            });
+            setContacts(localContacts);
+          } else {
+            setContacts(dbContacts);
+          }
+        }
+      } catch(e) {
+        // Fallback to localStorage if API fails
+        setContacts(store.get('crm_contacts') || []);
+      }
+      setDbLoading(false);
+    };
+    loadContacts();
+  }, []);
+
+  const save = (c) => {
+    setContacts(c);
+    store.set('crm_contacts', c); // Keep localStorage as backup
+    // Sync to Supabase
+    fetch('/api/contacts', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contacts: c })
+    }).catch(e => console.warn('CRM sync failed:', e.message));
+  };
 
   const submit = () => {
     if (!form.name || !form.agency) return;
@@ -47,7 +87,7 @@ function CRM() {
       <div style={{display:'flex',alignItems:'center',marginBottom:16,gap:10,flexWrap:'wrap'}}>
         <div>
           <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Relationship Intelligence</h2>
-          <p style={{color:TEXT_D,margin:'4px 0 0',fontSize:12}}>{contacts.length} contacts tracked · sorted by longest overdue</p>
+          <p style={{color:TEXT_D,margin:'4px 0 0',fontSize:12}}>{dbLoading ? 'Loading...' : contacts.length + ' contacts tracked · synced to cloud · sorted by longest overdue'}</p>
         </div>
         <Btn style={{marginLeft:'auto'}} onClick={()=>{setShowAdd(!showAdd);setEditId(null);setForm({name:'',title:'',agency:'',email:'',phone:'',relationship_strength:'Cold',last_contact:'',notes:'',vertical:''});}}>+ Add Contact</Btn>
       </div>
