@@ -183,7 +183,7 @@ export default async function handler(req, res) {
       '\nSCOPE ANALYSIS:\n' + scopeAnalysis.slice(0, 1000) +
       '\nFINANCIAL ANALYSIS:\n' + financialAnalysis.slice(0, 1000) +
       '\nRESEARCH:\n' + researchBrief.slice(0, 1000) +
-      '\n\nFirst line MUST be: PWIN: [number]% | RECOMMENDATION: [GO|CONDITIONAL GO|NO-BID]\n\n' +
+      '\n\nIMPORTANT: If the financial analysis above recommended PASS but you are recommending GO, you MUST explain the disagreement in your justification.\n\nFirst line MUST be: PWIN: [number]% | RECOMMENDATION: [GO|CONDITIONAL GO|NO-BID]\n\n' +
       'Then:\n1. Decision justification — 3 sentences citing scope, financial, and competitive factors\n2. Top 3 win factors\n3. Top 3 risk factors\n4. Conditions for GO (if CONDITIONAL)\n5. Teaming recommendation',
       'HGI chief capture officer making the final bid decision. Your first line MUST follow the format exactly.', 1500
     );
