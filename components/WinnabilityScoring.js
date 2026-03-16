@@ -20,6 +20,38 @@ function WinnabilityScoring() {
   var loading = loadState[0];
   var setLoading = loadState[1];
 
+  var exportDocx = async function() {
+    if (!score) return;
+    try {
+      var resp = await fetch('/api/export-module', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          module: 'winnability',
+          title: f.title || (selected ? selected.title : 'Winnability Assessment'),
+          agency: f.agency || (selected ? selected.agency : ''),
+          content: score,
+          metadata: {
+            'Agency': f.agency || '',
+            'Opportunity': f.title || '',
+            'Est. Value': f.value || '',
+            'Type': f.type || '',
+            'Incumbent': f.incumbent || 'Unknown',
+            'Revenue Timeline': f.revenueTimeline || ''
+          }
+        })
+      });
+      if (!resp.ok) throw new Error('Export failed');
+      var blob = await resp.blob();
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'HGI_Winnability_' + (f.agency || 'Assessment').replace(/[^a-zA-Z0-9]/g,'_') + '.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) { alert('Export failed: ' + e.message); }
+  };
+
   var upd = function(k,v) { setF(function(p) { var n = Object.assign({}, p); n[k] = v; return n; }); };
 
   // Auto-populate from selected opportunity
@@ -146,7 +178,15 @@ function WinnabilityScoring() {
         )
       )
     ),
-    (loading||score) && React.createElement('div', {style:{marginTop:20}}, React.createElement(AIOut, {content:score,loading:loading,label:"PWIN + OPI ANALYSIS"})),
+    (loading||score) && React.createElement('div', {style:{marginTop:20}},
+      score && !loading && React.createElement('div', {style:{display:'flex',justifyContent:'flex-end',marginBottom:8}},
+        React.createElement('button', {
+          onClick: exportDocx,
+          style:{background:'#1F3864',color:'#C9A84C',border:'1px solid #C9A84C',borderRadius:4,padding:'6px 16px',fontSize:12,fontWeight:700,cursor:'pointer',letterSpacing:'0.05em'}
+        }, '⬇ Export .docx')
+      ),
+      React.createElement(AIOut, {content:score,loading:loading,label:"PWIN + OPI ANALYSIS"})
+    ),
     simResult && React.createElement('div', {style:{marginTop:20}},
       React.createElement(Card, null,
         React.createElement('h3', {style:{color:GOLD,margin:"0 0 14px",fontSize:14}}, "WIN SIMULATION"),
