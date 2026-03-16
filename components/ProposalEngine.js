@@ -1,5 +1,6 @@
 // ── PROPOSAL ENGINE ───────────────────────────────────────────────────────────
 function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
+  var pl = usePipeline();
   const [rfpText, setRfpText] = useState("");
   const [section, setSection] = useState(defaultSection);
   const [autoLoaded, setAutoLoaded] = useState(false);
