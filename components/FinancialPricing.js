@@ -404,16 +404,32 @@ function FinancialPricing({ sharedCtx={} }) {
   return (
     <div>
       <div style={{marginBottom:4}}>
-        <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+          <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
+          {(marketRates||ptwAnalysis||evalResult||costNarrative)&&<button onClick={exportFinancialPackage} style={{background:'#1F3864',color:'#C9A84C',border:'1px solid #C9A84C',borderRadius:4,padding:'6px 18px',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>Export Financial Package</button>}
+        </div>
         <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>Price Intelligence Engine · Cost Buildup · PTW · Evaluation Modeling · Cost Narrative</p>
       </div>
 
-      {sharedCtx.title && (
-        <div style={{marginBottom:12,padding:"8px 12px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
-          ✓ Loaded: <strong>{sharedCtx.title}</strong>{sharedCtx.agency ? " — " + sharedCtx.agency : ""}
-          {intel.estimatedValue ? <span style={{marginLeft:12,color:GOLD}}>Est. Value: {intel.estimatedValue}</span> : ""}
-        </div>
-      )}
+      {React.createElement(OpportunitySelector,{pipeline:plOpps,selected:plSelected,onSelect:plSelect,loading:plLoading,label:"SELECT OPPORTUNITY FOR PRICING"})}
+
+      {(()=>{
+        const wfState = store.get('wfState') || {};
+        const title = sharedCtx.title || wfState.title;
+        const agency = sharedCtx.agency || wfState.agency;
+        const value = intel.estimatedValue || sharedCtx.value || wfState.value;
+        if (title || agency) {
+          return React.createElement('div',{style:{marginBottom:12,padding:"10px 14px",background:GREEN+"15",border:"1px solid "+GREEN+"44",borderRadius:4}},
+            React.createElement('div',{style:{fontSize:11,color:GREEN,fontWeight:700,letterSpacing:"0.06em",marginBottom:4}},"ACTIVE OPPORTUNITY"),
+            React.createElement('div',{style:{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}},
+              React.createElement('span',{style:{color:TEXT,fontWeight:700,fontSize:14}},title||"Untitled"),
+              agency && React.createElement('span',{style:{color:TEXT_D,fontSize:12}},"— "+agency),
+              value && React.createElement('span',{style:{color:GOLD,fontSize:12,fontWeight:700}},value)
+            )
+          );
+        }
+        return null;
+      })()} 
 
       {/* Live Summary Stats — clickable drill-downs */}
       {(()=>{
