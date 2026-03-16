@@ -185,6 +185,8 @@ If no active opportunities, suggest general opportunity types they'd be good for
         {activeTab === "bench" && <Btn style={{marginLeft:"auto"}} onClick={()=>setShowAdd(!showAdd)}>+ Add Person</Btn>}
       </div>
 
+      {React.createElement(OpportunitySelector,{pipeline:pl.pipeline,selected:pl.selected,onSelect:pl.select,loading:pl.loading,label:"SELECT OPPORTUNITY FOR STAFFING"})}
+
       {/* Tab Navigation */}
       <div style={{marginBottom: 20, borderBottom: `1px solid ${GOLD}33`}}>
         <div style={{display: "flex", gap: 0}}>
