@@ -1,5 +1,6 @@
 // ── RECRUITING ────────────────────────────────────────────────────────────────
 function RecruitingBench() {
+  var pl = usePipeline();
   const [bench, setBench] = useState(() => store.get("bench") || []);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({name:"",role:"",domain:"",clearance:"",location:"",availability:"",notes:""});
