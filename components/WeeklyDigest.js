@@ -1,5 +1,6 @@
 // ── WEEKLY DIGEST ─────────────────────────────────────────────────────────────
 function WeeklyDigest() {
+  var pl = usePipeline();
   const [focus, setFocus] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,7 +34,8 @@ function WeeklyDigest() {
   return (
     <div>
       <h2 style={{color:GOLD,margin:"0 0 4px",fontSize:20,fontWeight:800}}>Weekly Digest</h2>
-      <p style={{color:TEXT_D,margin:"0 0 20px",fontSize:12}}>AI-generated capture intelligence brief for HGI leadership</p>
+      <p style={{color:TEXT_D,margin:"0 0 12px",fontSize:12}}>AI-generated capture intelligence brief for HGI leadership — pulls live pipeline data</p>
+      {!pl.loading && pl.pipeline.length > 0 && React.createElement('div',{style:{marginBottom:16,padding:'8px 12px',background:GREEN+'11',border:'1px solid '+GREEN+'33',borderRadius:4,fontSize:12,color:GREEN}},'✓ ' + pl.pipeline.length + ' active opportunities in pipeline will be included in digest')}
       <Card style={{marginBottom:20}}>
         <Label text="SPECIAL FOCUS AREAS (optional)" />
         <Input value={focus} onChange={setFocus} placeholder="e.g. FEMA PA recompetes, Texas TPA, Florida recovery..." />
