@@ -348,9 +348,14 @@ function FinancialPricing({ sharedCtx={} }) {
   return (
     <div>
       <div style={{marginBottom:4}}>
-        <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
-        <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>Price Intelligence Engine · Cost Buildup · PTW · Evaluation Modeling · Cost Narrative</p>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}}>
+          <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
+          {(marketRates||ptwAnalysis||evalResult||costNarrative) && <button onClick={exportFinancialPackage} style={{background:'#1F3864',color:'#C9A84C',border:'1px solid #C9A84C',borderRadius:4,padding:'6px 16px',fontSize:12,fontWeight:700,cursor:'pointer'}}>Export Financial Package</button>}
+        </div>
+        <p style={{color:TEXT_D,margin:"4px 0 0 0",fontSize:12}}>Price Intelligence Engine · Cost Buildup · PTW · Evaluation Modeling · Cost Narrative</p>
       </div>
+
+      {React.createElement(OpportunitySelector,{pipeline:plOpps,selected:plSelected,onSelect:plSelect,loading:plLoading,label:"SELECT OPPORTUNITY FOR PRICING"})}
 
       {sharedCtx.title && (
         <div style={{marginBottom:12,padding:"8px 12px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
