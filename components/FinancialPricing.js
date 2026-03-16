@@ -304,6 +304,34 @@ function FinancialPricing({ sharedCtx={} }) {
     setNarrativeLoading(false);
   };
 
+  const exportFinancialPackage = async () => {
+    const hasContent = marketRates || ptwAnalysis || evalResult || costNarrative;
+    if (!hasContent) { alert('Generate at least one analysis first (Market Rates, PTW, Eval, or Narrative).'); return; }
+    const cs = String.fromCharCode(36);
+    const f2 = function(n) { return cs + Math.round(n).toLocaleString(); };
+    const agencyVal = (plSelected ? plSelected.agency : '') || intel.geography || 'HGI';
+    const titleVal = (plSelected ? plSelected.title : '') || 'Financial Analysis';
+    const laborLines = laborRows.map(function(r) { var c = calcRow(r); return '- ' + r.cat + ': ' + r.hours + ' hrs = ' + f2(c.total); }).join('\n');
+    const odcLines = odcs.map(function(o) { return '- ' + o.desc + ': ' + f2(parseFloat(o.amount||0)); }).join('\n');
+    const periodLines = periods.map(function(p, i) { return '- ' + p.label + ': ' + f2(periodTotal(p, i)); }).join('\n');
+    var bodyParts = ['## COST BUILDUP SUMMARY', '', '### Labor', laborLines, '', 'Total Labor: ' + f2(totalLabor()), '', '### ODCs', odcLines, '', 'Total ODCs: ' + f2(totalODC()), '', '### Period Pricing', periodLines, '', 'Contract Total: ' + f2(contractTotal()), 'Profit Margin: ' + profitMargin() + '%', recommendedPrice ? 'Win Price: ' + f2(recommendedPrice) : ''];
+    if (marketRates) { bodyParts.push(''); bodyParts.push('## MARKET RATE ANALYSIS'); bodyParts.push(marketRates); }
+    if (ptwAnalysis) { bodyParts.push(''); bodyParts.push('## PRICE-TO-WIN ANALYSIS'); bodyParts.push(ptwAnalysis); }
+    if (evalResult) { bodyParts.push(''); bodyParts.push('## EVALUATION SCORE MODEL'); bodyParts.push(evalResult); }
+    if (costNarrative) { bodyParts.push(''); bodyParts.push('## COST PROPOSAL NARRATIVE'); bodyParts.push(costNarrative); }
+    var fullContent = bodyParts.join('\n');
+    var sections = [marketRates && 'Market Rates', ptwAnalysis && 'PTW', evalResult && 'Eval Model', costNarrative && 'Narrative'].filter(Boolean).join(', ') || 'Buildup only';
+    try {
+      var resp = await fetch('/api/export-module', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ module: 'financial', title: titleVal, agency: agencyVal, content: fullContent, metadata: { Agency: agencyVal, 'Contract Value': intel.estimatedValue || f2(contractTotal()), 'Contract Type': intel.contractType || '', Incumbent: intel.incumbent || 'Unknown', 'Sections': sections } }) });
+      if (!resp.ok) throw new Error('Export failed');
+      var blob = await resp.blob();
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'HGI_Financial_' + agencyVal.replace(/[^a-zA-Z0-9]/g,'_') + '.docx'; a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) { alert('Export failed: ' + e.message); }
+  };
+
   const addLaborRow = () => saveLR([...laborRows, {id:Date.now(), cat:"Analyst", hours:2080, rawRate:60, fringe:0.28, overhead:0.15, ga:0.12, fee:0.10}]);
   const updateLR = (id, field, val) => saveLR(laborRows.map(r => r.id===id ? {...r,[field]:val} : r));
   const removeLR = (id) => saveLR(laborRows.filter(r => r.id!==id));
