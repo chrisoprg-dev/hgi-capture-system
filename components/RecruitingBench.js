@@ -1,7 +1,8 @@
 // ── RECRUITING ────────────────────────────────────────────────────────────────
 function RecruitingBench() {
   var pl = usePipeline();
-  const [bench, setBench] = useState(() => store.get("bench") || []);
+  const [bench, setBench] = useState([]);
+  const [dbLoading, setDbLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({name:"",role:"",domain:"",clearance:"",location:"",availability:"",notes:""});
   const [gapText, setGapText] = useState("");
@@ -18,7 +19,44 @@ function RecruitingBench() {
   const [matchLoading, setMatchLoading] = useState({});
   const setF = (k,v) => setForm(f => ({...f,[k]:v}));
   const setAR = (k,v) => setAutoRecruitForm(f => ({...f,[k]:v}));
-  const save = (d) => { setBench(d); store.set("bench", d); };
+
+  useEffect(() => {
+    const loadBench = async () => {
+      try {
+        const r = await fetch('/api/bench');
+        if (r.ok) {
+          const d = await r.json();
+          const dbBench = d.bench || [];
+          // One-time migration from localStorage
+          const localBench = store.get('bench') || [];
+          if (localBench.length > 0 && dbBench.length === 0) {
+            await fetch('/api/bench', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ bench: localBench })
+            });
+            setBench(localBench);
+          } else {
+            setBench(dbBench);
+          }
+        }
+      } catch(e) {
+        setBench(store.get('bench') || []);
+      }
+      setDbLoading(false);
+    };
+    loadBench();
+  }, []);
+
+  const save = (d) => {
+    setBench(d);
+    store.set('bench', d); // Keep localStorage as backup
+    fetch('/api/bench', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bench: d })
+    }).catch(e => console.warn('Bench sync failed:', e.message));
+  };
 
   const addPerson = () => {
     if (!form.name) return;
@@ -180,7 +218,7 @@ If no active opportunities, suggest general opportunity types they'd be good for
       <div style={{display:"flex",alignItems:"center",marginBottom:20}}>
         <div>
           <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Recruiting & Bench</h2>
-          <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>{bench.length} bench members tracked</p>
+          <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>{dbLoading ? 'Loading...' : bench.length + ' bench members tracked · synced to cloud'}</p>
         </div>
         {activeTab === "bench" && <Btn style={{marginLeft:"auto"}} onClick={()=>setShowAdd(!showAdd)}>+ Add Person</Btn>}
       </div>
