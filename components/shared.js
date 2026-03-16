@@ -197,10 +197,10 @@ function usePipeline() {
 
   var writeBack = async function(opportunityId, updates) {
     try {
-      var r = await fetch('/api/opportunities?id=eq.' + encodeURIComponent(opportunityId), {
+      var r = await fetch('/api/opportunities', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.assign({}, updates, { last_updated: new Date().toISOString() }))
+        body: JSON.stringify(Object.assign({ id: opportunityId }, updates))
       });
       if (r.ok) {
         invalidatePipelineCache();
