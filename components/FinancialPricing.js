@@ -326,7 +326,7 @@ function FinancialPricing({ sharedCtx={} }) {
     <div>
       <div style={{marginBottom:4}}>
         <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
-        <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>Price Intelligence Engine · Cost Buildup · PTW · Evaluation Modeling · Cost Narrative</p>
+        <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>Price Intelligence Engine · Cost Buildup · PTW · Evaluation Modeling · Cost Narrative</p>{React.createElement(OpportunitySelector,{pipeline:plOpps,selected:plSelected,onSelect:plSelect,loading:plLoading,label:"SELECT OPPORTUNITY FOR PRICING"})}
       </div>
 
       {(()=>{
