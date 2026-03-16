@@ -251,6 +251,7 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
         })
       }).catch(() => {});
       saveSharedCtx({ execBrief: b });
+      if (pl.selected && pl.selected.id) { pl.writeBack(pl.selected.id, { capture_action: b.slice(0, 2000), opi_score: opiVal || opi, stage: dec === 'GO' ? 'pursuing' : dec === 'CONDITIONAL GO' ? 'qualifying' : dec === 'NO-BID' ? 'no_bid' : 'identified', status: dec === 'NO-BID' ? 'no_bid' : 'active', last_updated: new Date().toISOString() }); }
     } catch(err) {
       stopTimer();
       setError("Step 2 failed: " + err.message);
