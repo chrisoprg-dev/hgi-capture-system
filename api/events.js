@@ -58,6 +58,95 @@ export default async function handler(req, res) {
         }
       }
 
+      // ── EVENT SUBSCRIBERS ────────────────────────────────────────────
+      // When specific events fire, trigger downstream actions automatically
+      const BASE = process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'https://hgi-capture-system.vercel.app';
+
+      const subscribers = {
+        'opportunity.tier1_discovered': async (payload) => {
+          // Tier 1 discovered → send notification
+          try {
+            await fetch(BASE + '/api/notify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'tier1_alert',
+                title: payload.opportunity_title || 'New Tier 1 Opportunity',
+                agency: payload.agency || '',
+                opportunity_id: payload.opportunity_id || '',
+                opi_score: payload.data?.opi_score || 0,
+                vertical: payload.data?.vertical || '',
+                urgency: payload.data?.urgency || ''
+              })
+            });
+          } catch(e) { console.warn('Notify subscriber failed:', e.message); }
+        },
+        'opportunity.winnability_scored': async (payload) => {
+          // Winnability scored with GO recommendation → notify
+          if (payload.data?.recommendation === 'GO' || payload.data?.recommendation === 'CONDITIONAL GO') {
+            try {
+              await fetch(BASE + '/api/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'go_decision',
+                  title: payload.opportunity_title || 'GO Decision',
+                  agency: payload.agency || '',
+                  opportunity_id: payload.opportunity_id || '',
+                  pwin: payload.data?.pwin || 0,
+                  recommendation: payload.data?.recommendation || ''
+                })
+              });
+            } catch(e) { console.warn('GO notify failed:', e.message); }
+          }
+        },
+        'opportunity.stage_changed': async (payload) => {
+          // Stage change → notify if moving to proposal or submitted
+          const stage = payload.data?.new_stage;
+          if (stage === 'proposal' || stage === 'submitted') {
+            try {
+              await fetch(BASE + '/api/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'stage_change',
+                  title: payload.opportunity_title || 'Stage Change',
+                  agency: payload.agency || '',
+                  stage: stage,
+                  opportunity_id: payload.opportunity_id || ''
+                })
+              });
+            } catch(e) { console.warn('Stage notify failed:', e.message); }
+          }
+        },
+        'batch.completed': async (payload) => {
+          // Batch of opportunities completed → send summary notification
+          const count = payload.data?.new_count || 0;
+          const tier1Count = payload.data?.tier1_count || 0;
+          if (tier1Count > 0) {
+            try {
+              await fetch(BASE + '/api/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'batch_summary',
+                  title: 'Scraper Batch Complete',
+                  new_count: count,
+                  tier1_count: tier1Count
+                })
+              });
+            } catch(e) { console.warn('Batch notify failed:', e.message); }
+          }
+        }
+      };
+
+      // After storing the event, dispatch to subscribers
+      const subscriber = subscribers[event_type];
+      if (subscriber) {
+        // Fire and forget — don't block the response
+        subscriber({ event_type, opportunity_id, opportunity_title, agency, data, source_module }).catch(e => console.warn('Subscriber error:', e.message));
+      }
+
       return res.status(200).json({ success: true, event_type });
     } catch(e) {
       return res.status(500).json({ error: e.message });
