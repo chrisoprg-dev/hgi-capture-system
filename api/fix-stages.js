@@ -6,17 +6,10 @@ const H = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'ap
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  if (req.method !== 'POST') return res.status(200).json({ info: 'POST to run stage fixes' });
 
   const fixes = [
-    {
-      id: 'manualtest-manual-htha-2026-03-04-001',
-      updates: { stage: 'pursuing', last_updated: new Date().toISOString() }
-    },
-    {
-      id: 'centralbid-rfp31266541-professional-services-for-disaster-recovery-project-management-consu',
-      updates: { stage: 'pursuing', last_updated: new Date().toISOString() }
-    }
+    { id: 'manualtest-manual-htha-2026-03-04-001', stage: 'pursuing' },
+    { id: 'centralbid-rfp31266541-professional-services-for-disaster-recovery-project-management-consu', stage: 'pursuing' }
   ];
 
   const results = [];
@@ -25,11 +18,11 @@ export default async function handler(req, res) {
       const r = await fetch(SB + '/rest/v1/opportunities?id=eq.' + encodeURIComponent(fix.id), {
         method: 'PATCH',
         headers: H,
-        body: JSON.stringify(fix.updates)
+        body: JSON.stringify({ stage: fix.stage, last_updated: new Date().toISOString() })
       });
-      results.push({ id: fix.id, status: r.ok ? 'updated' : 'failed', code: r.status });
+      results.push({ id: fix.id.slice(0, 30), status: r.ok ? 'updated to ' + fix.stage : 'failed ' + r.status });
     } catch(e) {
-      results.push({ id: fix.id, status: 'error', message: e.message });
+      results.push({ id: fix.id.slice(0, 30), error: e.message });
     }
   }
 
