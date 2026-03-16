@@ -106,7 +106,7 @@ export default async function handler(req, res) {
       '\nESTIMATED VALUE: ' + (opp.estimated_value || 'Unknown') +
       '\nVERTICAL: ' + (opp.vertical || 'general') +
       '\nSCOPE ANALYSIS:\n' + scopeAnalysis.slice(0, 2000) +
-      '\nCRITICAL: Use ACTUAL population and budget data from the RFP or scope analysis. Do NOT guess population figures.\n' +
+      '\nCRITICAL RULES:\n- If population is not stated in the RFP, write "Population: Not stated in RFP" — do NOT guess.\n- If contract value is not stated, label estimates clearly as "Estimated" not facts.\n- Never present estimates as RFP facts.\n' +
       '\n\nHGI RATE CARD:\nPrincipal $180/hr, Program Director $165/hr, SME $155/hr, Sr Grant Mgr $150/hr, Grant Mgr $120/hr, Sr PM $150/hr, PM $140/hr, Grant Writer $105/hr, Architect/Engineer $135/hr, Cost Estimator $125/hr, Appeals Specialist $145/hr, Sr Damage Assessor $115/hr, Damage Assessor $95/hr, Admin Support $65/hr.\n\n' +
       'Provide ALL of the following with SPECIFIC NUMBERS and RATIONALE for each:\n\n' +
       '1. ESTIMATED CONTRACT VALUE — What will the agency pay? Show your math: comparable contracts, agency budget, scope complexity. Give a range with low/mid/high.\n\n' +
