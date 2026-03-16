@@ -30,6 +30,7 @@ function FinancialPricing({ sharedCtx={} }) {
   const [evalLoading, setEvalLoading] = useState(false);
   const [recommendedPrice, setRecommendedPrice] = useState(() => store.get("recommendedPrice") || null);
 
+  var pl = usePipeline(); var plOpps = pl.pipeline; var plSelected = pl.selected; var plSelect = pl.select; var plLoading = pl.loading;
   const saveIntel = (u) => { const n={...intel,...u}; setIntel(n); store.set("priceIntel",n); };
   const saveLR = (rows) => { setLaborRows(rows); store.set("laborRows", rows); };
   const saveODC = (rows) => { setOdcs(rows); store.set("odcs", rows); };
