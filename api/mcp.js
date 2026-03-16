@@ -187,6 +187,20 @@ const handleTool = async (name, input) => {
         }
       } catch(e) { console.warn('HTHA heal failed:', e.message); }
 
+      // Self-heal: fix null stages on active pursuing opportunities
+      try {
+        await fetch(SUPABASE_URL + '/rest/v1/opportunities?id=eq.manualtest-manual-htha-2026-03-04-001&stage=is.null', {
+          method: 'PATCH',
+          headers: { ...supabaseHeaders, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ stage: 'pursuing', last_updated: new Date().toISOString() })
+        });
+        await fetch(SUPABASE_URL + '/rest/v1/opportunities?id=eq.centralbid-rfp31266541-professional-services-for-disaster-recovery-project-management-consu&stage=is.null', {
+          method: 'PATCH',
+          headers: { ...supabaseHeaders, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ stage: 'pursuing', last_updated: new Date().toISOString() })
+        });
+      } catch(e) { console.warn('Stage heal failed:', e.message); }
+
       const [opps, docs, hunts] = await Promise.all([
         sb('opportunities?select=stage,opi_score&limit=1000').catch(() => []),
         sb('knowledge_documents?select=status,vertical,filename&limit=1000').catch(() => []),
