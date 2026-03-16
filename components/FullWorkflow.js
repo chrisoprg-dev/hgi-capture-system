@@ -210,6 +210,7 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
       persistWF({ outA: a, step: 2, title: autoTitle, agency: autoAgency, rfpText: rIn, rfpUrl, incumbent, intel });
       saveSharedCtx({ rfpText: rIn, decomposition: a, title: autoTitle, agency: autoAgency, value: autoValue, deadline: autoDeadline, type: autoType, geography: autoGeo });
       // Fire background tasks — don't await
+      if (pl.selected && pl.selected.id) { pl.writeBack(pl.selected.id, { scope_analysis: a, last_updated: new Date().toISOString() }); }
       autoResearch(a, autoTitle, autoAgency);
     } catch(err) {
       stopTimer();
