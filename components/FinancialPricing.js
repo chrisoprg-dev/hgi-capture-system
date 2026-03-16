@@ -36,6 +36,40 @@ function FinancialPricing({ sharedCtx={} }) {
   const [evalLoading, setEvalLoading] = useState(false);
   const [recommendedPrice, setRecommendedPrice] = useState(() => store.get("recommendedPrice") || null);
 
+  const exportModuleDocx = async (contentStr, subModule) => {
+    if (!contentStr) return;
+    const agency = intel.geography || (plSelected ? plSelected.agency : '') || 'HGI';
+    const titleStr = (plSelected ? plSelected.title : '') || subModule;
+    try {
+      const resp = await fetch('/api/export-module', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          module: 'financial',
+          title: titleStr + ' — ' + subModule,
+          agency,
+          content: contentStr,
+          metadata: {
+            'Agency': agency,
+            'Contract Value': intel.estimatedValue || '',
+            'Contract Years': intel.contractYears || '',
+            'Contract Type': intel.contractType || '',
+            'Incumbent': intel.incumbent || 'Unknown',
+            'Price Weight': intel.pricingWeight ? intel.pricingWeight + '%' : ''
+          }
+        })
+      });
+      if (!resp.ok) throw new Error('Export failed');
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'HGI_Financial_' + subModule.replace(/[^a-zA-Z0-9]/g,'_') + '_' + agency.replace(/[^a-zA-Z0-9]/g,'_') + '.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) { alert('Export failed: ' + e.message); }
+  };
+
   const saveIntel = (u) => { const n={...intel,...u}; setIntel(n); store.set("priceIntel",n); };
   const saveLR = (rows) => { setLaborRows(rows); store.set("laborRows", rows); };
   const saveODC = (rows) => { setOdcs(rows); store.set("odcs", rows); };
