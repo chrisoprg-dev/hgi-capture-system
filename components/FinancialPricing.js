@@ -1,10 +1,5 @@
 // ── FINANCIAL ANALYSIS & PRICING ─────────────────────────────────────────────
 function FinancialPricing({ sharedCtx={} }) {
-  var pl = usePipeline();
-  var plOpps = pl.pipeline;
-  var plSelected = pl.selected;
-  var plSelect = pl.select;
-  var plLoading = pl.loading;
   const LABOR_CATS = ["Program Manager","Deputy PM","Senior Program Manager","Grant Manager","Senior Analyst","Analyst","Associate Analyst","Data Specialist","GIS Specialist","Field Inspector","Case Manager","Housing Specialist","Financial Analyst","Compliance Officer","Quality Assurance","Administrative Support","IT Specialist","Legal/Policy Advisor","Communications Specialist","Training Coordinator"];
   const [activeTab, setActiveTab] = useState("intelligence");
   const [laborRows, setLaborRows] = useState(() => store.get("laborRows") || [
@@ -34,86 +29,6 @@ function FinancialPricing({ sharedCtx={} }) {
   const [evalResult, setEvalResult] = useState(() => store.get("evalResult") || "");
   const [evalLoading, setEvalLoading] = useState(false);
   const [recommendedPrice, setRecommendedPrice] = useState(() => store.get("recommendedPrice") || null);
-
-  const exportFinancialPackage = async () => {
-    const hasContent = marketRates || ptwAnalysis || evalResult || costNarrative;
-    if (!hasContent) { alert('Generate at least one analysis first.'); return; }
-    const agency = (plSelected ? plSelected.agency : '') || intel.geography || 'HGI';
-    const titleStr = (plSelected ? plSelected.title : '') || 'Financial Analysis';
-    const currSign = String.fromCharCode(36);
-    const fmt2 = function(n) { return currSign + Math.round(n).toLocaleString(); };
-    const laborSummary = laborRows.map(function(r) {
-      const c = calcRow(r);
-      return '- ' + r.cat + ': ' + r.hours + ' hrs at ' + fmt2(c.loaded) + '/hr = ' + fmt2(c.total);
-    }).join('\n');
-    const periodSummary = periods.map(function(p, i) { return '- ' + p.label + ': ' + fmt2(periodTotal(p, i)); }).join('\n');
-    const odcSummary = odcs.map(function(o) { return '- ' + o.desc + ': ' + fmt2(parseFloat(o.amount||0)); }).join('\n');
-    const totalLaborVal = totalLabor();
-    const totalODCVal = totalODC();
-    const contractTotalVal = contractTotal();
-    const marginVal = profitMargin();
-    const winPriceVal = recommendedPrice;
-    const includedSections = [marketRates && 'Market Rates', ptwAnalysis && 'PTW Analysis', evalResult && 'Eval Model', costNarrative && 'Cost Narrative'].filter(Boolean).join(', ') || 'Cost Buildup only';
-    const builtupLines = [
-      '## COST BUILDUP SUMMARY',
-      '',
-      '### Labor Categories',
-      laborSummary,
-      '',
-      '**Total Labor: ' + fmt2(totalLaborVal) + '**',
-      '',
-      '### Other Direct Costs (ODCs)',
-      odcSummary,
-      '',
-      '**Total ODCs: ' + fmt2(totalODCVal) + '**',
-      '',
-      '### Period of Performance Pricing',
-      periodSummary,
-      '',
-      '**Total Contract Value: ' + fmt2(contractTotalVal) + '**',
-      '**Profit Margin: ' + marginVal + '%** (Target: ' + intel.hgiMarginTarget + '%)',
-      winPriceVal ? '**System Recommended Win Price: ' + fmt2(winPriceVal) + '**' : ''
-    ];
-    const builtupContent = builtupLines.filter(function(l) { return l !== undefined; }).join('\n');
-    const sections = [builtupContent];
-    if (marketRates) sections.push('## MARKET RATE ANALYSIS\n\n' + marketRates);
-    if (ptwAnalysis) sections.push('## PRICE-TO-WIN ANALYSIS\n\n' + ptwAnalysis);
-    if (evalResult) sections.push('## EVALUATION SCORE MODEL\n\n' + evalResult);
-    if (costNarrative) sections.push('## COST PROPOSAL NARRATIVE\n\n' + costNarrative);
-    const fullContent = sections.join('\n\n---\n\n');
-    try {
-      const resp = await fetch('/api/export-module', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          module: 'financial',
-          title: titleStr,
-          agency: agency,
-          content: fullContent,
-          metadata: {
-            Agency: agency,
-            'Contract Value': intel.estimatedValue || fmt2(contractTotalVal),
-            'Contract Years': intel.contractYears || (periods.length + ' periods'),
-            'Contract Type': intel.contractType || '',
-            Incumbent: intel.incumbent || 'Unknown',
-            'Price Weight': intel.pricingWeight ? (intel.pricingWeight + '%') : '',
-            'HGI Buildup': fmt2(contractTotalVal),
-            'Profit Margin': marginVal + '%',
-            'Win Price': winPriceVal ? fmt2(winPriceVal) : 'Not yet modeled',
-            'Sections Included': includedSections
-          }
-        })
-      });
-      if (!resp.ok) throw new Error('Export failed');
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'HGI_Financial_Package_' + agency.replace(/[^a-zA-Z0-9]/g,'_') + '.docx';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch(e) { alert('Export failed: ' + e.message); }
-  };
 
   const saveIntel = (u) => { const n={...intel,...u}; setIntel(n); store.set("priceIntel",n); };
   const saveLR = (rows) => { setLaborRows(rows); store.set("laborRows", rows); };
@@ -404,32 +319,16 @@ function FinancialPricing({ sharedCtx={} }) {
   return (
     <div>
       <div style={{marginBottom:4}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-          <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
-          {(marketRates||ptwAnalysis||evalResult||costNarrative)&&<button onClick={exportFinancialPackage} style={{background:'#1F3864',color:'#C9A84C',border:'1px solid #C9A84C',borderRadius:4,padding:'6px 18px',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>Export Financial Package</button>}
-        </div>
+        <h2 style={{color:GOLD,margin:0,fontSize:20,fontWeight:800}}>Financial Analysis & Pricing</h2>
         <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>Price Intelligence Engine · Cost Buildup · PTW · Evaluation Modeling · Cost Narrative</p>
       </div>
 
-      {React.createElement(OpportunitySelector,{pipeline:plOpps,selected:plSelected,onSelect:plSelect,loading:plLoading,label:"SELECT OPPORTUNITY FOR PRICING"})}
-
-      {(()=>{
-        const wfState = store.get('wfState') || {};
-        const title = sharedCtx.title || wfState.title;
-        const agency = sharedCtx.agency || wfState.agency;
-        const value = intel.estimatedValue || sharedCtx.value || wfState.value;
-        if (title || agency) {
-          return React.createElement('div',{style:{marginBottom:12,padding:"10px 14px",background:GREEN+"15",border:"1px solid "+GREEN+"44",borderRadius:4}},
-            React.createElement('div',{style:{fontSize:11,color:GREEN,fontWeight:700,letterSpacing:"0.06em",marginBottom:4}},"ACTIVE OPPORTUNITY"),
-            React.createElement('div',{style:{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}},
-              React.createElement('span',{style:{color:TEXT,fontWeight:700,fontSize:14}},title||"Untitled"),
-              agency && React.createElement('span',{style:{color:TEXT_D,fontSize:12}},"— "+agency),
-              value && React.createElement('span',{style:{color:GOLD,fontSize:12,fontWeight:700}},value)
-            )
-          );
-        }
-        return null;
-      })()} 
+      {sharedCtx.title && (
+        <div style={{marginBottom:12,padding:"8px 12px",background:GREEN+"15",border:`1px solid ${GREEN}44`,borderRadius:4,fontSize:12,color:GREEN}}>
+          ✓ Loaded: <strong>{sharedCtx.title}</strong>{sharedCtx.agency ? " — " + sharedCtx.agency : ""}
+          {intel.estimatedValue ? <span style={{marginLeft:12,color:GOLD}}>Est. Value: {intel.estimatedValue}</span> : ""}
+        </div>
+      )}
 
       {/* Live Summary Stats — clickable drill-downs */}
       {(()=>{
