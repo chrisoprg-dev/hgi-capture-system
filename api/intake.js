@@ -295,6 +295,46 @@ export default async function handler(req, res) {
     console.warn("Dedup check failed:", e.message);
   }
 
+  // ── FUZZY DEDUP: Check for same agency + similar title ────────────────────
+  try {
+    const normalizeTitle = (t) => (t || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+    const normalizeAgency = (a) => (a || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+    const incomingTitle = normalizeTitle(title);
+    const incomingAgency = normalizeAgency(agency);
+    
+    if (incomingAgency && incomingAgency.length > 3) {
+      const agencyWords = incomingAgency.split(' ').filter(w => w.length > 2).slice(0, 3).join('%');
+      const agencySearch = await dbGet('opportunities', '?agency=ilike.*' + encodeURIComponent(agencyWords) + '*&status=eq.active&select=id,title,agency,opi_score');
+      
+      for (const existing of agencySearch) {
+        const existingTitle = normalizeTitle(existing.title);
+        // Check if titles share significant words
+        const incomingWords = new Set(incomingTitle.split(' ').filter(w => w.length > 3));
+        const existingWords = new Set(existingTitle.split(' ').filter(w => w.length > 3));
+        let matches = 0;
+        for (const w of incomingWords) {
+          if (existingWords.has(w)) matches++;
+        }
+        const matchRatio = incomingWords.size > 0 ? matches / incomingWords.size : 0;
+        
+        if (matchRatio >= 0.5) {
+          console.log('Fuzzy dedup matched: "' + title + '" ~ "' + existing.title + '" (ratio: ' + matchRatio + ')');
+          return res.status(200).json({
+            skipped: true,
+            reason: 'fuzzy_duplicate',
+            matched_id: existing.id,
+            matched_title: existing.title,
+            match_ratio: matchRatio,
+            id: recordId,
+            opi_score: existing.opi_score
+          });
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('Fuzzy dedup check failed:', e.message);
+  }
+
 
 
   const now = new Date().toISOString();
