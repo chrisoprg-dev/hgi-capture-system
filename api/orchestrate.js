@@ -106,6 +106,14 @@ export default async function handler(req, res) {
     );
     await patchOpp(opportunity_id, { financial_analysis: financialAnalysis });
     await logEvent('opportunity.financial_analyzed', opportunity_id, opp.title, { step: 'financial' });
+    // Extract consolidated estimate from financial analysis and update estimated_value
+    var estimateMatch = financialAnalysis.match(/CONSOLIDATED ESTIMATE[:\s]*[\s\S]*?(LOW[:\s]*[^\n]*)/i);
+    var midMatch = financialAnalysis.match(/MID[:\s]*\$?([\d,.]+[KMkm]?)/i);
+    if (midMatch) {
+      var estLabel = 'Estimated: ' + midMatch[0].trim() + ' (system estimate — not from RFP)';
+      await patchOpp(opportunity_id, { estimated_value: estLabel.slice(0, 100) });
+    }
+
     results.steps_completed.push('financial_analysis');
   } catch(e) { results.financial_error = e.message; }
 
