@@ -26,6 +26,37 @@ function ResearchAnalysis({ sharedCtx={}, saveSharedCtx=()=>{} }) {
   var loading = loadState[0];
   var setLoading = loadState[1];
 
+  var exportDocx = async function() {
+    if (!result) return;
+    try {
+      var resp = await fetch('/api/export-module', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          module: 'research',
+          title: selected ? selected.title : agencyName + ' — Research',
+          agency: agencyName || (selected ? selected.agency : ''),
+          content: result,
+          metadata: selected ? {
+            'Agency': selected.agency || '',
+            'Vertical': selected.vertical || '',
+            'Est. Value': selected.estimated_value || '',
+            'Deadline': selected.due_date || '',
+            'OPI Score': selected.opi_score ? selected.opi_score + '/100' : ''
+          } : {}
+        })
+      });
+      if (!resp.ok) throw new Error('Export failed');
+      var blob = await resp.blob();
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'HGI_Research_' + (agencyName || 'Brief').replace(/[^a-zA-Z0-9]/g,'_') + '.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) { alert('Export failed: ' + e.message); }
+  };
+
   // Auto-populate fields when an opportunity is selected
   useEffect(function() {
     if (selected) {
@@ -135,6 +166,14 @@ function ResearchAnalysis({ sharedCtx={}, saveSharedCtx=()=>{} }) {
       ),
       React.createElement(Btn, {onClick:generate,disabled:loading||!agencyName}, loading ? "Researching..." : "Generate Research Pack")
     ),
-    React.createElement(AIOut, {content:result,loading:loading,label:"CAPTURE INTELLIGENCE BRIEF"})
+    React.createElement('div', null,
+      result && !loading && React.createElement('div', {style:{display:'flex',justifyContent:'flex-end',marginBottom:8}},
+        React.createElement('button', {
+          onClick: exportDocx,
+          style:{background:'#1F3864',color:'#C9A84C',border:'1px solid #C9A84C',borderRadius:4,padding:'6px 16px',fontSize:12,fontWeight:700,cursor:'pointer',letterSpacing:'0.05em'}
+        }, '⬇ Export .docx')
+      ),
+      React.createElement(AIOut, {content:result,loading:loading,label:"CAPTURE INTELLIGENCE BRIEF"})
+    )
   );
 }
