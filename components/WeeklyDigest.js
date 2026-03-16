@@ -4,6 +4,34 @@ function WeeklyDigest() {
   const [focus, setFocus] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+  const exportDocx = async () => {
+    if (!result) return;
+    try {
+      const resp = await fetch('/api/export-module', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          module: 'digest',
+          title: 'Weekly Capture Intelligence Digest',
+          agency: 'HGI Leadership',
+          content: result,
+          metadata: {
+            'Week Of': new Date().toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'}),
+            'Pipeline Count': pl.pipeline.length ? pl.pipeline.length + ' active opportunities' : 'N/A',
+            'Prepared For': 'Lou Resweber, Candy LeBlanc Dottolo, HGI Leadership'
+          }
+        })
+      });
+      if (!resp.ok) throw new Error('Export failed');
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'HGI_Weekly_Digest_' + new Date().toISOString().slice(0,10) + '.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) { alert('Export failed: ' + e.message); }
+  };
   const [digests, setDigests] = useState(() => store.get("digests") || []);
 
   const generate = async () => {
@@ -41,7 +69,10 @@ function WeeklyDigest() {
         <Input value={focus} onChange={setFocus} placeholder="e.g. FEMA PA recompetes, Texas TPA, Florida recovery..." />
         <Btn onClick={generate} disabled={loading} style={{marginTop:12}}>{loading?"Generating...":"Generate This Week Digest"}</Btn>
       </Card>
-      <AIOut content={result} loading={loading} label="WEEKLY DIGEST" />
+      <div>
+        {result && !loading && <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}><button onClick={exportDocx} style={{background:'#1F3864',color:'#C9A84C',border:'1px solid #C9A84C',borderRadius:4,padding:'6px 16px',fontSize:12,fontWeight:700,cursor:'pointer',letterSpacing:'0.05em'}}>⬇ Export .docx</button></div>}
+        <AIOut content={result} loading={loading} label="WEEKLY DIGEST" />
+      </div>
       {digests.length > 0 && (
         <div style={{marginTop:24}}>
           <div style={{color:GOLD_D,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:10}}>ARCHIVED DIGESTS</div>
