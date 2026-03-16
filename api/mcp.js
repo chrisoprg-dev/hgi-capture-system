@@ -272,7 +272,7 @@ const handleTool = async (name, input) => {
 
     case 'generate_weekly_digest': {
       const { focus } = input;
-      const opps = await sb('opportunities?order=opi_score.desc&limit=50').catch(() => []);
+      const opps = await sb('opportunities?status=eq.active&order=opi_score.desc&limit=50').catch(() => []);
       const top = opps.slice(0, 10).map(o => '- ' + o.title + ' | ' + o.agency + ' | OPI: ' + o.opi_score + ' | Stage: ' + o.stage + ' | Due: ' + (o.due_date || 'TBD')).join('\n');
       const digest = await callClaude('HGI Weekly Digest ' + new Date().toLocaleDateString() + '.\n' + (focus ? 'FOCUS: ' + focus + '\n' : '') + 'PIPELINE:\n' + top + '\nTotal: ' + opps.length + ' | Tier1: ' + opps.filter(o => o.opi_score >= 70).length + '\n\n## EXECUTIVE SUMMARY\n## HOT OPPORTUNITIES\n## PRE-RFP PIPELINE\n## RECOMPETE WATCHLIST\n## TOP 5 ACTIONS THIS WEEK', 'HGI chief intelligence analyst. Audience: Christopher Oney, President.');
       return { digest, generated_at: new Date().toISOString() };
