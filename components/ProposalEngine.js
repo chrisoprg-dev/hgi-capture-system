@@ -271,6 +271,28 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     };
     const updated = existingIdx >= 0 ? tracker.map((o,i) => i===existingIdx?entry:o) : [entry,...tracker];
     store.set("tracker", updated);
+    // Write proposal data back to Supabase pipeline record
+    if (pl.selected && pl.selected.id) {
+      var proposalText = Object.entries(proposalDraft).map(function(e) { return '=== ' + e[0].toUpperCase().replace(/_/g,' ') + ' ===\n' + e[1]; }).join('\n\n');
+      pl.writeBack(pl.selected.id, {
+        rfp_text: proposalText.slice(0, 10000),
+        stage: 'proposal',
+        status: 'active',
+        last_updated: new Date().toISOString()
+      });
+      fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'proposal.section_drafted',
+          opportunity_id: pl.selected.id,
+          opportunity_title: pl.selected.title || extractedTitle,
+          agency: pl.selected.agency || extractedAgency,
+          source_module: 'proposal_engine',
+          data: { sections: sectionCount }
+        })
+      }).catch(function() {});
+    }
     alert("Saved to Pipeline Tracker — " + sectionCount + " sections");
   };
 
