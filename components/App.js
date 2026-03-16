@@ -16,6 +16,30 @@ function App() {
   const [sideOpen, setSideOpen] = useState(true);
   const [sharedCtx, setSharedCtx] = useState(() => store.get("sharedCtx") || {rfpText:"", decomposition:"", execBrief:"", title:"", agency:""});
   const [proposalSection, setProposalSection] = useState("executive_summary");
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const r = await fetch('/api/notify');
+        if (r.ok) {
+          const d = await r.json();
+          setNotifications(d.notifications || []);
+        }
+      } catch(e) {}
+    };
+    loadNotifications();
+    const iv = setInterval(loadNotifications, 60000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const markRead = async (id) => {
+    try {
+      await fetch('/api/notify', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch(e) {}
+  };
 
   const saveSharedCtx = (ctx) => {
     const merged = {...sharedCtx, ...ctx};
@@ -95,6 +119,32 @@ function App() {
         <div style={{padding:"14px 20px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:12,background:BG2}}>
           <button onClick={()=>setSideOpen(s=>!s)} style={{background:"none",border:"none",color:TEXT_D,cursor:"pointer",fontSize:16,padding:4}}>☰</button>
           <span style={{color:GOLD,fontWeight:700,fontSize:14}}>{MODULES.find(m=>m.id===active)?.label}</span>
+          <div style={{marginLeft:'auto',position:'relative'}}>
+            <button onClick={()=>setShowNotifications(s=>!s)} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:notifications.length>0?GOLD:TEXT_D,position:'relative',padding:4}}>
+              🔔
+              {notifications.length > 0 && <span style={{position:'absolute',top:-2,right:-4,background:RED,color:'#fff',fontSize:9,fontWeight:800,borderRadius:'50%',width:16,height:16,display:'flex',alignItems:'center',justifyContent:'center'}}>{notifications.length}</span>}
+            </button>
+            {showNotifications && (
+              <div style={{position:'absolute',right:0,top:36,width:340,maxHeight:400,overflowY:'auto',background:BG2,border:'1px solid '+BORDER,borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.5)',zIndex:1000}}>
+                <div style={{padding:'12px 16px',borderBottom:'1px solid '+BORDER,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span style={{color:GOLD,fontWeight:700,fontSize:13}}>Notifications</span>
+                  <span style={{color:TEXT_D,fontSize:11}}>{notifications.length} unread</span>
+                </div>
+                {notifications.length === 0 ? (
+                  <div style={{padding:20,textAlign:'center',color:TEXT_D,fontSize:12}}>No new notifications</div>
+                ) : notifications.map(n => (
+                  <div key={n.id} style={{padding:'10px 16px',borderBottom:'1px solid '+BORDER,cursor:'pointer'}} onClick={()=>markRead(n.id)}>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+                      <span style={{fontSize:10,fontWeight:700,color:n.priority==='high'?RED:n.priority==='medium'?ORANGE:TEXT_D}}>{n.priority?.toUpperCase()}</span>
+                      <span style={{fontSize:10,color:TEXT_D}}>{n.type?.replace(/_/g,' ')}</span>
+                      <span style={{fontSize:9,color:TEXT_D,marginLeft:'auto'}}>{new Date(n.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+                    </div>
+                    <div style={{fontSize:11,color:TEXT_D}}>Click to dismiss</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:24}}>
           {components[active]}
