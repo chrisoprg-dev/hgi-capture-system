@@ -2,19 +2,12 @@
 const MODULES = [
   {id:"dashboard", label:"Dashboard", icon:"⌂"},
   {id:"workflow", label:"Full Workflow", icon:"⚡", badge:"START HERE"},
-  {id:"discovery", label:"Opportunity Discovery", icon:"◎"},
-  {id:"scanner", label:"Live Pipeline Scanner", icon:"◎"},
   {id:"tracker", label:"Pipeline Tracker", icon:"◈"},
-  {id:"brief", label:"Opportunity Brief", icon:"⬢", badge:"NEW"},
-  {id:"scoring", label:"Winnability Scoring", icon:"◆"},
   {id:"research", label:"Research & Analysis", icon:"◉"},
+  {id:"scoring", label:"Winnability Scoring", icon:"◆"},
   {id:"proposal", label:"Proposal Engine", icon:"✦"},
   {id:"financial", label:"Financial & Pricing", icon:"$"},
-  {id:"recruiting", label:"Recruiting & Bench", icon:"◐"},
   {id:"digest", label:"Weekly Digest", icon:"◇"},
-  {id:"crm", label:"Relationship Intelligence", icon:"◑"},
-  {id:"content", label:"Content Engine", icon:"✦"},
-  {id:"execbrief", label:"Executive Brief", icon:"◈"},
   {id:"knowledge", label:"Knowledge Base", icon:"⬡"},
 ];
 
