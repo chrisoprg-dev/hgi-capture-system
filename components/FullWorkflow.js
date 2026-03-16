@@ -360,6 +360,7 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
         <p style={{color:TEXT_D,margin:"4px 0 0",fontSize:12}}>RFP Decomposition → Executive Brief + OPI → Proposal Package</p>
       </div>
 
+      {React.createElement(OpportunitySelector, { pipeline: pl.pipeline, selected: pl.selected, onSelect: pl.select, loading: pl.loading, label: 'SELECT EXISTING OPPORTUNITY OR START NEW BELOW' })}
       {error && <div style={{marginBottom:16,padding:"10px 14px",background:RED+"15",border:`1px solid ${RED}44`,borderRadius:4,color:RED,fontSize:13}}>{error}</div>}
 
       {/* Input form — always show if no results yet */}
