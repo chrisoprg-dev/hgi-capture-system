@@ -297,7 +297,8 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
         {completedSections > 0 && <Btn small variant="danger" onClick={clearDraft}>Clear</Btn>}
         {completedSections > 0 && <Btn small variant="ghost" onClick={async()=>{if(!Object.keys(proposalDraft).length){alert('No sections yet.');return;}const wfState=store.get('wfState')||{};const titleVal=sharedCtx.title||wfState.title||'HGI Proposal';const agencyVal=sharedCtx.agency||wfState.agency||'Government Agency';try{const res=await fetch('/api/export-proposal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:titleVal,agency:agencyVal,sections:proposalDraft,metadata:{vertical:sharedCtx.vertical||'disaster',submitted_by:'HGI'}})});if(!res.ok){const err=await res.json();alert('Export failed: '+(err.error||'error'));return;}const blob=await res.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='HGI_Proposal_'+agencyVal.replace(/[^a-zA-Z0-9]/g,'_')+'.docx';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}catch(e){alert('Export error: '+e.message);}}} style={{background:BLUE+"22",color:BLUE,border:`1px solid ${BLUE}44`}}>⬇ Export .docx</Btn>}
       </div>
-      <p style={{color:TEXT_D,margin:"0 0 16px",fontSize:12}}>Generate sections one at a time or auto-generate the full proposal</p>
+      <p style={{color:TEXT_D,margin:"0 0 12px",fontSize:12}}>Select a pipeline opportunity or paste RFP text manually</p>
+      {React.createElement(OpportunitySelector,{pipeline:pl.pipeline,selected:pl.selected,onSelect:function(opp){pl.select(opp);if(opp.rfp_text){setRfpText(opp.rfp_text);setContext(opp.title+' — '+opp.agency);}},loading:pl.loading,label:"SELECT OPPORTUNITY FOR PROPOSAL"})}
 
       {/* RFP Status Banner */}
       {sharedCtx.rfpText ? (
