@@ -288,6 +288,24 @@ function PipelineTracker({ goToWorkflow }) {
     }
   };
 
+  const exportDecisionBrief = async (item) => {
+    try {
+      const resp = await fetch('/api/export-opportunity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opportunityId: item.id })
+      });
+      if (!resp.ok) { const err = await resp.json(); throw new Error(err.error || 'Export failed'); }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'HGI_Decision_Brief_' + (item.agency || 'Opportunity').replace(/[^a-zA-Z0-9]/g,'_') + '.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) { alert('Export failed: ' + e.message); }
+  };
+
   const openItem = (item) => setSelectedItem(selectedItem && selectedItem.id === item.id ? null : item);
   const editBtn = (item) => {
     setForm({title:item.title,agency:item.agency||"",type:item.type||"",value:item.value||"",deadline:item.deadline||"",notes:item.notes||"",stage:item.stage,opiScore:item.opiScore||""});
