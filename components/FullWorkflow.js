@@ -1,5 +1,6 @@
 // ── FULL WORKFLOW ─────────────────────────────────────────────────────────────
 function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} }) {
+  var pl = usePipeline();
   const wfStore = store.get("wfState") || {};
   const [title, setTitle] = useState(wfStore.title || "");
   const [agency, setAgency] = useState(wfStore.agency || "");
@@ -21,6 +22,27 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
   const timerRef = useRef(null);
   const [researchStatus, setResearchStatus] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(function() {
+    if (pl.selected) {
+      var o = pl.selected;
+      if (o.title) setTitle(o.title);
+      if (o.agency) setAgency(o.agency);
+      if (o.source_url) setRfpUrl(o.source_url);
+      if (o.incumbent) setIncumbent(o.incumbent);
+      if (o.rfp_text) setRfpText(o.rfp_text);
+      if (o.scope_analysis) { setOutA(o.scope_analysis); persistWF({ outA: o.scope_analysis, step: 2 }); }
+      if (o.research_brief) { saveSharedCtx({ research: o.research_brief }); }
+      if (o.capture_action && o.capture_action.includes('PWIN')) {
+        setOutB(o.capture_action);
+        var dec = extractDecision(o.capture_action);
+        var opiVal = extractOPI(o.capture_action) || o.opi_score;
+        if (dec) setDecision(dec);
+        if (opiVal) setOpi(opiVal);
+        persistWF({ outB: o.capture_action, step: 3, decision: dec, opi: opiVal });
+      }
+    }
+  }, [pl.selected]);
 
   const persistWF = (updates) => {
     store.set("wfState", {...(store.get("wfState")||{}), ...updates});
