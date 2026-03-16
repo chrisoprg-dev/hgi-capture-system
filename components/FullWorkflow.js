@@ -307,35 +307,31 @@ function FullWorkflow({ sharedCtx={}, saveSharedCtx=()=>{}, goToProposal=()=>{} 
   const saveToTracker = (proposalSections) => {
     const tracker = store.get("tracker") || [];
     const entry = buildTrackerEntry(proposalSections);
-    
-    // Fire-and-forget Supabase save
-    fetch('/api/opportunities', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: entry.title,
-        agency: entry.agency,
-        estimated_value: entry.value,
-        due_date: entry.deadline || sharedCtx.deadline || '',
-        urgency: entry.deadline ? 'IMMEDIATE' : 'ACTIVE',
-        vertical: entry.type || sharedCtx.type || 'disaster',
-        state: entry.geography ? entry.geography.slice(0,2).toUpperCase() : 'LA',
-        description: entry.notes,
-        opi_score: entry.opiScore,
-        stage: entry.stage,
-        status: 'active',
-        source: 'Full Workflow',
-        source_url: rfpUrl || '',
-        hgi_relevance: (entry.opiScore||0) >= 70 ? 'HIGH' : (entry.opiScore||0) >= 45 ? 'MEDIUM' : 'LOW',
-        strategic_importance: (entry.opiScore||0) >= 75 ? 'TIER_1' : (entry.opiScore||0) >= 50 ? 'TIER_2' : 'TIER_3',
-        rfp_text: entry.decomposition?.slice(0, 10000),
-        discovered_at: new Date().toISOString(),
-        last_updated: new Date().toISOString()
-      })
-    }).catch(() => {}); // Fire-and-forget
-    
+    var newStage = 'identified';
+    if (decision === 'GO') newStage = 'pursuing';
+    else if (decision === 'CONDITIONAL GO') newStage = 'qualifying';
+    else if (decision === 'NO-BID') newStage = 'no_bid';
+    var dbUpdate = {
+      title: entry.title, agency: entry.agency, estimated_value: entry.value,
+      due_date: entry.deadline || sharedCtx.deadline || '',
+      vertical: entry.type || sharedCtx.type || 'disaster',
+      state: entry.geography ? entry.geography.slice(0,2).toUpperCase() : 'LA',
+      opi_score: entry.opiScore, stage: newStage,
+      status: decision === 'NO-BID' ? 'no_bid' : 'active',
+      scope_analysis: outA || '',
+      capture_action: outB ? outB.slice(0, 2000) : '',
+      research_brief: sharedCtx.research || '',
+      last_updated: new Date().toISOString()
+    };
+    if (pl.selected && pl.selected.id) {
+      pl.writeBack(pl.selected.id, dbUpdate);
+    } else {
+      dbUpdate.rfp_text = entry.decomposition ? entry.decomposition.slice(0, 10000) : '';
+      dbUpdate.discovered_at = new Date().toISOString();
+      dbUpdate.source = 'Full Workflow';
+      fetch('/api/opportunities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dbUpdate) }).catch(function() {});
+    }
     store.set("tracker", [entry, ...tracker]);
-    // Also update sharedCtx with extracted info so it flows through the system
     saveSharedCtx({ title: entry.title, agency: entry.agency, value: entry.value, deadline: entry.deadline, type: entry.type });
   };
 
