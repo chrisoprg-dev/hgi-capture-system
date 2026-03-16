@@ -1,5 +1,11 @@
 // ── FINANCIAL ANALYSIS & PRICING ─────────────────────────────────────────────
 function FinancialPricing({ sharedCtx={} }) {
+  var pl = usePipeline();
+  var plOpps = pl.pipeline;
+  var plSelected = pl.selected;
+  var plSelect = pl.select;
+  var plLoading = pl.loading;
+
   const LABOR_CATS = ["Program Manager","Deputy PM","Senior Program Manager","Grant Manager","Senior Analyst","Analyst","Associate Analyst","Data Specialist","GIS Specialist","Field Inspector","Case Manager","Housing Specialist","Financial Analyst","Compliance Officer","Quality Assurance","Administrative Support","IT Specialist","Legal/Policy Advisor","Communications Specialist","Training Coordinator"];
   const [activeTab, setActiveTab] = useState("intelligence");
   const [laborRows, setLaborRows] = useState(() => store.get("laborRows") || [
