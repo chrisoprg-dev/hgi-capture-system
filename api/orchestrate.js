@@ -75,6 +75,7 @@ export default async function handler(req, res) {
     scopeAnalysis = await claudeCall(
       'Deep scope analysis for HGI go/no-go decision.\n\nOPPORTUNITY: ' + opp.title +
       '\nAGENCY: ' + opp.agency +
+      '\nSTATE: ' + (opp.state || 'LA') + ' (IMPORTANT: This agency is in this state. Do NOT confuse with same-named entities in other states.)' +
       '\nVERTICAL: ' + (opp.vertical || 'general') +
       '\nDESCRIPTION: ' + (opp.description || '').slice(0, 1500) +
       '\nRFP TEXT: ' + (opp.rfp_text || '').slice(0, 3000) +
