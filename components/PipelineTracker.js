@@ -355,7 +355,7 @@ function PipelineTracker({ goToWorkflow }) {
                   <WinPathBar currentStage={item.stage} />
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
-                  {item.value && <span style={{color:GREEN,fontSize:12,fontWeight:700}}>{item.value}</span>}
+                  {item.value && item.value.length < 50 && <span style={{color:GREEN,fontSize:12,fontWeight:700}}>{item.value}</span>}
                   {item.deadline && <span style={{color:ORANGE,fontSize:11}}>Due: {item.deadline}</span>}
                   {item.opiScore && <OPIBadge score={item.opiScore} />}
                   {item.decision && <Badge color={decColor}>{item.decision}</Badge>}
