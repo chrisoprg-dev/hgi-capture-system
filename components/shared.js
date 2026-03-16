@@ -124,3 +124,188 @@ const OPIBadge = function(props) {
   var tier = n>=70?"Tier 1":n>=45?"Tier 2":n>=25?"Tier 3":"Archive";
   return React.createElement('span', {style:{background:color+"22",border:"1px solid "+color+"44",borderRadius:4,padding:"4px 10px",color:color,fontWeight:700}}, "OPI " + n + " \u2014 " + tier);
 };
+
+// ── SHARED PIPELINE CONTEXT ─────────────────────────────────────────────────
+// The nervous system. Every module uses this to see the same pipeline.
+var _pipelineCache = { data: null, timestamp: 0, loading: false, promise: null };
+var PIPELINE_TTL = 60000; // 60 second cache
+
+async function fetchPipelineData() {
+  var now = Date.now();
+  if (_pipelineCache.data && (now - _pipelineCache.timestamp) < PIPELINE_TTL) {
+    return _pipelineCache.data;
+  }
+  if (_pipelineCache.loading && _pipelineCache.promise) {
+    return _pipelineCache.promise;
+  }
+  _pipelineCache.loading = true;
+  _pipelineCache.promise = fetch('/api/opportunities?sort=opi_score.desc&limit=30')
+    .then(function(r) { return r.ok ? r.json() : { opportunities: [] }; })
+    .then(function(d) {
+      var list = (d.opportunities || d || []).filter(function(o) { return o.status === 'active'; });
+      _pipelineCache.data = list;
+      _pipelineCache.timestamp = Date.now();
+      _pipelineCache.loading = false;
+      return list;
+    })
+    .catch(function() {
+      _pipelineCache.loading = false;
+      return _pipelineCache.data || [];
+    });
+  return _pipelineCache.promise;
+}
+
+function invalidatePipelineCache() {
+  _pipelineCache.data = null;
+  _pipelineCache.timestamp = 0;
+}
+
+function usePipeline() {
+  var state = useState([]);
+  var pipeline = state[0];
+  var setPipeline = state[1];
+  var selState = useState(null);
+  var selected = selState[0];
+  var setSelected = selState[1];
+  var loadState = useState(true);
+  var loading = loadState[0];
+  var setLoading = loadState[1];
+
+  useEffect(function() {
+    fetchPipelineData().then(function(data) {
+      setPipeline(data);
+      setLoading(false);
+    });
+  }, []);
+
+  var select = function(opp) {
+    setSelected(opp);
+    // Also update sharedCtx in localStorage for backward compatibility
+    if (opp) {
+      store.set('sharedCtx', {
+        rfpText: opp.rfp_text || '',
+        decomposition: opp.scope_analysis || '',
+        execBrief: opp.description || '',
+        title: opp.title || '',
+        agency: opp.agency || '',
+        vertical: opp.vertical || '',
+        research: opp.research_brief || '',
+        value: opp.estimated_value || ''
+      });
+    }
+  };
+
+  var writeBack = async function(opportunityId, updates) {
+    try {
+      var r = await fetch('/api/opportunities?id=eq.' + encodeURIComponent(opportunityId), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({}, updates, { last_updated: new Date().toISOString() }))
+      });
+      if (r.ok) {
+        invalidatePipelineCache();
+        // Update local state
+        setPipeline(function(prev) {
+          return prev.map(function(o) {
+            return o.id === opportunityId ? Object.assign({}, o, updates) : o;
+          });
+        });
+        if (selected && selected.id === opportunityId) {
+          setSelected(function(prev) { return Object.assign({}, prev, updates); });
+        }
+      }
+      return r.ok;
+    } catch(e) { return false; }
+  };
+
+  var refresh = function() {
+    invalidatePipelineCache();
+    setLoading(true);
+    fetchPipelineData().then(function(data) {
+      setPipeline(data);
+      setLoading(false);
+    });
+  };
+
+  return { pipeline: pipeline, selected: selected, select: select, writeBack: writeBack, loading: loading, refresh: refresh };
+}
+
+function OpportunitySelector(props) {
+  var pl = props.pipeline || [];
+  var selected = props.selected;
+  var onSelect = props.onSelect;
+  var loading = props.loading;
+  var label = props.label || 'SELECT OPPORTUNITY';
+  var minOpi = props.minOpi || 0;
+
+  var filtered = pl.filter(function(o) { return (o.opi_score || 0) >= minOpi; });
+
+  if (loading) {
+    return React.createElement('div', {style:{padding:'10px 14px',background:BG2,border:'1px solid '+BORDER,borderRadius:6,marginBottom:16}},
+      React.createElement('div', {style:{color:GOLD,fontSize:12,animation:'pulse 1.2s infinite'}}, 'Loading pipeline...')
+    );
+  }
+
+  if (filtered.length === 0) {
+    return React.createElement('div', {style:{padding:'10px 14px',background:ORANGE+'11',border:'1px solid '+ORANGE+'33',borderRadius:6,marginBottom:16}},
+      React.createElement('div', {style:{color:ORANGE,fontSize:12}}, 'No active opportunities in pipeline. Run the scraper or add opportunities manually.')
+    );
+  }
+
+  var now = new Date();
+
+  return React.createElement('div', {style:{marginBottom:16}},
+    React.createElement('div', {style:{fontSize:10,color:TEXT_D,letterSpacing:'0.08em',fontWeight:700,marginBottom:8}}, label),
+    React.createElement('div', {style:{display:'flex',gap:6,flexWrap:'wrap'}},
+      filtered.map(function(o) {
+        var isActive = selected && selected.id === o.id;
+        var opi = o.opi_score || 0;
+        var opiColor = opi >= 70 ? GREEN : opi >= 45 ? GOLD : RED;
+        var daysLeft = null;
+        if (o.due_date) {
+          try {
+            var due = new Date(o.due_date);
+            if (!isNaN(due.getTime())) {
+              daysLeft = Math.ceil((due - now) / (1000*60*60*24));
+            }
+          } catch(e) {}
+        }
+
+        return React.createElement('button', {
+          key: o.id,
+          onClick: function() { onSelect(o); },
+          style: {
+            padding: '8px 12px',
+            borderRadius: 6,
+            fontSize: 11,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            background: isActive ? opiColor + '22' : BG3,
+            color: isActive ? TEXT : TEXT_D,
+            border: '1px solid ' + (isActive ? opiColor : BORDER),
+            borderLeft: '3px solid ' + opiColor,
+            fontWeight: isActive ? 700 : 400,
+            textAlign: 'left',
+            maxWidth: 280,
+            lineHeight: 1.3
+          }
+        },
+          React.createElement('div', {style:{fontWeight:600,color:isActive?TEXT:TEXT_D,fontSize:11,marginBottom:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:240}}, o.title),
+          React.createElement('div', {style:{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}},
+            React.createElement('span', {style:{color:opiColor,fontWeight:700,fontSize:10}}, 'OPI ' + opi),
+            o.agency && React.createElement('span', {style:{color:TEXT_D,fontSize:9}}, o.agency),
+            daysLeft !== null && daysLeft > 0 && daysLeft <= 30 && React.createElement('span', {style:{color:daysLeft<=7?RED:ORANGE,fontSize:9,fontWeight:700}}, daysLeft + 'd left')
+          )
+        );
+      })
+    ),
+    selected && React.createElement('div', {style:{marginTop:10,padding:'10px 14px',background:GREEN+'11',border:'1px solid '+GREEN+'33',borderRadius:6}},
+      React.createElement('div', {style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},
+        React.createElement('span', {style:{color:GREEN,fontSize:11,fontWeight:700}}, '✓ LOADED:'),
+        React.createElement('span', {style:{color:TEXT,fontSize:12,fontWeight:600}}, selected.title),
+        React.createElement(OPIBadge, {score: selected.opi_score}),
+        selected.agency && React.createElement('span', {style:{color:TEXT_D,fontSize:11}}, '— ' + selected.agency)
+      )
+    )
+  );
+}
