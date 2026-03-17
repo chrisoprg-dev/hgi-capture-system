@@ -389,6 +389,28 @@ export default async function handler(req, res) {
   // ── Claude analysis ──────────────────────────────────────────────────────
   const fullText = (description + " " + stripScripts(raw_html)).slice(0, 6000);
 
+  // ── CONTENT GATE: No inference without real content ──────────────────────
+  // If there's no meaningful content to analyze, save as pending_rfp and stop.
+  // The scraper will re-fetch this record when more content is available.
+  if (fullText.trim().length < 100) {
+    try {
+      await dbPatch("opportunities", recordId, {
+        status: "pending_rfp",
+        description: "RFP content not yet available — listing may be embargoed or require authentication. Will re-fetch automatically.",
+        urgency: "WATCH",
+        last_updated: now,
+      });
+    } catch(e) {
+      console.warn("Failed to save pending_rfp status:", e.message);
+    }
+    return res.status(200).json({
+      success: true,
+      id: recordId,
+      status: "pending_rfp",
+      reason: "Insufficient content to analyze — saved for re-fetch when RFP becomes available",
+    });
+  }
+
   // ── Dynamic knowledge injection ──────────────────────────────────────────
   // Detect vertical from content for knowledge retrieval
   const verticalHint = (() => {
