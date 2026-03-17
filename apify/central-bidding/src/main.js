@@ -118,15 +118,21 @@ const getCurrentBatch = async (log) => {
     return fallback;
 };
 
-const saveBatch = async (batch, log) => {
+const saveBatch = async (batch, stats, log) => {
     try {
         const response = await fetch(BATCH_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ batch, secret: 'hgi-intake-2026-secure' })
+            body: JSON.stringify({
+                batch,
+                scanned: stats.bids_reviewed || 0,
+                submitted: stats.sent_to_intake || 0,
+                net_new: stats.sent_to_intake || 0,
+                secret: 'hgi-intake-2026-secure'
+            })
         });
         if (response.ok) {
-            log.info('Saved batch ' + batch + ' to batch endpoint');
+            log.info('Saved batch ' + batch + ' and run stats to batch endpoint');
         } else {
             log.error('Failed to save batch: ' + response.status);
         }
