@@ -147,39 +147,44 @@ function Dashboard({ setActive }) {
           <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:8}}>SCRAPER STATUS</div>
           <div style={{fontSize:10,color:TEXT_D,marginBottom:10,letterSpacing:'0.04em'}}>CENTRAL BIDDING · EVERY 6 MIN · PRIORITY SORTED</div>
           {stats.last_scraper_run ? (
-            <div>
-              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
-                <div style={{width:7,height:7,borderRadius:'50%',background:GREEN,flexShrink:0}}/>
-                <span style={{fontSize:11,color:GREEN,fontWeight:600}}>LIVE — Last run {new Date(stats.last_scraper_run).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10}}>
-                {[
-                  ['Categories Covered',`${stats.scraper_categories_covered||0} / ${stats.scraper_total_categories||479}`],
-                  ['Batches Today',`${stats.scraper_batches_today||0} runs`],
-                  ['RFPs Reviewed',`${stats.scraper_rfps_reviewed_today||0} today`],
-                  ['Sent to Pipeline',`${stats.opportunities_active_today||0} passed`],
-                  ['Filtered Out',`${stats.opportunities_filtered_today||0} removed`],
-                  ['Pending Review',`${stats.opportunities_pending_review||0} in queue`],
-                ].map(([label,value])=>(
-                  <div key={label} style={{background:BG3,borderRadius:4,padding:'6px 8px'}}>
-                    <div style={{fontSize:9,color:TEXT_D,letterSpacing:'0.06em',marginBottom:2}}>{label.toUpperCase()}</div>
-                    <div style={{fontSize:13,fontWeight:700,color:GOLD}}>{value}</div>
+            (() => {
+              const lastRun = new Date(stats.last_scraper_run);
+              const minAgo = Math.floor((Date.now() - lastRun) / 60000);
+              const timeLabel = minAgo < 2 ? 'just now' : minAgo < 60 ? `${minAgo}m ago` : `${Math.floor(minAgo/60)}h ${minAgo%60}m ago`;
+              const isHealthy = minAgo < 20;
+              return (
+                <div>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
+                    <div style={{width:7,height:7,borderRadius:'50%',background:isHealthy?GREEN:RED,flexShrink:0,animation:isHealthy?'pulse 2s infinite':'none'}}/>
+                    <span style={{fontSize:11,color:isHealthy?GREEN:RED,fontWeight:600}}>
+                      {isHealthy?'LIVE':'STALLED'} — Last run {lastRun.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} ({timeLabel})
+                    </span>
                   </div>
-                ))}
-              </div>
-              <div style={{height:4,background:BG3,borderRadius:2,overflow:'hidden',marginBottom:4}}>
-                <div style={{height:'100%',width:Math.min((stats.scraper_categories_covered||0)/479*100,100)+'%',background:GOLD,borderRadius:2,transition:'width 0.5s'}}/>
-              </div>
-              <div style={{fontSize:10,color:TEXT_D,display:'flex',justifyContent:'space-between'}}>
-                <span>{Math.round(Math.min((stats.scraper_categories_covered||0)/479*100,100))}% of LA agencies scanned</span>
-                <span>Next run ~{6-(Math.floor(Date.now()/60000)%6)} min</span>
-              </div>
-              {stats.top_verticals_today && stats.top_verticals_today !== 'none' && (
-                <div style={{marginTop:8,fontSize:10,color:TEXT_D}}>
-                  Top verticals: <span style={{color:GOLD}}>{stats.top_verticals_today}</span>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10}}>
+                    {[
+                      ['Batches Today', `${stats.scraper_batches_today||0} runs`],
+                      ['Listings Scanned', `${stats.scraper_rfps_reviewed_today||0} listings`],
+                      ['New This Session', `${stats.scraper_last_batch_scanned||0} found`],
+                      ['Passed to Pipeline', `${stats.opportunities_active_today||0} active`],
+                      ['Pending Review', `${stats.opportunities_pending_review||0} in queue`],
+                      ['Next Run', `~${6-(Math.floor(Date.now()/60000)%6)} min`],
+                    ].map(([label,value])=>(
+                      <div key={label} style={{background:BG3,borderRadius:4,padding:'6px 8px'}}>
+                        <div style={{fontSize:9,color:TEXT_D,letterSpacing:'0.06em',marginBottom:2}}>{label.toUpperCase()}</div>
+                        <div style={{fontSize:13,fontWeight:700,color:GOLD}}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{height:4,background:BG3,borderRadius:2,overflow:'hidden',marginBottom:4}}>
+                    <div style={{height:'100%',width:Math.min((stats.scraper_rfps_reviewed_today||0)/50*100,100)+'%',background:isHealthy?GOLD:RED,borderRadius:2,transition:'width 0.5s'}}/>
+                  </div>
+                  <div style={{fontSize:10,color:TEXT_D,display:'flex',justifyContent:'space-between'}}>
+                    <span>Central Bidding · every 6 min</span>
+                    {stats.top_verticals_today && stats.top_verticals_today !== 'none' && <span>Top: <span style={{color:GOLD}}>{stats.top_verticals_today}</span></span>}
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })()
           ) : (
             <div style={{fontSize:11,color:TEXT_D}}>Waiting for first run...</div>
           )}
