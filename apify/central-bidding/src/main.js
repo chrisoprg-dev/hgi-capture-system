@@ -455,7 +455,7 @@ const crawler = new PlaywrightCrawler({
             }
             
             // Save next batch
-            await saveBatch((batch + 1) % 96, log);
+            await saveBatch((batch + 1) % 96, stats, log);
             
             try {
                 await fetch('https://hgi-capture-system.vercel.app/api/hunt-analytics', {
