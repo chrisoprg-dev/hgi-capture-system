@@ -228,16 +228,46 @@ const crawler = new PlaywrightCrawler({
             
             log.info(`Found ${categoryLinks.length} category links`);
             
-            // PRIORITY SORT — HGI high-value categories first
+            // PRIORITY SORT — All HGI verticals represented equally
             const TIER1_KEYWORDS = [
-                'housing', 'authority', 'workforce', 'gohsep', 'ocd', 'community development',
-                'health', 'human services', 'parish government', 'city of', 'mayor',
-                'municipal', 'citizens', 'recovery', 'disaster', 'emergency', 'fema',
-                'hud', 'cdbg', 'police jury', 'council', 'planning', 'louisiana housing'
+                // Disaster Recovery / FEMA / CDBG-DR
+                'housing', 'authority', 'recovery', 'disaster', 'emergency', 'fema',
+                'hud', 'cdbg', 'gohsep', 'ocd', 'community development', 'louisiana housing',
+                'hazard mitigation', 'public assistance',
+                // TPA / Claims / Insurance — HGI core revenue
+                'workers compensation', 'workmens comp', 'workers comp', 'TPA',
+                'third party admin', 'claims administration', 'claims management',
+                'insurance administration', 'guaranty', 'self insured', 'risk management',
+                'liability claims', 'property casualty', 'insurance fund',
+                // Property Tax Appeals — HGI recurring revenue model
+                'property tax', 'tax appeal', 'ad valorem', 'tax assessment',
+                'billing appeal', 'utility billing', 'billing dispute', 'assessment appeal',
+                'revenue collection', 'tax administration',
+                // Workforce / Unemployment / Labor
+                'workforce', 'unemployment', 'WIOA', 'job training', 'labor',
+                'employment services', 'workforce commission', 'career center',
+                'job placement', 'reemployment',
+                // Health / Medicaid / Public Health
+                'health', 'medicaid', 'public health', 'human services', 'LDH',
+                'health department', 'behavioral health', 'health program',
+                'social services', 'case management', 'benefits administration',
+                // Government / Municipal / Agency
+                'parish government', 'city of', 'mayor', 'municipal', 'police jury',
+                'council', 'planning', 'citizens',
+                // Federal Programs
+                'federal program', 'program administration', 'grant management',
+                'program management', 'grant administration'
             ];
             const TIER2_KEYWORDS = [
-                'transit', 'utility', 'water', 'sewage', 'port', 'airport', 'finance',
-                'assessor', 'tax', 'sheriff', 'justice', 'court', 'clerk'
+                // Infrastructure / Construction Management
+                'construction management', 'capital program', 'infrastructure management',
+                'transit', 'transportation', 'airport management',
+                // Finance / Audit / Compliance
+                'finance', 'audit', 'compliance', 'assessor', 'tax', 'fiscal',
+                'accounting', 'financial management', 'procurement',
+                // Other government
+                'sheriff', 'justice', 'court', 'clerk', 'utility', 'water', 'sewage',
+                'port', 'pension', 'retirement'
             ];
             
             const scoreCategoryUrl = (url) => {
