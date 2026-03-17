@@ -12,32 +12,50 @@ const CB_USERNAME = process.env.CB_USERNAME || 'HGIGLOBAL';
 const CB_PASSWORD = process.env.CB_PASSWORD || 'Whatever1340!';
 
 const HGI_KEYWORDS = [
+    // Disaster Recovery / FEMA / CDBG
     'grant management', 'grants management', 'grant administration',
     'program management', 'project management services',
-    'disaster recovery', 'disaster services', 'debris removal', 'debris management',
+    'disaster recovery', 'disaster services',
     'FEMA', 'public assistance', 'CDBG', 'community development block grant',
-    'claims administration', 'claims processing', 'claims management',
-    'third party administrator', 'TPA services',
-    'housing assistance', 'housing authority', 'homeowner assistance', 'affordable housing',
-    'workforce development', 'workforce services', 'unemployment', 'job training',
-    'property tax', 'tax appeal', 'ad valorem', 'tax consulting',
     'hazard mitigation', 'mitigation planning',
     'emergency management', 'emergency preparedness',
-    'case management', 'social services', 'human services',
-    'insurance', 'workers compensation', 'risk management',
-    'public health', 'health services', 'Medicaid',
-    'construction management', 'inspection services', 'infrastructure',
-    'consulting services', 'professional services', 'management consulting',
-    'compliance monitoring', 'audit services', 'financial management',
-    'temporary staffing', 'staffing services',
     'flood', 'hurricane', 'storm', 'recovery program',
-    'transit', 'transportation planning',
-    'water management', 'sewer', 'utility',
-    'billing', 'appeals', 'dispute resolution',
-    'pension', 'benefits administration',
-    'environmental services', 'assessment services',
+    // TPA / Claims / Insurance — HGI PRIMARY REVENUE
+    'claims administration', 'claims processing', 'claims management',
+    'third party administrator', 'TPA', 'TPA services',
+    'workers compensation', 'workers comp', 'workmens compensation',
+    'self-insured', 'self insured', 'insurance administration',
+    'insurance fund', 'guaranty association', 'guaranty fund',
+    'property casualty', 'liability claims', 'risk management',
+    'loss adjustment', 'claims adjudication', 'claims handling',
+    // Property Tax Appeals — HGI RECURRING REVENUE
+    'property tax', 'tax appeal', 'ad valorem', 'tax consulting',
+    'assessment appeal', 'billing appeal', 'billing dispute',
+    'utility billing', 'revenue collection', 'tax administration',
+    'property assessment', 'appraisal review',
+    // Workforce / Unemployment
+    'workforce development', 'workforce services', 'workforce commission',
+    'unemployment', 'job training', 'WIOA', 'employment services',
+    'career services', 'reemployment', 'labor exchange',
+    // Health / Medicaid / Human Services
+    'public health', 'health services', 'Medicaid', 'health program',
+    'behavioral health', 'human services', 'social services',
+    'case management', 'benefits administration', 'health department',
+    // Federal Program Admin
+    'program administration', 'federal program', 'grant compliance',
+    'compliance monitoring', 'audit services', 'financial management',
+    // Housing
+    'housing assistance', 'housing authority', 'homeowner assistance', 'affordable housing',
+    'housing program', 'rental assistance',
+    // General Professional Services HGI Wins
+    'consulting services', 'professional services', 'management consulting',
+    'technical assistance', 'capacity building', 'training services',
     'data management', 'document management',
-    'training services', 'technical assistance'
+    'appeals', 'dispute resolution', 'billing',
+    'pension', 'retirement administration',
+    'transit', 'transportation planning',
+    'inspection services', 'construction management',
+    'staffing services', 'temporary staffing'
 ];
 
 const EXPIRED_BID_IDS = ['rfp55622652'];
