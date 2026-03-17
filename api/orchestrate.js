@@ -116,7 +116,7 @@ export default async function handler(req, res) {
       '3. EVALUATION CRITERIA — Extract the EXACT evaluation criteria and point values from the RFP text. Do NOT infer or estimate. Only infer if no criteria are stated.\n' +
       '4. HGI CAPABILITY ALIGNMENT — Map each deliverable to specific HGI past performance. Flag gaps with RED FLAG.\n' +
       '5. COMPLIANCE REQUIREMENTS — Licenses, certs, insurance, bonding, registrations.\n' +
-      '6. CRITICAL QUESTIONS — What must HGI ask the agency before committing resources?',
+      '6. CRITICAL QUESTIONS — What must HGI ask the agency before committing resources?' + dataQualityWarning,
       'You are a senior government contracting scope analyst specializing in Louisiana procurements. CRITICAL: Your first job is to determine the EXACT type of work being requested and whether it matches HGI capabilities. HGI does: workers comp TPA, property casualty TPA, insurance guaranty association administration, FEMA PA grant management, CDBG-DR program administration, disaster recovery program management, property tax appeals, workforce program administration, construction MANAGEMENT (not construction). HGI does NOT do: insurance brokerage, health insurance TPA, physical construction, debris removal, IT services, engineering, architecture, environmental remediation, medical services. Be exhaustive. When RFP text is thin, use knowledge of similar contracts to determine what type of work this actually is.', 2500
     );
     await patchOpp(opportunity_id, { scope_analysis: scopeAnalysis, description: (opp.description || '').split('--- SCOPE ANALYSIS ---')[0].trim().slice(0, 2000) });
