@@ -313,7 +313,12 @@ const handleTool = async (name, input) => {
 
     case 'fetch_source_page': {
       const { url } = input;
-      const r = await fetch('https://hgi-capture-system.vercel.app/api/fetch-rfp', {
+      
+      // Determine endpoint based on URL domain
+      const isCentralBidding = url.includes('centralauctionhouse.com') || url.includes('centralbidding.com');
+      const endpoint = isCentralBidding ? '/api/fetch-central-bidding' : '/api/fetch-rfp';
+      
+      const r = await fetch('https://hgi-capture-system.vercel.app' + endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
