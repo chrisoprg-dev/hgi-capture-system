@@ -20,7 +20,7 @@ async function queryKB(vertical) {
 
 const store = {
   get(k){try{const v=localStorage.getItem('hgi_'+k);return v?JSON.parse(v):null}catch(e){return null}},
-  set(k,v){try{localStorage.setItem('hgi_'+k,JSON.stringify(v))}catch{}}
+  set(k,v){try{localStorage.setItem('hgi_'+k,JSON.stringify(v))}catch(e){}}
 };
 
 async function callClaude(prompt, system, maxTokens=3000) {
