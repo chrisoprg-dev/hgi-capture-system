@@ -165,7 +165,7 @@ function Dashboard({ setActive }) {
                       ['Batches Today', `${stats.scraper_batches_today||0} runs`],
                       ['Listings Scanned', `${stats.scraper_rfps_reviewed_today||0} listings`],
                       ['New This Session', `${stats.scraper_last_batch_scanned||0} found`],
-                      ['Passed to Pipeline', `${stats.opportunities_active_today||0} active`],
+                      ['Net New Today', `${stats.scraper_net_new_today||0} new`],
                       ['Pending Review', `${stats.opportunities_pending_review||0} in queue`],
                       ['Next Run', `~${6-(Math.floor(Date.now()/60000)%6)} min`],
                     ].map(([label,value])=>(
