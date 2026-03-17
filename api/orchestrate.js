@@ -266,7 +266,7 @@ export default async function handler(req, res) {
         'You are HGI senior proposal manager. Generate a COMPLETE submission-ready proposal package. Use real HGI past performance only: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 28 years, Orleans Parish School Board 22 years, City of New Orleans WC TPA. Every section must directly address the RFP evaluation criteria.', 4000
       );
 
-      await patchOpp(opportunity_id, { rfp_text: proposalPackage });
+      await patchOpp(opportunity_id, { staffing_plan: proposalPackage });
       await logEvent('proposal.package_generated', opportunity_id, opp.title, { sections: 8, auto: true });
       results.steps_completed.push('proposal_package');
     } catch(e) { results.proposal_error = e.message; }
