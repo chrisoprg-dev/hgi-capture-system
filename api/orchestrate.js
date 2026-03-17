@@ -234,7 +234,7 @@ export default async function handler(req, res) {
   // ══════════════════════════════════════════════════════════════════════════
   // STEP 6: AUTO-PROPOSAL PACKAGE — Generate complete proposal from RFP
   // ══════════════════════════════════════════════════════════════════════════
-  if ((recommendation === 'GO' || recommendation === 'CONDITIONAL GO') && revisedOpi >= 75) {
+  if ((recommendation === 'GO' || recommendation === 'CONDITIONAL GO') && revisedOpi >= 75 && hasRfpDocument) {
     try {
       // Parse the RFP to extract evaluation criteria, required sections, and key personnel
       var rfpContext = (opp.rfp_text || '').slice(0, 6000);
