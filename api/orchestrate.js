@@ -67,6 +67,34 @@ export default async function handler(req, res) {
     } catch(e) {}
   }
 
+  // Detect if we have actual RFP document content vs login wall / thin listing
+  var hasRfpDocument = false;
+  var rfpContentForAnalysis = (opp.rfp_text || '');
+  var sourceLen = (sourceContent || '').length;
+
+  // If source fetch returned substantial content (not a login page), that is real RFP content
+  if (sourceLen > 1000) {
+    hasRfpDocument = true;
+    // Save the real source content as rfp_text if current rfp_text is thin
+    if (rfpContentForAnalysis.length < 1000) {
+      rfpContentForAnalysis = sourceContent;
+      await patchOpp(opportunity_id, { rfp_text: sourceContent.slice(0, 10000) });
+    }
+  }
+  // If rfp_text already has substantial content from intake, check if it looks like real RFP vs generated proposal
+  if (rfpContentForAnalysis.length > 2000) {
+    // If it contains "COMPLIANCE MATRIX" or "COMPLETE PROPOSAL PACKAGE" it is a generated proposal, not real RFP
+    if (rfpContentForAnalysis.includes('COMPLIANCE MATRIX') || rfpContentForAnalysis.includes('COMPLETE PROPOSAL PACKAGE') || rfpContentForAnalysis.includes('SUBMISSION TIMELINE')) {
+      hasRfpDocument = false;
+    } else {
+      hasRfpDocument = true;
+    }
+  }
+
+  var dataQualityWarning = hasRfpDocument ? '' : '\n\nWARNING: The system does NOT have the actual RFP document. Analysis below is based on a listing SUMMARY only. All deliverables, evaluation criteria, position requirements, and financial estimates are INFERRED and may not match the actual solicitation. Flag this clearly in your output.';
+
+  results.has_rfp_document = hasRfpDocument;
+
   // ══════════════════════════════════════════════════════════════════════════
   // STEP 1: DEEP SCOPE ANALYSIS — What is actually being asked for?
   // ══════════════════════════════════════════════════════════════════════════
