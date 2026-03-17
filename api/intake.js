@@ -281,15 +281,23 @@ export default async function handler(req, res) {
 
   // ── Deduplication check ──────────────────────────────────────────────────
   try {
-    const existing = await dbGet("opportunities", `?id=eq.${encodeURIComponent(recordId)}&select=id,opi_score,hgi_relevance`);
+    const existing = await dbGet("opportunities", `?id=eq.${encodeURIComponent(recordId)}&select=id,opi_score,hgi_relevance,rfp_text,status`);
     if (existing.length > 0) {
-      return res.status(200).json({
-        skipped: true,
-        reason: "duplicate",
-        id: recordId,
-        opi_score: existing[0].opi_score,
-        hgi_relevance: existing[0].hgi_relevance,
-      });
+      const rec = existing[0];
+      const hasRealContent = rec.rfp_text && rec.rfp_text.trim().length > 50;
+      const isPendingRfp = rec.status === 'pending_rfp';
+      // If we have real content and it's not pending re-fetch, skip as duplicate
+      if (hasRealContent && !isPendingRfp) {
+        return res.status(200).json({
+          skipped: true,
+          reason: "duplicate",
+          id: recordId,
+          opi_score: rec.opi_score,
+          hgi_relevance: rec.hgi_relevance,
+        });
+      }
+      // Otherwise fall through — re-fetch and re-analyze this record
+      console.log(`Re-fetching record ${recordId} — status: ${rec.status}, content length: ${(rec.rfp_text||'').trim().length}`);
     }
   } catch (e) {
     console.warn("Dedup check failed:", e.message);
