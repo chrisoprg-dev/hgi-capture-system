@@ -23,5 +23,5 @@
     "api/batch.js": { "maxDuration": 30 },
     "api/hunt-analytics.js": { "maxDuration": 30 }
   },
-  "crons": [{ "path": "/api/hunt", "schedule": "0 7 * * *" }]
+  "crons": [{ "path": "/api/hunt", "schedule": "*/6 * * * *" }]
 }
