@@ -63,11 +63,11 @@ export default async function handler(req, res) {
       if (batch != null) {
         await setBatchCounter(batch);
       }
-      // If run stats provided, log them separately
-      if (scanned != null) {
-        const finalScanned = scanned || 0;
-        const finalSubmitted = submitted || 0;
-        const finalNetNew = net_new || 0;
+      // Always log the run, even if scanned is 0 (all duplicates is valid)
+      const finalScanned = (scanned != null) ? scanned : 0;
+      const finalSubmitted = (submitted != null) ? submitted : 0;
+      const finalNetNew = (net_new != null) ? net_new : 0;
+      try {
         await fetch(SB + '/rest/v1/hunt_runs', {
           method: 'POST',
           headers: { ...H, 'Prefer': 'return=minimal' },
@@ -75,13 +75,12 @@ export default async function handler(req, res) {
             source: 'apify_batch',
             opportunities_found: finalScanned,
             opportunities_new: finalNetNew,
-            scanned: finalScanned,
-            submitted: finalSubmitted,
-            net_new: finalNetNew,
             status: 'completed',
             run_at: new Date().toISOString()
           })
         });
+      } catch(logErr) {
+        console.warn('Failed to log run stats:', logErr.message);
       }
       return res.status(200).json({ success: true, batch: batch != null ? batch : 'unchanged' });
     } catch(e) {
