@@ -390,7 +390,7 @@ function PipelineTracker({ goToWorkflow }) {
                       {[["Agency",item.agency],["Type",item.type],["Value",item.value],["Deadline",item.deadline],["Decision",item.decision],["OPI Score",item.opiScore],["Added",item.addedDate?new Date(item.addedDate).toLocaleDateString():""]].concat(item.source_url ? [["Source",item.source_url]] : []).map(([k,v])=>v?(
                         <div key={k} style={{display:"flex",gap:8,marginBottom:4,fontSize:12}}>
                           <span style={{color:TEXT_D,minWidth:80}}>{k}:</span>
-                          <span style={{color:TEXT}}>{v}</span>
+                          {k === "Source" ? React.createElement('a', {href: v, target: '_blank', rel: 'noopener', style: {color: '#2980B9', textDecoration: 'underline', fontSize: 12}}, 'View Original RFP ↗') : React.createElement('span', {style: {color: TEXT}}, v)}
                         </div>
                       ):null)}
                     </div>
