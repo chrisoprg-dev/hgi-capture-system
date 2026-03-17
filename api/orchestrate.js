@@ -55,11 +55,15 @@ export default async function handler(req, res) {
     if (kbR.ok) { const kbData = await kbR.json(); kbContext = kbData.prompt_injection || ''; }
   } catch(e) {}
 
-  // Fetch source page for more detail
+  // Fetch source page for more detail — use authenticated fetcher for Central Bidding
   let sourceContent = '';
   if (opp.source_url) {
     try {
-      const srcR = await fetch('https://hgi-capture-system.vercel.app/api/fetch-rfp', {
+      var fetchEndpoint = 'https://hgi-capture-system.vercel.app/api/fetch-rfp';
+      if (opp.source_url.includes('centralauctionhouse.com') || opp.source_url.includes('centralbidding.com')) {
+        fetchEndpoint = 'https://hgi-capture-system.vercel.app/api/fetch-central-bidding';
+      }
+      const srcR = await fetch(fetchEndpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: opp.source_url })
       });
