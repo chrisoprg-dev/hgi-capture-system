@@ -170,6 +170,7 @@ const fetchBidDetail = async (bidUrl, bidNumber, agency, browser) => {
 const fetchBidsByKeyword = async (keyword, browser) => {
     const context = await browser.newContext();
     const page = await context.newPage();
+    const results = [];
     try {
         const searchUrl = LAPAC_BASE + '/srchopen.cfm';
         await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 30000 });
@@ -179,9 +180,61 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         await page.waitForLoadState('networkidle', { timeout: 30000 });
         const html = await page.content();
         log('Keyword "' + keyword + '" length: ' + html.length + ', dspBid: ' + html.includes('dspBid'));
-        const bids = parseBidLinks(html, '');
-        log('Bids extracted: ' + bids.length + (bids.length > 0 ? ' first: ' + JSON.stringify(bids[0]) : ''));
-        return bids;
+
+        // Get all clickable bid number links on the results page
+        const bidLinks = await page.$('table a[href*="dspBid"], table a[onclick*="dspBid"]');
+        log('Clickable bid links found: ' + bidLinks.length);
+
+        for (let i = 0; i < bidLinks.length; i++) {
+            try {
+                const bidPage = await context.newPage();
+                // Get the href or onclick target
+                const href = await bidLinks[i].getAttribute('href');
+                const onclick = await bidLinks[i].getAttribute('onclick');
+                const bidText = (await bidLinks[i].innerText()).trim();
+
+                let bidUrl = null;
+                if (href && href.includes('dspBid') && !href.includes('javascript')) {
+                    bidUrl = href.startsWith('http') ? href : 'https://wwwcfprd.doa.louisiana.gov/osp/lapac/' + href.replace(/^\/osp\/lapac\//, '');
+                } else if (onclick) {
+                    const m = onclick.match(/window\.open\(['"](.*?)['"]/);
+                    if (m) bidUrl = m[1].startsWith('http') ? m[1] : 'https://wwwcfprd.doa.louisiana.gov' + m[1];
+                }
+
+                if (!bidUrl || bidUrl.includes('dspBidContact')) {
+                    // Click the link and capture the new page
+                    const [newPage] = await Promise.all([
+                        context.waitForEvent('page', { timeout: 10000 }).catch(() => null),
+                        bidLinks[i].click()
+                    ]);
+                    if (newPage) {
+                        await newPage.waitForLoadState('networkidle', { timeout: 20000 });
+                        bidUrl = newPage.url();
+                        const detailHtml = await newPage.content();
+                        const stripTags = (s) => (s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').trim();
+                        const fullText = stripTags(detailHtml);
+                        if (!fullText.includes('No bid documents found') && fullText.length > 500) {
+                            log('Got detail via click: ' + bidUrl + ' | ' + fullText.length + ' chars');
+                            results.push({ url: bidUrl, bidNumber: bidText, agency: '', fullText, html: detailHtml });
+                        }
+                        await newPage.close();
+                    }
+                } else {
+                    await bidPage.goto(bidUrl, { waitUntil: 'networkidle', timeout: 20000 });
+                    const detailHtml = await bidPage.content();
+                    const stripTags = (s) => (s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').trim();
+                    const fullText = stripTags(detailHtml);
+                    if (!fullText.includes('No bid documents found') && fullText.length > 500) {
+                        log('Got detail via url: ' + bidUrl + ' | ' + fullText.length + ' chars');
+                        results.push({ url: bidUrl, bidNumber: bidText, agency: '', fullText, html: detailHtml });
+                    }
+                }
+                await bidPage.close().catch(() => {});
+            } catch(e) {
+                log('Error on bid link ' + i + ': ' + e.message);
+            }
+        }
+        return results;
     } catch(e) {
         log('Error searching keyword ' + keyword + ': ' + e.message);
         return [];
