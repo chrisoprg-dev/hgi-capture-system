@@ -1,4 +1,4 @@
-// api/mcp.js — HGI AI Capture System MCP Server v2
+// api/mcp.mjs — HGI AI Capture System MCP Server v2
 // Single self-contained file. All tools inline.
 export const config = { maxDuration: 300 };
 
