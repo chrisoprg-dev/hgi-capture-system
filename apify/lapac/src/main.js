@@ -197,24 +197,18 @@ const fetchBidsByKeyword = async (keyword, browser) => {
 
         for (const bidno of bidnos) {
             try {
-                const [newPage] = await Promise.all([
-                    context.waitForEvent('page', { timeout: 15000 }).catch(() => null),
-                    page.click('a:has-text("' + bidno + '")', { timeout: 5000 }).catch(() => null)
-                ]);
-                if (newPage) {
-                    await newPage.waitForLoadState('networkidle', { timeout: 20000 });
-                    const detailUrl = newPage.url();
-                    const detailHtml = await newPage.content();
-                    const stripTags = (s) => (s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').trim();
-                    const fullText = stripTags(detailHtml);
-                    log('Clicked detail: ' + detailUrl + ' length: ' + fullText.length);
-                    if (!fullText.includes('No bid documents found') && fullText.length > 500) {
-                        results.push({ url: detailUrl, bidNumber: bidno, agency: '', fullText, html: detailHtml });
-                    }
-                    await newPage.close();
-                } else {
-                    log('No new page for: ' + bidno);
+                await page.click('a:has-text("' + bidno + '")', { timeout: 5000 });
+                await page.waitForLoadState('networkidle', { timeout: 20000 });
+                const detailUrl = page.url();
+                const detailHtml = await page.content();
+                const stripTags = (s) => (s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').trim();
+                const fullText = stripTags(detailHtml);
+                log('Detail page: ' + detailUrl + ' length: ' + fullText.length);
+                if (!fullText.includes('No bid documents found') && fullText.length > 500) {
+                    results.push({ url: detailUrl, bidNumber: bidno, agency: '', fullText, html: detailHtml });
                 }
+                // Go back to results for next bid
+                await page.goBack({ waitUntil: 'networkidle', timeout: 20000 });
             } catch(e) {
                 log('Error clicking ' + bidno + ': ' + e.message);
             }
