@@ -126,7 +126,7 @@ KEY PAST PERFORMANCE:
 - Orleans Parish School Board: 22 years multi-line TPA
 - Terrebonne Parish School Board: Construction management
 
-CURRENT AUTHORIZED RATE CARD (confirmed March 2026 — HTHA proposal rates):
+REFERENCE RATES (from HTHA disaster recovery proposal, March 2026 — adapt to each RFP's required categories. Do NOT use these as a fixed rate card. Always start from the specific RFP's required positions and rate categories. Use these as one reference point for comparable disaster recovery work. Research market rates for any positions not listed here):
 - Principal: $220/hr
 - Program Director: $210/hr
 - Subject Matter Expert: $200/hr
@@ -141,6 +141,8 @@ CURRENT AUTHORIZED RATE CARD (confirmed March 2026 — HTHA proposal rates):
 - Senior Damage Assessor: $115/hr
 - Damage Assessor: $105/hr
 - Administrative Support Specialist: $65/hr
+
+PRICING DISCIPLINE: Never copy this rate table into a proposal as-is. Every proposal must build its pricing from the specific RFP's required positions and rate categories. Match RFP position titles exactly. Only use reference rates above where the position is comparable. For positions not listed, research GSA schedules, comparable Louisiana contracts, and federal labor category benchmarks. Consider evaluation weight of pricing (some RFPs weight cost at only 10%) when setting competitive posture.
 
 GEOGRAPHY: Louisiana, Texas, Florida, Mississippi, Alabama, Georgia, Federal
 NAICS: 541611, 541690, 561110, 561990, 524291, 923120, 921190
