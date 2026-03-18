@@ -11,19 +11,27 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
-  const { url } = req.body || {};
-  if (!url) return res.status(400).json({ error: 'url required' });
+  const { url, base64: base64Input } = req.body || {};
+  if (!url && !base64Input) return res.status(400).json({ error: 'url or base64 required' });
 
   try {
-    // Fetch the PDF
-    const pdfRes = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HGI-Capture/1.0)' },
-      redirect: 'follow'
-    });
-    if (!pdfRes.ok) return res.status(502).json({ error: 'PDF fetch failed: ' + pdfRes.status, url });
-
-    const pdfBuffer = await pdfRes.arrayBuffer();
-    const base64 = Buffer.from(pdfBuffer).toString('base64');
+    // Use provided base64 directly, or fetch from URL
+    let base64;
+    let pdfSizeBytes = 0;
+    if (base64Input) {
+      base64 = base64Input;
+      pdfSizeBytes = Buffer.from(base64Input, 'base64').length;
+      console.log('[extract-pdf] Using provided base64, size:', pdfSizeBytes);
+    } else {
+      const pdfRes = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HGI-Capture/1.0)' },
+        redirect: 'follow'
+      });
+      if (!pdfRes.ok) return res.status(502).json({ error: 'PDF fetch failed: ' + pdfRes.status, url });
+      const pdfBuffer = await pdfRes.arrayBuffer();
+      pdfSizeBytes = pdfBuffer.byteLength;
+      base64 = Buffer.from(pdfBuffer).toString('base64');
+    }
 
     // Send to Claude for extraction
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
