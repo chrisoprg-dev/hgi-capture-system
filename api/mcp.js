@@ -210,7 +210,7 @@ const handleTool = async (name, input) => {
       // Apify scraper status check
       let apifyStatus = null;
       try {
-        const APIFY_TOKEN = 'apify_api_CFeI1ZehZ3HHClJFJfsVypn0KMPJSQ1b7nmO';
+        const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
         const actsRes = await fetch('https://api.apify.com/v2/acts?token=' + APIFY_TOKEN + '&my=true');
         if (actsRes.ok) {
           const actsData = await actsRes.json();
