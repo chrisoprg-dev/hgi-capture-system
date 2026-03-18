@@ -277,7 +277,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     if (pl.selected && pl.selected.id) {
       var proposalText = Object.entries(proposalDraft).map(function(e) { return '=== ' + e[0].toUpperCase().replace(/_/g,' ') + ' ===\n' + e[1]; }).join('\n\n');
       pl.writeBack(pl.selected.id, {
-        rfp_text: proposalText.slice(0, 10000),
+        staffing_plan: proposalText.slice(0, 10000),
         stage: 'proposal',
         status: 'active',
         last_updated: new Date().toISOString()
