@@ -218,7 +218,7 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                 // Send directly to HGI intake with PDF url — intake handles analysis
                 const intakePayload = {
                     source: 'LaPAC',
-                    source_id: 'lapac-' + bidno.replace(/\s+/g, '-'),
+                    source_id: bidno.replace(/\s+/g, '-'),
                     title: bidno,
                     agency: 'Louisiana State Agency',
                     url: pdfUrl,
