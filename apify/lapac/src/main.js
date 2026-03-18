@@ -195,7 +195,7 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         }
         log('Bidnos found: ' + bidnos.length + (bidnos.length ? ' first: ' + bidnos[0] : ''));
 
-        // Extract PDF links directly from HTML — bid number links open PDFs
+        // Extract PDF links and row descriptions from HTML
         const pdfRegex = /href="([^"]*\/agency\/pdf\/[^"]+\.pdf)"/gi;
         let pm;
         const pdfLinks = [];
@@ -205,44 +205,38 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         }
         log('PDF links found: ' + pdfLinks.length + (pdfLinks.length ? ' first: ' + pdfLinks[0] : ''));
 
+        // Extract row descriptions from the results table
+        const stripTags = (s) => (s || '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+        const tableMatch = html.match(/<tbody>(.*?)<\/tbody>/si);
+        const tableText = tableMatch ? stripTags(tableMatch[1]) : '';
+        log('Table text: ' + tableText.substring(0, 300));
+
         for (let i = 0; i < pdfLinks.length; i++) {
             const pdfUrl = pdfLinks[i];
             const bidno = bidnos[i] || ('bid-' + i);
             try {
-                // Send PDF URL directly to HGI intake — server has the API key
-                const pdfRes = await fetch(pdfUrl);
-                if (!pdfRes.ok) { log('PDF fetch failed: ' + pdfUrl); continue; }
-                const pdfBuf = await pdfRes.arrayBuffer();
-                log('PDF fetched: ' + pdfUrl + ' size: ' + pdfBuf.byteLength);
-
-                // Send to HGI fetch-rfp endpoint which handles PDF extraction with Claude
-                const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/fetch-rfp', {
+                // Send directly to HGI intake with PDF url — intake handles analysis
+                const intakePayload = {
+                    source: 'LaPAC',
+                    source_id: 'lapac-' + bidno.replace(/\s+/g, '-'),
+                    title: bidno,
+                    agency: 'Louisiana State Agency',
+                    url: pdfUrl,
+                    description: 'LaPAC bid ' + bidno + '. Keyword: ' + keyword + '. ' + tableText.substring(0, 500),
+                    state: 'LA',
+                    response_deadline: ''
+                };
+                const intakeRes = await fetch(INTAKE_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: pdfUrl })
+                    headers: { 'Content-Type': 'application/json', 'x-intake-secret': INTAKE_SECRET },
+                    body: JSON.stringify(intakePayload)
                 });
-                if (!extractRes.ok) { log('Extract failed: ' + extractRes.status); continue; }
-                const extractData = await extractRes.json();
-                const fullText = extractData.textContent || '';
-                log('Extracted length: ' + fullText.length + ' first: ' + fullText.substring(0, 100));
-
-                if (isRelevant(fullText)) {
-                    const titleMatch = fullText.match(/TITLE[:\s]+([^\n]{10,200})/i);
-                    const deadlineMatch = fullText.match(/(?:BID DUE|Due Date|Deadline)[:\s]+([^\n]{5,30})/i);
-                    const agencyMatch = fullText.match(/(?:BOARD OF|AGENCY|DEPARTMENT)[:\s]+([^\n]{5,100})/i);
-                    results.push({
-                        url: pdfUrl,
-                        bidNumber: bidno,
-                        agency: agencyMatch ? agencyMatch[1].trim() : '',
-                        fullText,
-                        html: '',
-                        parsedTitle: titleMatch ? titleMatch[1].trim() : bidno,
-                        parsedDeadline: deadlineMatch ? deadlineMatch[1].trim() : '',
-                        parsedDescription: fullText.substring(0, 800)
-                    });
-                    log('PDF relevant: ' + (titleMatch ? titleMatch[1].trim() : bidno));
-                } else {
-                    log('PDF not relevant: ' + bidno);
+                const intakeData = await intakeRes.json();
+                log('Intake response: ' + JSON.stringify(intakeData).substring(0, 200));
+                if (intakeRes.ok) {
+                    results.push({ url: pdfUrl, bidNumber: bidno, agency: '', fullText: intakePayload.description, html: '', parsedTitle: bidno, parsedDeadline: '', parsedDescription: intakePayload.description });
+                    stats.sent_to_intake++;
+                    log('SENT TO HGI: ' + bidno);
                 }
             } catch(e) {
                 log('Error processing PDF ' + pdfUrl + ': ' + e.message);
