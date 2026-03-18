@@ -148,7 +148,17 @@ const stats = {
     duplicates_skipped: 0
 };
 
-// Fetch open bids for a given department name
+// Fetch open bids for a given department — uses real Playwright browser session
+const fetchBidsByDepartment = async (department, browser) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+        const deptPageUrl = `${LAPAC_BASE}/deptbids.cfm`;
+        await page.goto(deptPageUrl, { waitUntil: 'networkidle', timeout: 30000 });
+        const html = await page.content();
+
+        // Find the link for this department
+        const deptLinkRegex = new RegExp(`href="([^"]*dspBid\.cfm[^"]*)"[^>]*>[^<]*${department.replace(/[.*+?^${}()|[\]\\]/g, '\\// Fetch open bids for a given department name
 const fetchBidsByDepartment = async (department) => {
     try {
         // First get the department list page to find the correct dept code
@@ -174,6 +184,25 @@ const fetchBidsByDepartment = async (department) => {
     } catch(e) {
         log(`Error fetching department ${department}: ${e.message}`);
         return [];
+    }
+};').substring(0, 20)}`, 'i');
+        const deptMatch = deptLinkRegex.exec(html);
+        if (!deptMatch) {
+            log(`Could not find link for department: ${department}`);
+            return [];
+        }
+
+        const deptUrl = deptMatch[1].startsWith('http') ? deptMatch[1] : `${LAPAC_BASE}/${deptMatch[1].replace(/^\/osp\/lapac\//, '')}`;
+        log(`Fetching bids for ${department}: ${deptUrl}`);
+
+        await page.goto(deptUrl, { waitUntil: 'networkidle', timeout: 30000 });
+        const deptHtml = await page.content();
+        return parseBidLinks(deptHtml, department);
+    } catch(e) {
+        log(`Error fetching department ${department}: ${e.message}`);
+        return [];
+    } finally {
+        await context.close();
     }
 };
 
