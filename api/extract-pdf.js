@@ -1,4 +1,4 @@
-// api/extract-pdf.js
+// api/extract-pdf.js — URL source mode v2
 export const config = { maxDuration: 60, api: { bodyParser: { sizeLimit: '10mb' } } };
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
