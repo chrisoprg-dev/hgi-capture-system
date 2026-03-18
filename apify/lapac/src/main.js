@@ -215,39 +215,50 @@ const fetchBidsByKeyword = async (keyword, browser) => {
             const pdfUrl = pdfLinks[i];
             const bidno = bidnos[i] || ('bid-' + i);
             try {
-                // Step 1: Extract PDF text via /api/extract-pdf
-                log('Extracting PDF text: ' + pdfUrl);
+                // Step 1: Download PDF bytes using the live browser session (has LaPAC cookies)
+                log('Downloading PDF via browser session: ' + pdfUrl);
                 let extractedText = '';
                 let extractedTitle = bidno;
                 let extractedDeadline = '';
                 try {
-                    const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: pdfUrl })
-                    });
-                    if (extractRes.ok) {
-                        const extractData = await extractRes.json();
-                        extractedText = extractData.extractedText || '';
-                        log('PDF extracted: ' + extractedText.length + ' chars');
-                        // Pull title from first non-empty line
-                        const firstLine = extractedText.split('\n').find(l => l.trim().length > 10);
-                        if (firstLine) extractedTitle = firstLine.trim().substring(0, 150);
-                        // Pull deadline from text
-                        const deadlineMatch = extractedText.match(/(?:due date|deadline|closing date|submission deadline|proposals due)[:\s]+([^\n]{5,40})/i);
-                        if (deadlineMatch) extractedDeadline = deadlineMatch[1].trim();
+                    const pdfPage = await context.newPage();
+                    const pdfResponse = await pdfPage.goto(pdfUrl, { waitUntil: 'networkidle', timeout: 30000 });
+                    if (pdfResponse && pdfResponse.ok()) {
+                        const pdfBytes = await pdfResponse.body();
+                        const base64Pdf = pdfBytes.toString('base64');
+                        await pdfPage.close();
+                        log('PDF downloaded: ' + pdfBytes.length + ' bytes, sending to extract-pdf');
+                        // Step 2: Send base64 bytes to extract-pdf endpoint
+                        const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ base64: base64Pdf, url: pdfUrl })
+                        });
+                        if (extractRes.ok) {
+                            const extractData = await extractRes.json();
+                            extractedText = extractData.extractedText || '';
+                            log('PDF extracted: ' + extractedText.length + ' chars');
+                            const firstLine = extractedText.split('\n').find(l => l.trim().length > 10);
+                            if (firstLine) extractedTitle = firstLine.trim().substring(0, 150);
+                            const deadlineMatch = extractedText.match(/(?:due date|deadline|closing date|submission deadline|proposals due)[:\s]+([^\n]{5,40})/i);
+                            if (deadlineMatch) extractedDeadline = deadlineMatch[1].trim();
+                        } else {
+                            log('extract-pdf failed: ' + extractRes.status);
+                            await pdfPage.close().catch(() => {});
+                        }
                     } else {
-                        log('PDF extract failed: ' + extractRes.status + ' — using fallback description');
+                        await pdfPage.close().catch(() => {});
+                        log('PDF page load failed for: ' + pdfUrl);
                     }
                 } catch(extractErr) {
-                    log('PDF extract error: ' + extractErr.message + ' — using fallback description');
+                    log('PDF extract error: ' + extractErr.message);
                 }
 
                 const description = extractedText.length > 100
                     ? extractedText.substring(0, 4000)
                     : 'LaPAC solicitation matched keyword "' + keyword + '". Bid: ' + bidno + '. PDF: ' + pdfUrl;
 
-                // Step 2: Send to HGI intake with real PDF text
+                // Step 3: Send to HGI intake with real PDF text
                 const intakePayload = {
                     source: 'LaPAC',
                     source_id: bidno.replace(/\s+/g, '-'),
