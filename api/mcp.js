@@ -112,7 +112,6 @@ const handleTool = async (name, input) => {
       await pushFile(filename, finalContent, file.sha, 'MCP: edit ' + filename);
       return { success: true, message: 'Modified ' + filename + '. Deploying in ~60 seconds.' };
     }
-    }
 
     case 'restore_file_from_git': {
       const { filename } = input;
