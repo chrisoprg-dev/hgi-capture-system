@@ -127,13 +127,19 @@ const parseBidLinks = (html, agency) => {
     return bids;
 };
 
-const fetchBidDetail = async (bidUrl, bidNumber, agency) => {
+const fetchBidDetail = async (bidUrl, bidNumber, agency, browser) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
     try {
-        const res = await fetch(bidUrl);
-        if (!res.ok) return null;
-        const html = await res.text();
+        await page.goto(bidUrl, { waitUntil: 'networkidle', timeout: 30000 });
+        const html = await page.content();
         const stripTags = (s) => (s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#\d+;/g, '').trim();
         const fullText = stripTags(html);
+
+        if (fullText.includes('No bid documents found')) {
+            log('No bid doc at: ' + bidUrl);
+            return null;
+        }
 
         const titleMatch = html.match(/<b>([^<]{10,200})<\/b>/i) || html.match(/<strong>([^<]{10,200})<\/strong>/i);
         const title = titleMatch ? stripTags(titleMatch[1]) : bidNumber;
@@ -151,10 +157,13 @@ const fetchBidDetail = async (bidUrl, bidNumber, agency) => {
             if (agencyMatch) finalAgency = agencyMatch[1].trim();
         }
 
+        log('Detail fetched: ' + title + ' | ' + fullText.length + ' chars');
         return { title, deadline, description, agency: finalAgency, fullText };
     } catch(e) {
         log('Error fetching bid detail ' + bidUrl + ': ' + e.message);
         return null;
+    } finally {
+        await context.close();
     }
 };
 
