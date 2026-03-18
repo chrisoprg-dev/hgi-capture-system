@@ -228,8 +228,10 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                     log('PDF response status: ' + pdfBuffer.status() + ' url: ' + pdfUrl);
                     if (pdfBuffer.status() === 200) {
                         const pdfBodyBuffer = await pdfBuffer.body();
-                        const base64Pdf = pdfBodyBuffer.toString('base64');
-                        log('PDF downloaded: ' + pdfBodyBuffer.length + ' bytes, sending to extract-pdf');
+                        // Cap at 400KB to avoid Vercel payload limits
+                        const truncatedBuffer = pdfBodyBuffer.length > 400000 ? pdfBodyBuffer.slice(0, 400000) : pdfBodyBuffer;
+                        const base64Pdf = truncatedBuffer.toString('base64');
+                        log('PDF downloaded: ' + pdfBodyBuffer.length + ' bytes (sending ' + truncatedBuffer.length + '), sending to extract-pdf');
                         const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
