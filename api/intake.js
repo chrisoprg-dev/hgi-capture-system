@@ -284,10 +284,12 @@ export default async function handler(req, res) {
     const existing = await dbGet("opportunities", `?id=eq.${encodeURIComponent(recordId)}&select=id,opi_score,hgi_relevance,rfp_text,status`);
     if (existing.length > 0) {
       const rec = existing[0];
-      const hasRealContent = rec.rfp_text && rec.rfp_text.trim().length > 50;
+      const hasRealContent = rec.rfp_text && rec.rfp_text.trim().length > 200;
       const isPendingRfp = rec.status === 'pending_rfp';
-      // If we have real content and it's not pending re-fetch, skip as duplicate
-      if (hasRealContent && !isPendingRfp) {
+      const isUnscored = rec.opi_score === null || rec.opi_score === undefined;
+      const isFailedAnalysis = rec.status === 'analysis_failed';
+      // Re-process if: pending_rfp, never scored, or analysis failed
+      if (hasRealContent && !isPendingRfp && !isUnscored && !isFailedAnalysis) {
         return res.status(200).json({
           skipped: true,
           reason: "duplicate",
