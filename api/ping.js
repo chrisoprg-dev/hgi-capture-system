@@ -1,1 +1,1 @@
-{"find": "THIS_WILL_NOT_BE_FOUND", "replace": "test"}
+{"find": "test", "replace": "test"}
