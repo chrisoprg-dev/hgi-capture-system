@@ -220,7 +220,9 @@ const fetchBidsByKeyword = async (keyword, browser) => {
     } finally {
         await context.close();
     }
-};const fetchBidsByDepartment = async (department, browser) => {
+};
+
+const fetchBidsByDepartment = async (department, browser) => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
