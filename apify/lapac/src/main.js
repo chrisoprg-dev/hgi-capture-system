@@ -215,17 +215,50 @@ const fetchBidsByKeyword = async (keyword, browser) => {
             const pdfUrl = pdfLinks[i];
             const bidno = bidnos[i] || ('bid-' + i);
             try {
-                // Send directly to HGI intake with PDF url — intake handles analysis
+                // Step 1: Extract PDF text via /api/extract-pdf
+                log('Extracting PDF text: ' + pdfUrl);
+                let extractedText = '';
+                let extractedTitle = bidno;
+                let extractedDeadline = '';
+                try {
+                    const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: pdfUrl })
+                    });
+                    if (extractRes.ok) {
+                        const extractData = await extractRes.json();
+                        extractedText = extractData.extractedText || '';
+                        log('PDF extracted: ' + extractedText.length + ' chars');
+                        // Pull title from first non-empty line
+                        const firstLine = extractedText.split('\n').find(l => l.trim().length > 10);
+                        if (firstLine) extractedTitle = firstLine.trim().substring(0, 150);
+                        // Pull deadline from text
+                        const deadlineMatch = extractedText.match(/(?:due date|deadline|closing date|submission deadline|proposals due)[:\s]+([^\n]{5,40})/i);
+                        if (deadlineMatch) extractedDeadline = deadlineMatch[1].trim();
+                    } else {
+                        log('PDF extract failed: ' + extractRes.status + ' — using fallback description');
+                    }
+                } catch(extractErr) {
+                    log('PDF extract error: ' + extractErr.message + ' — using fallback description');
+                }
+
+                const description = extractedText.length > 100
+                    ? extractedText.substring(0, 4000)
+                    : 'LaPAC solicitation matched keyword "' + keyword + '". Bid: ' + bidno + '. PDF: ' + pdfUrl;
+
+                // Step 2: Send to HGI intake with real PDF text
                 const intakePayload = {
                     source: 'LaPAC',
                     source_id: bidno.replace(/\s+/g, '-'),
-                    title: bidno,
+                    title: extractedTitle,
                     agency: 'Louisiana State Agency',
                     url: pdfUrl,
-                    description: 'LaPAC open solicitation matched keyword "' + keyword + '". Bid number: ' + bidno + '. Source: Louisiana Procurement and Contract Network (LaPAC). Full RFP available at: ' + pdfUrl + '. This bid was found via keyword search indicating relevance to HGI service lines.',
+                    description: description,
+                    rfp_text: extractedText.substring(0, 8000),
                     raw_html: tableText.substring(0, 2000),
                     state: 'LA',
-                    response_deadline: ''
+                    response_deadline: extractedDeadline
                 };
                 const intakeRes = await fetch(INTAKE_URL, {
                     method: 'POST',
@@ -235,9 +268,9 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                 const intakeData = await intakeRes.json();
                 log('Intake response: ' + JSON.stringify(intakeData).substring(0, 200));
                 if (intakeRes.ok) {
-                    results.push({ url: pdfUrl, bidNumber: bidno, agency: '', fullText: intakePayload.description, html: '', parsedTitle: bidno, parsedDeadline: '', parsedDescription: intakePayload.description });
+                    results.push({ url: pdfUrl, bidNumber: bidno, agency: '', fullText: description, html: '', parsedTitle: extractedTitle, parsedDeadline: extractedDeadline, parsedDescription: description });
                     stats.sent_to_intake++;
-                    log('SENT TO HGI: ' + bidno);
+                    log('SENT TO HGI: ' + extractedTitle);
                 }
             } catch(e) {
                 log('Error processing PDF ' + pdfUrl + ': ' + e.message);
