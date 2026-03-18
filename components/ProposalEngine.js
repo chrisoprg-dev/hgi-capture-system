@@ -21,6 +21,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
 
   const [pipelineOpps, setPipelineOpps] = useState([]);
   const [selectedOpp, setSelectedOpp] = useState(null);
+  const [localCtx, setLocalCtx] = useState(null);
 
   // Load active opportunities with proposal packages
   useEffect(() => {
