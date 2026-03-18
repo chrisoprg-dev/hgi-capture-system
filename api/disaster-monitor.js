@@ -29,9 +29,8 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      // Build FEMA OData filter — correct syntax is 'state eq X or state eq Y'
-      const stateFilter = HGI_STATES.map(s => `state eq '${s}'`).join(' or ');
-      const url = `https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries?$filter=${encodeURIComponent(stateFilter)}&$orderby=declarationDate%20desc&$top=50&$select=declarationTitle,state,declarationDate,incidentType,disasterNumber,designatedArea,ihProgramDeclared,iaProgramDeclared,paProgramDeclared,hmProgramDeclared`;
+      // Hardcoded fully-encoded FEMA URL — avoids template literal encoding issues on Vercel
+      const url = "https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries?$filter=state%20eq%20'LA'%20or%20state%20eq%20'TX'%20or%20state%20eq%20'FL'%20or%20state%20eq%20'MS'%20or%20state%20eq%20'AL'%20or%20state%20eq%20'GA'&$orderby=declarationDate%20desc&$top=50&$select=declarationTitle,state,declarationDate,incidentType,disasterNumber,designatedArea,ihProgramDeclared,iaProgramDeclared,paProgramDeclared,hmProgramDeclared";
 
       const femaRes = await fetch(url);
       if (!femaRes.ok) throw new Error(`FEMA API ${femaRes.status}`);
