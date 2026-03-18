@@ -221,36 +221,24 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                 let extractedTitle = bidno;
                 let extractedDeadline = '';
                 try {
-                    log('ENTERING PDF BLOCK: ' + pdfUrl);
-                    // Use page.request.get() — inherits browser session cookies, handles binary PDF cleanly
-                    log('Downloading PDF via page.request.get: ' + pdfUrl);
-                    const pdfBuffer = await page.request.get(pdfUrl, { timeout: 30000 });
-                    log('PDF response status: ' + pdfBuffer.status() + ' url: ' + pdfUrl);
-                    if (pdfBuffer.status() === 200) {
-                        const pdfBodyBuffer = await pdfBuffer.body();
-                        // First 600KB — valid PDF slice; extract-pdf uses max_tokens 500 leaving room for input
-                        const truncatedBuffer = pdfBodyBuffer.slice(0, 600000);
-                        const base64Pdf = truncatedBuffer.toString('base64');
-                        log('PDF downloaded: ' + pdfBodyBuffer.length + ' bytes (sending ' + truncatedBuffer.length + '), sending to extract-pdf');
-                        const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ base64: base64Pdf, url: pdfUrl })
-                        });
-                        if (extractRes.ok) {
-                            const extractData = await extractRes.json();
-                            extractedText = extractData.extractedText || '';
-                            log('PDF extracted: ' + extractedText.length + ' chars');
-                            const firstLine = extractedText.split('\n').find(l => l.trim().length > 10);
-                            if (firstLine) extractedTitle = firstLine.trim().substring(0, 150);
-                            const deadlineMatch = extractedText.match(/(?:due date|deadline|closing date|submission deadline|proposals due)[:\s]+([^\n]{5,40})/i);
-                            if (deadlineMatch) extractedDeadline = deadlineMatch[1].trim();
-                        } else {
-                            const errBody = await extractRes.text();
-                            log('extract-pdf failed: ' + extractRes.status + ' body: ' + errBody.substring(0, 300));
-                        }
+                    // Pass URL directly to extract-pdf — Claude fetches PDF via URL source, no base64/token issues
+                    log('Sending PDF URL to extract-pdf: ' + pdfUrl);
+                    const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: pdfUrl })
+                    });
+                    if (extractRes.ok) {
+                        const extractData = await extractRes.json();
+                        extractedText = extractData.extractedText || '';
+                        log('PDF extracted: ' + extractedText.length + ' chars');
+                        const firstLine = extractedText.split('\n').find(l => l.trim().length > 10);
+                        if (firstLine) extractedTitle = firstLine.trim().substring(0, 150);
+                        const deadlineMatch = extractedText.match(/(?:due date|deadline|closing date|submission deadline|proposals due)[:\s]+([^\n]{5,40})/i);
+                        if (deadlineMatch) extractedDeadline = deadlineMatch[1].trim();
                     } else {
-                        log('PDF request failed status ' + pdfBuffer.status() + ' for: ' + pdfUrl);
+                        const errBody = await extractRes.text();
+                        log('extract-pdf failed: ' + extractRes.status + ' body: ' + errBody.substring(0, 300));
                     }
                 } catch(extractErr) {
                     log('PDF extract error: ' + extractErr.message + ' | stack: ' + (extractErr.stack || '').substring(0, 200));
