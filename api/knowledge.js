@@ -47,18 +47,75 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     try {
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/knowledge_documents`, {
+      const body = req.body || {};
+      
+      // Build the document record with only valid columns
+      const docRecord = {
+        id: body.id || ('doc-' + Date.now() + '-' + (body.filename || 'unknown').replace(/[^a-zA-Z0-9.-]/g, '-').slice(0, 60)),
+        filename: body.filename || 'unknown',
+        file_type: body.file_type || null,
+        document_class: body.document_class || 'other',
+        vertical: body.vertical || 'general',
+        status: body.status || 'uploaded',
+        storage_path: body.storage_path || null,
+        mime_type: body.mime_type || null,
+        content_base64: body.content_base64 || null,
+        raw_text: body.raw_text || null,
+        chunk_count: body.chunk_count || 0,
+        char_count: body.char_count || 0,
+        uploaded_at: new Date().toISOString()
+      };
+
+      const response = await fetch(SUPABASE_URL + '/rest/v1/knowledge_documents', {
         method: 'POST',
-        headers: dbHeaders,
-        body: JSON.stringify(req.body)
+        headers: {
+          ...dbHeaders,
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(docRecord)
       });
 
       if (!response.ok) {
-        throw new Error(`Database insert failed: ${await response.text()}`);
+        const errText = await response.text();
+        throw new Error('Database insert failed: ' + errText);
       }
 
       const result = await response.json();
-      return res.status(200).json({ success: true, data: result });
+      
+      // If chunks were provided, insert them too
+      if (body.chunks && Array.isArray(body.chunks) && body.chunks.length > 0) {
+        const chunkRecords = body.chunks.map(function(c, i) {
+          return {
+            document_id: docRecord.id,
+            chunk_index: c.chunk_index !== undefined ? c.chunk_index : i,
+            filename: docRecord.filename,
+            chunk_text: c.chunk_text || c.text || ''
+          };
+        });
+        
+        const chunkResp = await fetch(SUPABASE_URL + '/rest/v1/knowledge_chunks', {
+          method: 'POST',
+          headers: {
+            ...dbHeaders,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(chunkRecords)
+        });
+        
+        if (!chunkResp.ok) {
+          const chunkErr = await chunkResp.text();
+          console.error('Chunk insert failed:', chunkErr);
+        } else {
+          // Update chunk count on the document
+          await fetch(SUPABASE_URL + '/rest/v1/knowledge_documents?id=eq.' + docRecord.id, {
+            method: 'PATCH',
+            headers: dbHeaders,
+            body: JSON.stringify({ chunk_count: chunkRecords.length, status: 'chunked' })
+          });
+        }
+      }
+
+      return res.status(200).json({ success: true, id: docRecord.id, data: result });
 
     } catch (error) {
       return res.status(500).json({ error: error.message });
