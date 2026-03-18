@@ -211,6 +211,7 @@ export default async function handler(req, res) {
     state = "",
     description = "",
     raw_html = "",
+    rfp_text: incomingRfpText = "",
   } = req.body || {};
 
   // Only return 400 for completely empty or unparseable requests
