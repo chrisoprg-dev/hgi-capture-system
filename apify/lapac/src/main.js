@@ -396,7 +396,7 @@ for (const keyword of SEARCH_KEYWORDS) {
 // Strategy 2: Direct department pages for HGI priority agencies
 for (const dept of TARGET_DEPARTMENTS) {
     log(`Scanning department: ${dept}`);
-    const bids = await fetchBidsByDepartment(dept);
+    const bids = await fetchBidsByDepartment(dept, browser);
     stats.departments_searched++;
 
     for (const bid of bids) {
