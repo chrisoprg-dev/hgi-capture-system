@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   const r = await fetch('https://api.apify.com/v2/acts/' + ACTOR_ID + '/builds?token=' + token, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tag: 'latest' })
+    body: JSON.stringify({ version: '0.0', tag: 'latest' })
   });
   const d = await r.json();
   return res.json({ ok: r.ok, buildId: d.data?.id, status: d.data?.status, error: d.error, full: d, ts: Date.now() });
