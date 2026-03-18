@@ -342,7 +342,7 @@ for (const dept of TARGET_DEPARTMENTS) {
         if (seenUrls.has(bid.url)) continue;
         seenUrls.add(bid.url);
         if (await checkDuplicate(bid.url)) { stats.duplicates_skipped++; continue; }
-        await processBid(bid, dept);
+        await processBid(bid, dept, browser);
     }
 
     await new Promise(r => setTimeout(r, 1000));
