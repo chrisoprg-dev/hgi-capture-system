@@ -181,8 +181,8 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         const html = await page.content();
         log('Keyword "' + keyword + '" length: ' + html.length + ', dspBid: ' + html.includes('dspBid'));
 
-        // Get all clickable bid number links on the results page
-        const bidLinks = (await page.$('table a[href*="dspBid"], table a[onclick*="dspBid"]')) || [];
+        // Get all clickable bid links — LaPAC uses onclick with dspBidContact
+        const bidLinks = (await page.$('a[onclick*="dspBidContact"]')) || [];
         log('Clickable bid links found: ' + bidLinks.length);
 
         for (let i = 0; i < bidLinks.length; i++) {
