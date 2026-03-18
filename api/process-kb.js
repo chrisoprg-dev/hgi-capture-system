@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   var dbH = { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY };
 
   // Find one document that needs processing
-  var findResp = await fetch(SUPABASE_URL + "/rest/v1/knowledge_documents?chunk_count=eq.0&storage_path=not.is.null&order=uploaded_at.desc&limit=1&select=id,filename,storage_path,mime_type,file_type,status", {
+  var findResp = await fetch(SUPABASE_URL + "/rest/v1/knowledge_documents?chunk_count=lt.2&storage_path=not.is.null&order=uploaded_at.desc&limit=1&select=id,filename,storage_path,mime_type,file_type,status", {
     headers: dbH
   });
   var docs = await findResp.json();
