@@ -220,4 +220,158 @@ const fetchBidsByKeyword = async (keyword, browser) => {
     } finally {
         await context.close();
     }
+};const fetchBidsByDepartment = async (department, browser) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+        await page.goto(LAPAC_BASE + '/deptbids.cfm', { waitUntil: 'networkidle', timeout: 30000 });
+        try {
+            await page.click('a:has-text("' + department.substring(0, 20) + '")', { timeout: 5000 });
+            await page.waitForLoadState('networkidle', { timeout: 15000 });
+        } catch(e) {
+            log('Could not click dept link for: ' + department);
+            return [];
+        }
+        const html = await page.content();
+        return parseBidLinks(html, department);
+    } catch(e) {
+        log('Error fetching department ' + department + ': ' + e.message);
+        return [];
+    } finally {
+        await context.close();
+    }
 };
+
+const sendToIntake = async (opportunity) => {
+    try {
+        const res = await fetch(INTAKE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-intake-secret': INTAKE_SECRET },
+            body: JSON.stringify(opportunity)
+        });
+        if (res.ok) {
+            log('SENT TO HGI: ' + opportunity.title);
+            stats.sent_to_intake++;
+        } else {
+            const err = await res.text();
+            log('Intake rejected: ' + res.status + ' ' + err);
+        }
+    } catch(e) {
+        log('Intake error: ' + e.message);
+    }
+};
+
+const processBid = async (bid, agencyOverride, browser) => {
+    let detail;
+    if (bid.fullText) {
+        const stripTags = (s) => (s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').trim();
+        const html = bid.html || '';
+        const titleMatch = html.match(/<b>([^<]{10,200})<\/b>/i) || html.match(/<strong>([^<]{10,200})<\/strong>/i);
+        const title = titleMatch ? stripTags(titleMatch[1]) : bid.bidNumber;
+        const deadlineMatch = bid.fullText.match(/(?:Opening Date\/Time|Bid Opening Date|Due Date|Closing Date)[\:\s]+([^\n\r]{5,30})/i);
+        const deadline = deadlineMatch ? deadlineMatch[1].trim() : '';
+        const descMatch = bid.fullText.match(/(?:Description|Scope|Summary|Advertisement)[\:\s]*([^\n]{20,500})/i);
+        const description = descMatch ? descMatch[1].trim() : bid.fullText.substring(0, 800);
+        const agencyMatch = bid.fullText.match(/(?:Agency|Department|Issuing Agency)[\:\s]+([^\n\r]{3,80})/i);
+        const agency = agencyOverride || (agencyMatch ? agencyMatch[1].trim() : '');
+        detail = { title, deadline, description, agency, fullText: bid.fullText };
+    } else {
+        detail = await fetchBidDetail(bid.url, bid.bidNumber, agencyOverride || bid.agency, browser);
+    }
+    if (!detail) return;
+    stats.bids_reviewed++;
+
+    if (!isRelevant(detail.fullText)) {
+        log('Not relevant: ' + detail.title);
+        stats.filtered_out++;
+        return;
+    }
+
+    if (detail.deadline) {
+        const endDate = parseDate(detail.deadline);
+        if (endDate && endDate < new Date()) {
+            log('Expired: ' + detail.title);
+            stats.expired_skipped++;
+            return;
+        }
+    }
+
+    log('RELEVANT: ' + detail.title);
+    stats.relevant_found++;
+
+    const opportunity = {
+        title: detail.title,
+        agency: detail.agency || '',
+        deadline: detail.deadline || '',
+        description: detail.description || '',
+        url: bid.url,
+        source: 'LaPAC',
+        source_id: 'lapac-' + bid.bidNumber.replace(/\s+/g, '-'),
+        response_deadline: detail.deadline || '',
+        state: 'LA'
+    };
+
+    await sendToIntake(opportunity);
+    await Actor.pushData(opportunity);
+    await new Promise(r => setTimeout(r, 800));
+};
+
+// ---- MAIN ----
+
+log('Starting LaPAC Playwright scraper');
+
+const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+log('Browser launched');
+
+const SEARCH_KEYWORDS = [
+    'program management', 'grant management', 'disaster recovery',
+    'claims administration', 'third party administrator', 'workers compensation',
+    'workforce development', 'WIOA', 'housing assistance', 'hazard mitigation',
+    'CDBG', 'FEMA', 'risk management', 'program administration',
+    'technical assistance', 'compliance monitoring', 'case management',
+    'benefits administration', 'consulting services', 'professional services'
+];
+
+const seenUrls = new Set();
+
+for (const keyword of SEARCH_KEYWORDS) {
+    log('Searching keyword: ' + keyword);
+    const bids = await fetchBidsByKeyword(keyword, browser);
+    stats.keywords_searched++;
+    for (const bid of bids) {
+        if (seenUrls.has(bid.url)) continue;
+        seenUrls.add(bid.url);
+        if (await checkDuplicate(bid.url)) { stats.duplicates_skipped++; continue; }
+        await processBid(bid, '', browser);
+    }
+    await new Promise(r => setTimeout(r, 1000));
+}
+
+for (const dept of TARGET_DEPARTMENTS) {
+    log('Scanning department: ' + dept);
+    const bids = await fetchBidsByDepartment(dept, browser);
+    stats.departments_searched++;
+    for (const bid of bids) {
+        if (seenUrls.has(bid.url)) continue;
+        seenUrls.add(bid.url);
+        if (await checkDuplicate(bid.url)) { stats.duplicates_skipped++; continue; }
+        await processBid(bid, dept, browser);
+    }
+    await new Promise(r => setTimeout(r, 1000));
+}
+
+await browser.close();
+log('Browser closed');
+log('Run complete: ' + JSON.stringify(stats));
+
+try {
+    await fetch('https://hgi-capture-system.vercel.app/api/hunt-analytics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...stats, secret: 'hgi-intake-2026-secure', source: 'lapac' })
+    });
+} catch(e) {
+    log('Analytics error: ' + e.message);
+}
+
+await Actor.exit();
