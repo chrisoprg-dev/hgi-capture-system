@@ -15,22 +15,22 @@ export default async function handler(req, res) {
   if (!url && !base64Input) return res.status(400).json({ error: 'url or base64 required' });
 
   try {
-    let base64;
+    let documentSource;
     let pdfSizeBytes = 0;
-    if (base64Input) {
-      base64 = base64Input;
+
+    if (url && !base64Input) {
+      // Use URL source type — Claude fetches the PDF directly, no token limit issue
+      console.log('[extract-pdf] using URL source:', url);
+      documentSource = { type: 'url', url };
+      pdfSizeBytes = -1; // unknown until Claude fetches
+    } else {
+      // Fall back to base64 if explicitly provided
       pdfSizeBytes = Math.round(base64Input.length * 0.75);
       console.log('[extract-pdf] base64 input, approx bytes:', pdfSizeBytes);
-    } else {
-      const pdfRes = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, redirect: 'follow' });
-      if (!pdfRes.ok) return res.status(502).json({ error: 'PDF fetch failed: ' + pdfRes.status, url });
-      const buf = await pdfRes.arrayBuffer();
-      pdfSizeBytes = buf.byteLength;
-      base64 = Buffer.from(buf).toString('base64');
-      console.log('[extract-pdf] fetched PDF bytes:', pdfSizeBytes);
+      documentSource = { type: 'base64', media_type: 'application/pdf', data: base64Input };
     }
 
-    console.log('[extract-pdf] calling Claude, base64 length:', base64.length);
+    console.log('[extract-pdf] calling Claude with source type:', documentSource.type);
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -40,12 +40,12 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 500,
+        max_tokens: 1000,
         messages: [{
           role: 'user',
           content: [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-            { type: 'text', text: 'Extract key procurement details: title, issuing agency, deadline, scope of work, requirements. Return as plain text.' }
+            { type: 'document', source: documentSource },
+            { type: 'text', text: 'Extract key procurement details from this RFP: title, issuing agency, deadline/due date, scope of work summary, key requirements. Return as plain text, concise.' }
           ]
         }]
       })
