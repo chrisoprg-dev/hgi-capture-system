@@ -180,6 +180,12 @@ const fetchBidsByDepartment = async (department) => {
 const fetchBidsByKeyword = async (keyword) => {
     try {
         const searchUrl = `${LAPAC_BASE}/srchopen.cfm`;
+        // First GET to establish session/cookies
+        const getRes = await fetch(searchUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
+        const cookies = getRes.headers.get('set-cookie') || '';
+
         const body = new URLSearchParams({
             department: '',
             category: '',
@@ -193,11 +199,17 @@ const fetchBidsByKeyword = async (keyword) => {
 
         const res = await fetch(searchUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': searchUrl,
+                'Cookie': cookies
+            },
             body: body.toString()
         });
         if (!res.ok) return [];
         const html = await res.text();
+        log(`Keyword "${keyword}" response length: ${html.length}, contains dspBid: ${html.includes('dspBid')}`);
         return parseBidLinks(html, '');
     } catch(e) {
         log(`Error searching keyword ${keyword}: ${e.message}`);
