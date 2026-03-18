@@ -195,24 +195,15 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         }
         log('Bidnos found: ' + bidnos.length + (bidnos.length ? ' first: ' + bidnos[0] : ''));
 
+        // Use page.evaluate to extract all anchor hrefs and text — no selector guessing
+        const allLinks = await page.evaluate(() =>
+            Array.from(document.querySelectorAll('a')).map(a => ({ text: a.innerText.trim(), href: a.href }))
+        );
+        log('PAGE LINKS: ' + JSON.stringify(allLinks.filter(l => l.text.length > 0).slice(0, 40)));
+
         for (const bidno of bidnos) {
-            try {
-                // The bid doc link is under 'Original: BIDNO' in the Description column
-                await page.click('a[href*="dspBid"]', { timeout: 5000 });
-                await page.waitForLoadState('networkidle', { timeout: 20000 });
-                const detailUrl = page.url();
-                const detailHtml = await page.content();
-                const stripTags = (s) => (s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').trim();
-                const fullText = stripTags(detailHtml);
-                log('Detail page: ' + detailUrl + ' length: ' + fullText.length);
-                if (!fullText.includes('No bid documents found') && fullText.length > 500) {
-                    results.push({ url: detailUrl, bidNumber: bidno, agency: '', fullText, html: detailHtml });
-                }
-                // Go back to results for next bid
-                await page.goBack({ waitUntil: 'networkidle', timeout: 20000 });
-            } catch(e) {
-                log('Error clicking ' + bidno + ': ' + e.message);
-            }
+            const match = allLinks.find(l => l.text === bidno);
+            log('Link for ' + bidno + ': ' + JSON.stringify(match));
         }
         return results;
     } catch(e) {
