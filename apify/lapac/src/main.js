@@ -249,7 +249,8 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                         log('PDF request failed status ' + pdfBuffer.status() + ' for: ' + pdfUrl);
                     }
                 } catch(extractErr) {
-                    log('PDF extract error: ' + extractErr.message);
+                    log('PDF extract error: ' + extractErr.message + ' | stack: ' + (extractErr.stack || '').substring(0, 200));
+                    extractedText = 'PDF_EXTRACT_ERROR: ' + extractErr.message;
                 }
 
                 const description = extractedText.length > 100
