@@ -182,7 +182,7 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         log('Keyword "' + keyword + '" length: ' + html.length + ', dspBid: ' + html.includes('dspBid'));
 
         // Get all clickable bid number links on the results page
-        const bidLinks = await page.$('table a[href*="dspBid"], table a[onclick*="dspBid"]');
+        const bidLinks = (await page.$('table a[href*="dspBid"], table a[onclick*="dspBid"]')) || [];
         log('Clickable bid links found: ' + bidLinks.length);
 
         for (let i = 0; i < bidLinks.length; i++) {
