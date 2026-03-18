@@ -52,7 +52,7 @@ export default async function handler(req, res) {
         headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001",
-          max_tokens: 8000,
+          max_tokens: 16000,
           messages: [{ role: "user", content: [
             { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } },
             { type: "text", text: "Extract ALL text from this PDF. Preserve structure. Return plain text only, no commentary." }
