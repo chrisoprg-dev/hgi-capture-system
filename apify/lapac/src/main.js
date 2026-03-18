@@ -228,8 +228,8 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                     log('PDF response status: ' + pdfBuffer.status() + ' url: ' + pdfUrl);
                     if (pdfBuffer.status() === 200) {
                         const pdfBodyBuffer = await pdfBuffer.body();
-                        // First 150KB — fits in Claude 200K token limit; RFP title/agency/deadline always in first pages
-                        const truncatedBuffer = pdfBodyBuffer.slice(0, 150000);
+                        // First 600KB — valid PDF slice; extract-pdf uses max_tokens 500 leaving room for input
+                        const truncatedBuffer = pdfBodyBuffer.slice(0, 600000);
                         const base64Pdf = truncatedBuffer.toString('base64');
                         log('PDF downloaded: ' + pdfBodyBuffer.length + ' bytes (sending ' + truncatedBuffer.length + '), sending to extract-pdf');
                         const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', {
