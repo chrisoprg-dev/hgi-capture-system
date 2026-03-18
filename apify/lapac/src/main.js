@@ -207,15 +207,28 @@ const fetchBidsByKeyword = async (keyword) => {
 
 const parseBidLinks = (html, agency) => {
     const bids = [];
-    // LaPAC bid links look like: dspBid.cfm?search=...&term=BIDNUMBER
-    const bidLinkRegex = /href="((?:\/osp\/lapac\/)?dspBid\.cfm\?[^"]+)"[^>]*>\s*([^<]+)/gi;
+    // LaPAC search results link to dspBid.cfm with bid number in the link text
+    // Pattern 1: href="dspBid.cfm?search=openBid&term=BIDNUM" or similar
+    const bidLinkRegex = /href="([^"]*dspBid\.cfm[^"]*term=([^&"]+)[^"]*)"[^>]*>([^<]+)/gi;
     let match;
     while ((match = bidLinkRegex.exec(html)) !== null) {
         const href = match[1];
-        const bidNum = match[2].trim();
-        if (!bidNum || bidNum.length < 3) continue;
-        const fullUrl = href.startsWith('http') ? href : `${LAPAC_BASE}/${href.replace(/^\/osp\/lapac\//, '')}`;
-        bids.push({ url: fullUrl, bidNumber: bidNum, agency });
+        const term = match[2].trim();
+        const linkText = match[3].trim();
+        if (!term || term.length < 2) continue;
+        const fullUrl = href.startsWith('http') ? href : `${LAPAC_BASE}/${href.replace(/^\/osp\/lapac\//, '').replace(/^\//, '')}`;
+        bids.push({ url: fullUrl, bidNumber: term, agency });
+    }
+    // Pattern 2: plain bid number links like altlist.cfm
+    if (bids.length === 0) {
+        const altRegex = /href="([^"]*(?:dspBid|altlist)[^"]*)[^>]*>\s*(\S[^<]{2,60})/gi;
+        while ((match = altRegex.exec(html)) !== null) {
+            const href = match[1];
+            const bidNum = match[2].trim();
+            if (!bidNum || bidNum.length < 3) continue;
+            const fullUrl = href.startsWith('http') ? href : `${LAPAC_BASE}/${href.replace(/^\/osp\/lapac\//, '').replace(/^\//, '')}`;
+            bids.push({ url: fullUrl, bidNumber: bidNum, agency });
+        }
     }
     return bids;
 };
