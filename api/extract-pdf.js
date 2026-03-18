@@ -42,6 +42,7 @@ export default async function handler(req, res) {
         'x-api-key': ANTHROPIC_KEY,
         'anthropic-version': '2023-06-01',
         'anthropic-beta': 'pdfs-2024-09-25'
+      // Note: haiku model string verified
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
