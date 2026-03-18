@@ -359,9 +359,11 @@
 
     <div class="instructions">
       <p>
-        Upload HGI documents directly to the knowledge base.<br><br>
-        <strong>IMPORTANT: Save Word documents (.docx) as PDF before uploading.</strong> The system extracts text automatically from PDFs and text files. Word files (.docx) will be stored but may not extract properly until converted.<br><br>
-        <strong>Supported formats:</strong> PDF (recommended), TXT, MD. Multiple files can be added at once.
+        Upload HGI documents directly to the knowledge base. Any file type is accepted —
+        <strong>PDF, Word, or text</strong>. Documents are automatically read, classified, and indexed.<br><br>
+        <strong>No size limit.</strong> Full documents processed — proposals, contracts, any length
+        before uploading. Uploading a 500-page document as one file will fail.
+        Multiple files can be added at once.
       </p>
     </div>
 
@@ -523,9 +525,8 @@
         file_type: ext,
         mime_type: mimeType,
         storage_path: storagePath,
+        file_size: fileSize,
         content_base64: null,
-        document_class: 'other',
-        vertical: 'general',
       }),
     });
     if (!resp.ok) {
@@ -552,19 +553,19 @@
         const docId = 'doc-' + Date.now() + '-' + item.file.name.replace(/[^a-zA-Z0-9.-]/g, '-').slice(0, 60);
         const storagePath = docId + '/' + item.file.name;
 
-        // Step 1: Upload to Supabase Storage
+        // Step 1: Upload directly to Supabase Storage — no size limit
         await uploadToStorage(item.file, storagePath, mimeType);
 
-        // Step 2: Register with API
+        // Step 2: Tell Vercel to register and process
         const data = await registerWithVercel(item.file.name, ext, mimeType, storagePath, item.file.size);
 
         item.status = 'done';
         item.result = data;
-        showToast(item.file.name + ' — uploaded successfully', 'success');
+        showToast(`${item.file.name} — stored & processing`, 'success');
       } catch(e) {
         item.status = 'error';
         item.error = e.message;
-        showToast(item.file.name + ' — ' + e.message.slice(0,80), 'error');
+        showToast(`${item.file.name} — ${e.message.slice(0,80)}`, 'error');
       }
 
       renderQueue();
