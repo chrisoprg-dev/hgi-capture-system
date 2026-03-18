@@ -97,23 +97,21 @@ const handleTool = async (name, input) => {
       const { instruction, filename } = input;
       const file = await getFile(filename);
       if (!file) {
-        const newContent = await callClaude('Create a new file: ' + filename + '\n\nINSTRUCTION: ' + instruction + '\n\nReturn complete file content only. No markdown.', 'You are a senior software engineer. Return only code.', 8000);
-        await pushFile(filename, newContent, null, 'MCP: Create ' + filename);
+        await pushFile(filename, instruction, null, 'MCP: Create ' + filename);
         return { success: true, created: true, message: 'Created ' + filename + '. Deploying in ~60 seconds.' };
       }
-      const isLarge = true;
-      let finalContent;
-      if (isLarge) {
-        const result = await callClaude('File: ' + filename + '\nINSTRUCTION: ' + instruction + '\n\nFILE:\n' + file.content.slice(0, 80000) + '\n\nReturn ONLY raw JSON, no markdown:\n{"find": "exact string to find", "replace": "replacement string"}', 'Return ONLY valid JSON. No markdown. No backticks.', 4000);
-        const clean = result.replace(/```json|```/gi, '').trim();
-        const parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1));
-        if (!file.content.includes(parsed.find)) return { error: 'Find string not found in ' + filename };
-        finalContent = file.content.replace(parsed.find, parsed.replace);
-      } else {
-        finalContent = await callClaude('File: ' + filename + '\nINSTRUCTION: ' + instruction + '\n\nFILE:\n' + file.content + '\n\nReturn complete modified file. No markdown.', 'Return complete file only. No markdown.', 8000);
+      let parsed;
+      try {
+        const clean = instruction.replace(/```json|```/gi, '').trim();
+        parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1));
+      } catch(e) {
+        return { error: 'instruction must be JSON: {"find": "...", "replace": "..."}' };
       }
-      await pushFile(filename, finalContent, file.sha, 'MCP: ' + instruction.slice(0, 72));
+      if (!file.content.includes(parsed.find)) return { error: 'Find string not found in ' + filename };
+      const finalContent = file.content.replace(parsed.find, parsed.replace);
+      await pushFile(filename, finalContent, file.sha, 'MCP: edit ' + filename);
       return { success: true, message: 'Modified ' + filename + '. Deploying in ~60 seconds.' };
+    }
     }
 
     case 'restore_file_from_git': {
