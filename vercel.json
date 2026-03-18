@@ -4,7 +4,7 @@
     "api/visual-proposal.js": { "maxDuration": 60 },
     "api/claude.js": { "maxDuration": 300 },
     "api/intake.js": { "maxDuration": 120 },
-    "api/mcp.js"
+    "api/mcp.js": { "maxDuration": 300 },
     "api/intelligence.js": { "maxDuration": 120 },
     "api/export-proposal.js": { "maxDuration": 120 },
     "api/proposal-improve.js": { "maxDuration": 120 },
