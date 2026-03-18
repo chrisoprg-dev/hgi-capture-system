@@ -10,5 +10,5 @@ export default async function handler(req, res) {
     body: JSON.stringify({ tag: 'latest' })
   });
   const d = await r.json();
-  return res.json({ ok: r.ok, buildId: d.data?.id, status: d.data?.status, ts: Date.now() });
+  return res.json({ ok: r.ok, buildId: d.data?.id, status: d.data?.status, error: d.error, full: d, ts: Date.now() });
 }
