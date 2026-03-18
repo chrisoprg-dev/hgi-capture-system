@@ -209,50 +209,40 @@ const fetchBidsByKeyword = async (keyword, browser) => {
             const pdfUrl = pdfLinks[i];
             const bidno = bidnos[i] || ('bid-' + i);
             try {
-                // Fetch PDF and send to Claude for text extraction
+                // Send PDF URL directly to HGI intake — server has the API key
                 const pdfRes = await fetch(pdfUrl);
                 if (!pdfRes.ok) { log('PDF fetch failed: ' + pdfUrl); continue; }
                 const pdfBuf = await pdfRes.arrayBuffer();
-                const base64 = Buffer.from(pdfBuf).toString('base64');
                 log('PDF fetched: ' + pdfUrl + ' size: ' + pdfBuf.byteLength);
 
-                // Extract text via Claude
-                const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+                // Send to HGI fetch-rfp endpoint which handles PDF extraction with Claude
+                const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/fetch-rfp', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': process.env.ANTHROPIC_API_KEY,
-                        'anthropic-version': '2023-06-01'
-                    },
-                    body: JSON.stringify({
-                        model: 'claude-haiku-4-5-20251001',
-                        max_tokens: 2000,
-                        messages: [{
-                            role: 'user',
-                            content: [
-                                { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-                                { type: 'text', text: 'Extract: title, agency, description/scope, deadline/due date, and any key requirements. Return as JSON with fields: title, agency, description, deadline.' }
-                            ]
-                        }]
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: pdfUrl })
                 });
-                if (!claudeRes.ok) { log('Claude API error: ' + claudeRes.status); continue; }
-                const claudeData = await claudeRes.json();
-                const extracted = claudeData.content?.[0]?.text || '';
-                log('Extracted: ' + extracted.substring(0, 200));
+                if (!extractRes.ok) { log('Extract failed: ' + extractRes.status); continue; }
+                const extractData = await extractRes.json();
+                const fullText = extractData.textContent || '';
+                log('Extracted length: ' + fullText.length + ' first: ' + fullText.substring(0, 100));
 
-                let parsed = { title: bidno, agency: '', description: '', deadline: '' };
-                try {
-                    const clean = extracted.replace(/|/gi, '').trim();
-                    parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1));
-                } catch(e) { parsed.description = extracted.substring(0, 500); }
-
-                const fullText = extracted;
                 if (isRelevant(fullText)) {
-                    results.push({ url: pdfUrl, bidNumber: bidno, agency: parsed.agency || '', fullText, html: '', parsedTitle: parsed.title, parsedDeadline: parsed.deadline, parsedDescription: parsed.description });
-                    log('PDF relevant: ' + (parsed.title || bidno));
+                    const titleMatch = fullText.match(/TITLE[:\s]+([^\n]{10,200})/i);
+                    const deadlineMatch = fullText.match(/(?:BID DUE|Due Date|Deadline)[:\s]+([^\n]{5,30})/i);
+                    const agencyMatch = fullText.match(/(?:BOARD OF|AGENCY|DEPARTMENT)[:\s]+([^\n]{5,100})/i);
+                    results.push({
+                        url: pdfUrl,
+                        bidNumber: bidno,
+                        agency: agencyMatch ? agencyMatch[1].trim() : '',
+                        fullText,
+                        html: '',
+                        parsedTitle: titleMatch ? titleMatch[1].trim() : bidno,
+                        parsedDeadline: deadlineMatch ? deadlineMatch[1].trim() : '',
+                        parsedDescription: fullText.substring(0, 800)
+                    });
+                    log('PDF relevant: ' + (titleMatch ? titleMatch[1].trim() : bidno));
                 } else {
-                    log('PDF not relevant: ' + (parsed.title || bidno));
+                    log('PDF not relevant: ' + bidno);
                 }
             } catch(e) {
                 log('Error processing PDF ' + pdfUrl + ': ' + e.message);
