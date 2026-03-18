@@ -512,7 +512,7 @@ Return ONLY this exact JSON with no markdown:
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 1500,
+        max_tokens: 2500,
         system: "You are a government contracting analyst. Return ONLY valid JSON. No markdown. No explanation.",
         messages: [{ role: "user", content: analysisPrompt }],
       }),
