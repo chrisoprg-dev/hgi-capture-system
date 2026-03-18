@@ -375,7 +375,7 @@ export default async function handler(req, res) {
       posted_date: posted_date.slice(0, 50),
       estimated_value: estimated_value.slice(0, 100),
       description: description.slice(0, 2000),
-      rfp_text: (stripScripts(raw_html) + " " + description).slice(0, 10000),
+      rfp_text: (incomingRfpText || (stripScripts(raw_html) + " " + description)).slice(0, 10000),
       status: initialStatus,
       discovered_at: now,
       last_updated: now,
