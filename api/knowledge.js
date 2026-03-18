@@ -1,7 +1,7 @@
 // api/knowledge.js — HGI Knowledge Base Engine v3
 // Architecture: Upload to Supabase Storage → Process in pages → Never times out
 // Handles: PDF, DOCX, TXT, images (OCR), any size
-export const config = { maxDuration: 120 };
+export const config = { maxDuration: 300 };
 
 const CHUNK_SIZE = 1500;
 const CHUNK_OVERLAP = 150;
