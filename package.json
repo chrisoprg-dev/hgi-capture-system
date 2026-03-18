@@ -2,6 +2,7 @@
   "name": "hgi-capture-system",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "dependencies": {
     "docx": "^9.0.0"
   }
