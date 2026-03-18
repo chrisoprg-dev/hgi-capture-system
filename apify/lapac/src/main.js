@@ -311,16 +311,10 @@ const sendToIntake = async (opportunity) => {
 const processBid = async (bid, agencyOverride, browser) => {
     let detail;
     if (bid.fullText) {
-        const stripTags = (s) => (s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').trim();
-        const html = bid.html || '';
-        const titleMatch = html.match(/<b>([^<]{10,200})<\/b>/i) || html.match(/<strong>([^<]{10,200})<\/strong>/i);
-        const title = titleMatch ? stripTags(titleMatch[1]) : bid.bidNumber;
-        const deadlineMatch = bid.fullText.match(/(?:Opening Date\/Time|Bid Opening Date|Due Date|Closing Date)[\:\s]+([^\n\r]{5,30})/i);
-        const deadline = deadlineMatch ? deadlineMatch[1].trim() : '';
-        const descMatch = bid.fullText.match(/(?:Description|Scope|Summary|Advertisement)[\:\s]*([^\n]{20,500})/i);
-        const description = descMatch ? descMatch[1].trim() : bid.fullText.substring(0, 800);
-        const agencyMatch = bid.fullText.match(/(?:Agency|Department|Issuing Agency)[\:\s]+([^\n\r]{3,80})/i);
-        const agency = agencyOverride || (agencyMatch ? agencyMatch[1].trim() : '');
+        const title = bid.parsedTitle || bid.bidNumber;
+        const deadline = bid.parsedDeadline || '';
+        const description = bid.parsedDescription || bid.fullText.substring(0, 800);
+        const agency = agencyOverride || bid.agency || '';
         detail = { title, deadline, description, agency, fullText: bid.fullText };
     } else {
         detail = await fetchBidDetail(bid.url, bid.bidNumber, agencyOverride || bid.agency, browser);
