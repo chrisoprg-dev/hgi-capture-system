@@ -469,6 +469,9 @@ for (const dept of TARGET_DEPARTMENTS) {
     await new Promise(r => setTimeout(r, 1000));
 }
 
+await browser.close();
+log('Browser closed');
+
 // Log final stats
 log(`Run complete: ${JSON.stringify(stats)}`);
 
