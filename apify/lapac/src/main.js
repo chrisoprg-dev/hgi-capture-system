@@ -181,8 +181,21 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         const html = await page.content();
         log('Keyword "' + keyword + '" length: ' + html.length + ', dspBid: ' + html.includes('dspBid'));
 
-        // Get all clickable bid links — LaPAC uses onclick with dspBidContact
-        const bidLinks = (await page.$('a[onclick*="dspBidContact"]')) || [];
+        // Dump raw HTML snippet around dspBid for diagnostics
+        if (html.includes('dspBid')) {
+            const idx = html.indexOf('dspBid');
+            log('RAW: ' + html.substring(Math.max(0, idx - 150), idx + 300).replace(/\n/g, ' '));
+        }
+        // Get all links then filter by onclick content
+        const allLinks = (await page.$('a')) || [];
+        log('Total a tags: ' + allLinks.length);
+        const bidLinks = [];
+        for (const link of allLinks) {
+            try {
+                const oc = await link.getAttribute('onclick');
+                if (oc && oc.includes('dspBid')) bidLinks.push(link);
+            } catch(e) {}
+        }
         log('Clickable bid links found: ' + bidLinks.length);
 
         for (let i = 0; i < bidLinks.length; i++) {
