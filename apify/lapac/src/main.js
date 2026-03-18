@@ -246,7 +246,8 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                             const deadlineMatch = extractedText.match(/(?:due date|deadline|closing date|submission deadline|proposals due)[:\s]+([^\n]{5,40})/i);
                             if (deadlineMatch) extractedDeadline = deadlineMatch[1].trim();
                         } else {
-                            log('extract-pdf failed: ' + extractRes.status);
+                            const errBody = await extractRes.text();
+                            log('extract-pdf failed: ' + extractRes.status + ' body: ' + errBody.substring(0, 300));
                         }
                     } else {
                         log('PDF request failed status ' + pdfBuffer.status() + ' for: ' + pdfUrl);
