@@ -10,7 +10,7 @@ const REPO_OWNER = 'chrisoprg-dev';
 const REPO_NAME = 'hgi-capture-system';
 
 const ghHeaders = {
-  'Authorization': `Bearer ${GITHUB_TOKEN}`,
+  'Authorization': GITHUB_TOKEN ? `Bearer ${GITHUB_TOKEN}` : '',
   'Accept': 'application/vnd.github.v3+json',
   'Content-Type': 'application/json',
 };
