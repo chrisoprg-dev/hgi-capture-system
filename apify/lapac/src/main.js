@@ -1,4 +1,5 @@
-DELETEME_PLACEHOLDER
+import { Actor } from 'apify';
+import { chromium } from 'playwright';
 
 await Actor.init();
 
@@ -7,7 +8,6 @@ const INTAKE_SECRET = 'hgi-intake-2026-secure';
 const BATCH_API_URL = 'https://hgi-capture-system.vercel.app/api/opportunities';
 const LAPAC_BASE = 'https://wwwcfprd.doa.louisiana.gov/osp/lapac';
 
-// Target departments — HGI priority agencies only
 const TARGET_DEPARTMENTS = [
     'State - GOHSEP',
     'State - DOA Office of Community Development',
@@ -31,18 +31,6 @@ const TARGET_DEPARTMENTS = [
     'Non State - St. Tammany Parish Government',
     'Non State - New Orleans Regional Transit Authority',
     'Non State - Sewerage & Water Board of New Orleans'
-];
-
-// Target categories — HGI service lanes only
-const TARGET_CATEGORIES = [
-    'FINANCIAL AND INSURANCE SERVICES (84000000)',
-    'MNGMNT AND BUSINESS PROFESSIONALS AND ADMINISTRATIVE SERV. (80000000)',
-    'HEALTHCARE SERVICES (85000000)',
-    'EDUCATION AND TRAINING SERVICES (86000000)',
-    'PUBLIC UTILITIES AND PUBLIC SECTOR RELATED SERVICES (83000000)',
-    'ENGINEERING AND RESEARCH AND TECHNOLOGY BASED SERVICES (81000000)',
-    'NATIONAL DEFENSE, PUBLIC ORDER, SECURITY, SAFETY SERVICES (92000000)',
-    'POLITICS AND CIVIC AFFAIRS SERVICES (93000000)'
 ];
 
 const HGI_KEYWORDS = [
@@ -99,7 +87,7 @@ const parseDate = (dateStr) => {
 const checkDuplicate = async (sourceUrl) => {
     try {
         const encoded = encodeURIComponent(sourceUrl);
-        const res = await fetch(`${BATCH_API_URL}?source_url=${encoded}`);
+        const res = await fetch(BATCH_API_URL + '?source_url=' + encoded);
         if (res.ok) {
             const data = await res.json();
             if (data && data.exists === true) return true;
@@ -109,36 +97,11 @@ const checkDuplicate = async (sourceUrl) => {
     return false;
 };
 
-// Simple HTML table parser — extracts rows from LaPAC result tables
-const parseTableRows = (html) => {
-    const rows = [];
-    const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-    const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    const linkRegex = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i;
-    const stripTags = (s) => s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#\d+;/g, '').trim();
-
-    let rowMatch;
-    while ((rowMatch = rowRegex.exec(html)) !== null) {
-        const cells = [];
-        let cellMatch;
-        const cellRe = new RegExp(cellRegex.source, 'gi');
-        while ((cellMatch = cellRe.exec(rowMatch[1])) !== null) {
-            const linkMatch = linkRegex.exec(cellMatch[1]);
-            cells.push({
-                text: stripTags(cellMatch[1]),
-                href: linkMatch ? linkMatch[1] : null
-            });
-        }
-        if (cells.length >= 3) rows.push(cells);
-    }
-    return rows;
-};
-
-const log = (msg) => console.log(`[LaPAC] ${msg}`);
+const log = (msg) => console.log('[LaPAC] ' + msg);
 
 const stats = {
     departments_searched: 0,
-    categories_searched: 0,
+    keywords_searched: 0,
     bids_reviewed: 0,
     relevant_found: 0,
     sent_to_intake: 0,
@@ -147,116 +110,20 @@ const stats = {
     duplicates_skipped: 0
 };
 
-// Fetch open bids for a given department — uses real Playwright browser session
-const fetchBidsByDepartment = async (department, browser) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    try {
-        const deptPageUrl = `${LAPAC_BASE}/deptbids.cfm`;
-        await page.goto(deptPageUrl, { waitUntil: 'networkidle', timeout: 30000 });
-        const html = await page.content();
-
-        // Find the link for this department
-        const deptLinkRegex = new RegExp(`href="([^"]*dspBid\.cfm[^"]*)"[^>]*>[^<]*${department.replace(/[.*+?^${}()|[\]\\]/g, '\\// Fetch open bids for a given department name
-const fetchBidsByDepartment = async (department) => {
-    try {
-        // First get the department list page to find the correct dept code
-        const deptPageRes = await fetch(`${LAPAC_BASE}/deptbids.cfm`);
-        if (!deptPageRes.ok) return [];
-        const deptHtml = await deptPageRes.text();
-
-        // Find the link for this department
-        const deptLinkRegex = new RegExp(`href="([^"]*dspBid\\.cfm[^"]*)"[^>]*>[^<]*${department.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').substring(0, 20)}`, 'i');
-        const deptMatch = deptLinkRegex.exec(deptHtml);
-        if (!deptMatch) {
-            log(`Could not find link for department: ${department}`);
-            return [];
-        }
-
-        const deptUrl = deptMatch[1].startsWith('http') ? deptMatch[1] : `${LAPAC_BASE}/${deptMatch[1].replace(/^\/osp\/lapac\//, '')}`;
-        log(`Fetching bids for ${department}: ${deptUrl}`);
-
-        const res = await fetch(deptUrl);
-        if (!res.ok) return [];
-        const html = await res.text();
-        return parseBidLinks(html, department);
-    } catch(e) {
-        log(`Error fetching department ${department}: ${e.message}`);
-        return [];
-    }
-};').substring(0, 20)}`, 'i');
-        const deptMatch = deptLinkRegex.exec(html);
-        if (!deptMatch) {
-            log(`Could not find link for department: ${department}`);
-            return [];
-        }
-
-        const deptUrl = deptMatch[1].startsWith('http') ? deptMatch[1] : `${LAPAC_BASE}/${deptMatch[1].replace(/^\/osp\/lapac\//, '')}`;
-        log(`Fetching bids for ${department}: ${deptUrl}`);
-
-        await page.goto(deptUrl, { waitUntil: 'networkidle', timeout: 30000 });
-        const deptHtml = await page.content();
-        return parseBidLinks(deptHtml, department);
-    } catch(e) {
-        log(`Error fetching department ${department}: ${e.message}`);
-        return [];
-    } finally {
-        await context.close();
-    }
-};
-
-// Fetch open bids for a given keyword — uses real Playwright browser session
-const fetchBidsByKeyword = async (keyword, browser) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    try {
-        const searchUrl = `${LAPAC_BASE}/srchopen.cfm`;
-        await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 30000 });
-        await page.fill('input[name="keywords"]', keyword);
-        // Select "Open" bids only
-        try { await page.selectOption('select[name="dateType"]', 'O'); } catch(e) {}
-        await page.click('input[type="submit"], button[type="submit"]');
-        await page.waitForLoadState('networkidle', { timeout: 30000 });
-        const html = await page.content();
-        log(`Keyword "${keyword}" response length: ${html.length}, contains dspBid: ${html.includes('dspBid')}`);
-        return parseBidLinks(html, '');
-    } catch(e) {
-        log(`Error searching keyword ${keyword}: ${e.message}`);
-        return [];
-    } finally {
-        await context.close();
-    }
-};
-
 const parseBidLinks = (html, agency) => {
     const bids = [];
-    // LaPAC search results link to dspBid.cfm with bid number in the link text
-    // Pattern 1: href="dspBid.cfm?search=openBid&term=BIDNUM" or similar
-    const bidLinkRegex = /href="([^"]*dspBid\.cfm[^"]*term=([^&"]+)[^"]*)"[^>]*>([^<]+)/gi;
+    const bidLinkRegex = /href="([^"]*dspBid\.cfm[^"]*term=([^&"]+)[^"]*)"/gi;
     let match;
     while ((match = bidLinkRegex.exec(html)) !== null) {
         const href = match[1];
         const term = match[2].trim();
-        const linkText = match[3].trim();
         if (!term || term.length < 2) continue;
-        const fullUrl = href.startsWith('http') ? href : `${LAPAC_BASE}/${href.replace(/^\/osp\/lapac\//, '').replace(/^\//, '')}`;
+        const fullUrl = href.startsWith('http') ? href : LAPAC_BASE + '/' + href.replace(/^\/osp\/lapac\//, '').replace(/^\//, '');
         bids.push({ url: fullUrl, bidNumber: term, agency });
-    }
-    // Pattern 2: plain bid number links like altlist.cfm
-    if (bids.length === 0) {
-        const altRegex = /href="([^"]*(?:dspBid|altlist)[^"]*)[^>]*>\s*(\S[^<]{2,60})/gi;
-        while ((match = altRegex.exec(html)) !== null) {
-            const href = match[1];
-            const bidNum = match[2].trim();
-            if (!bidNum || bidNum.length < 3) continue;
-            const fullUrl = href.startsWith('http') ? href : `${LAPAC_BASE}/${href.replace(/^\/osp\/lapac\//, '').replace(/^\//, '')}`;
-            bids.push({ url: fullUrl, bidNumber: bidNum, agency });
-        }
     }
     return bids;
 };
 
-// Fetch and parse an individual bid detail page
 const fetchBidDetail = async (bidUrl, bidNumber, agency) => {
     try {
         const res = await fetch(bidUrl);
@@ -265,41 +132,138 @@ const fetchBidDetail = async (bidUrl, bidNumber, agency) => {
         const stripTags = (s) => (s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#\d+;/g, '').trim();
         const fullText = stripTags(html);
 
-        // Extract title
         const titleMatch = html.match(/<b>([^<]{10,200})<\/b>/i) || html.match(/<strong>([^<]{10,200})<\/strong>/i);
         const title = titleMatch ? stripTags(titleMatch[1]) : bidNumber;
 
-        // Extract deadline — LaPAC shows "Opening Date/Time:" or "Bid Opening:"
         let deadline = '';
-        const deadlineMatch = fullText.match(/(?:Opening Date\/Time|Bid Opening Date|Due Date|Closing Date)[:\s]+([^\n\r]{5,30})/i);
+        const deadlineMatch = fullText.match(/(?:Opening Date\/Time|Bid Opening Date|Due Date|Closing Date)[\:\s]+([^\n\r]{5,30})/i);
         if (deadlineMatch) deadline = deadlineMatch[1].trim();
 
-        // Extract description — grab a decent chunk of page text after title
-        const descMatch = fullText.match(/(?:Description|Scope|Summary|Advertisement)[:\s]*([^\n]{20,500})/i);
+        const descMatch = fullText.match(/(?:Description|Scope|Summary|Advertisement)[\:\s]*([^\n]{20,500})/i);
         const description = descMatch ? descMatch[1].trim() : fullText.substring(0, 800);
 
-        // Extract agency from page if not passed in
         let finalAgency = agency;
         if (!finalAgency) {
-            const agencyMatch = fullText.match(/(?:Agency|Department|Issuing Agency)[:\s]+([^\n\r]{3,80})/i);
+            const agencyMatch = fullText.match(/(?:Agency|Department|Issuing Agency)[\:\s]+([^\n\r]{3,80})/i);
             if (agencyMatch) finalAgency = agencyMatch[1].trim();
         }
 
         return { title, deadline, description, agency: finalAgency, fullText };
     } catch(e) {
-        log(`Error fetching bid detail ${bidUrl}: ${e.message}`);
+        log('Error fetching bid detail ' + bidUrl + ': ' + e.message);
         return null;
     }
 };
 
+const fetchBidsByKeyword = async (keyword, browser) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+        const searchUrl = LAPAC_BASE + '/srchopen.cfm';
+        await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 30000 });
+        await page.fill('input[name="keywords"]', keyword);
+        try { await page.selectOption('select[name="dateType"]', 'O'); } catch(e) {}
+        await page.click('input[type="submit"], button[type="submit"]');
+        await page.waitForLoadState('networkidle', { timeout: 30000 });
+        const html = await page.content();
+        log('Keyword "' + keyword + '" length: ' + html.length + ', dspBid: ' + html.includes('dspBid'));
+        return parseBidLinks(html, '');
+    } catch(e) {
+        log('Error searching keyword ' + keyword + ': ' + e.message);
+        return [];
+    } finally {
+        await context.close();
+    }
+};
+
+const fetchBidsByDepartment = async (department, browser) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+        await page.goto(LAPAC_BASE + '/deptbids.cfm', { waitUntil: 'networkidle', timeout: 30000 });
+        try {
+            await page.click('a:has-text("' + department.substring(0, 20) + '")', { timeout: 5000 });
+            await page.waitForLoadState('networkidle', { timeout: 15000 });
+        } catch(e) {
+            log('Could not click dept link for: ' + department);
+            return [];
+        }
+        const deptHtml = await page.content();
+        return parseBidLinks(deptHtml, department);
+    } catch(e) {
+        log('Error fetching department ' + department + ': ' + e.message);
+        return [];
+    } finally {
+        await context.close();
+    }
+};
+
+const sendToIntake = async (opportunity) => {
+    try {
+        const intakeRes = await fetch(INTAKE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-intake-secret': INTAKE_SECRET },
+            body: JSON.stringify(opportunity)
+        });
+        if (intakeRes.ok) {
+            log('SENT TO HGI: ' + opportunity.title);
+            stats.sent_to_intake++;
+        } else {
+            const err = await intakeRes.text();
+            log('Intake rejected: ' + intakeRes.status + ' ' + err);
+        }
+    } catch(e) {
+        log('Intake error: ' + e.message);
+    }
+};
+
+const processBid = async (bid, agencyOverride) => {
+    const detail = await fetchBidDetail(bid.url, bid.bidNumber, agencyOverride || bid.agency);
+    if (!detail) return;
+    stats.bids_reviewed++;
+
+    if (!isRelevant(detail.fullText)) {
+        log('Not relevant: ' + detail.title);
+        stats.filtered_out++;
+        return;
+    }
+
+    if (detail.deadline) {
+        const endDate = parseDate(detail.deadline);
+        if (endDate && endDate < new Date()) {
+            log('Expired: ' + detail.title);
+            stats.expired_skipped++;
+            return;
+        }
+    }
+
+    log('RELEVANT: ' + detail.title);
+    stats.relevant_found++;
+
+    const opportunity = {
+        title: detail.title,
+        agency: detail.agency || '',
+        deadline: detail.deadline || '',
+        description: detail.description || '',
+        url: bid.url,
+        source: 'LaPAC',
+        source_id: 'lapac-' + bid.bidNumber.replace(/\s+/g, '-'),
+        response_deadline: detail.deadline || '',
+        state: 'LA'
+    };
+
+    await sendToIntake(opportunity);
+    await Actor.pushData(opportunity);
+    await new Promise(r => setTimeout(r, 800));
+};
+
 // ---- MAIN ----
 
-log('Starting LaPAC scraper');
+log('Starting LaPAC Playwright scraper');
 
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 log('Browser launched');
 
-// Strategy 1: Search by HGI keywords directly — catches everything regardless of department
 const SEARCH_KEYWORDS = [
     'program management', 'grant management', 'disaster recovery',
     'claims administration', 'third party administrator', 'workers compensation',
@@ -312,157 +276,30 @@ const SEARCH_KEYWORDS = [
 const seenUrls = new Set();
 
 for (const keyword of SEARCH_KEYWORDS) {
-    log(`Searching keyword: ${keyword}`);
+    log('Searching keyword: ' + keyword);
     const bids = await fetchBidsByKeyword(keyword, browser);
-    stats.categories_searched++;
+    stats.keywords_searched++;
 
     for (const bid of bids) {
         if (seenUrls.has(bid.url)) continue;
         seenUrls.add(bid.url);
-
-        if (await checkDuplicate(bid.url)) {
-            stats.duplicates_skipped++;
-            continue;
-        }
-
-        const detail = await fetchBidDetail(bid.url, bid.bidNumber, bid.agency);
-        if (!detail) continue;
-
-        stats.bids_reviewed++;
-
-        // Relevance check against full page text
-        if (!isRelevant(detail.fullText)) {
-            log(`Not relevant: ${detail.title}`);
-            stats.filtered_out++;
-            continue;
-        }
-
-        // Expiry check
-        if (detail.deadline) {
-            const endDate = parseDate(detail.deadline);
-            if (endDate && endDate < new Date()) {
-                log(`Expired: ${detail.title}`);
-                stats.expired_skipped++;
-                continue;
-            }
-        }
-
-        log(`RELEVANT: ${detail.title}`);
-        stats.relevant_found++;
-
-        const opportunity = {
-            title: detail.title,
-            agency: detail.agency || '',
-            deadline: detail.deadline || '',
-            description: detail.description || '',
-            url: bid.url,
-            source: 'LaPAC',
-            source_id: `lapac-${bid.bidNumber.replace(/\s+/g, '-')}`,
-            response_deadline: detail.deadline || '',
-            state: 'LA'
-        };
-
-        try {
-            const intakeRes = await fetch(INTAKE_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-intake-secret': INTAKE_SECRET
-                },
-                body: JSON.stringify(opportunity)
-            });
-            if (intakeRes.ok) {
-                log(`SENT TO HGI: ${detail.title}`);
-                stats.sent_to_intake++;
-            } else {
-                const err = await intakeRes.text();
-                log(`Intake rejected: ${intakeRes.status} ${err}`);
-            }
-        } catch(e) {
-            log(`Intake error: ${e.message}`);
-        }
-
-        await Actor.pushData(opportunity);
-
-        // Polite delay between bid detail fetches
-        await new Promise(r => setTimeout(r, 800));
+        if (await checkDuplicate(bid.url)) { stats.duplicates_skipped++; continue; }
+        await processBid(bid, '');
     }
 
-    // Polite delay between keyword searches
     await new Promise(r => setTimeout(r, 1000));
 }
 
-// Strategy 2: Direct department pages for HGI priority agencies
 for (const dept of TARGET_DEPARTMENTS) {
-    log(`Scanning department: ${dept}`);
+    log('Scanning department: ' + dept);
     const bids = await fetchBidsByDepartment(dept, browser);
     stats.departments_searched++;
 
     for (const bid of bids) {
         if (seenUrls.has(bid.url)) continue;
         seenUrls.add(bid.url);
-
-        if (await checkDuplicate(bid.url)) {
-            stats.duplicates_skipped++;
-            continue;
-        }
-
-        const detail = await fetchBidDetail(bid.url, bid.bidNumber, dept);
-        if (!detail) continue;
-
-        stats.bids_reviewed++;
-
-        if (!isRelevant(detail.fullText)) {
-            log(`Not relevant: ${detail.title}`);
-            stats.filtered_out++;
-            continue;
-        }
-
-        if (detail.deadline) {
-            const endDate = parseDate(detail.deadline);
-            if (endDate && endDate < new Date()) {
-                stats.expired_skipped++;
-                continue;
-            }
-        }
-
-        log(`RELEVANT: ${detail.title}`);
-        stats.relevant_found++;
-
-        const opportunity = {
-            title: detail.title,
-            agency: dept,
-            deadline: detail.deadline || '',
-            description: detail.description || '',
-            url: bid.url,
-            source: 'LaPAC',
-            source_id: `lapac-${bid.bidNumber.replace(/\s+/g, '-')}`,
-            response_deadline: detail.deadline || '',
-            state: 'LA'
-        };
-
-        try {
-            const intakeRes = await fetch(INTAKE_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-intake-secret': INTAKE_SECRET
-                },
-                body: JSON.stringify(opportunity)
-            });
-            if (intakeRes.ok) {
-                log(`SENT TO HGI: ${detail.title}`);
-                stats.sent_to_intake++;
-            } else {
-                const err = await intakeRes.text();
-                log(`Intake rejected: ${intakeRes.status} ${err}`);
-            }
-        } catch(e) {
-            log(`Intake error: ${e.message}`);
-        }
-
-        await Actor.pushData(opportunity);
-        await new Promise(r => setTimeout(r, 800));
+        if (await checkDuplicate(bid.url)) { stats.duplicates_skipped++; continue; }
+        await processBid(bid, dept);
     }
 
     await new Promise(r => setTimeout(r, 1000));
@@ -470,9 +307,7 @@ for (const dept of TARGET_DEPARTMENTS) {
 
 await browser.close();
 log('Browser closed');
-
-// Log final stats
-log(`Run complete: ${JSON.stringify(stats)}`);
+log('Run complete: ' + JSON.stringify(stats));
 
 try {
     await fetch('https://hgi-capture-system.vercel.app/api/hunt-analytics', {
@@ -481,7 +316,7 @@ try {
         body: JSON.stringify({ ...stats, secret: 'hgi-intake-2026-secure', source: 'lapac' })
     });
 } catch(e) {
-    log(`Analytics error: ${e.message}`);
+    log('Analytics error: ' + e.message);
 }
 
 await Actor.exit();
