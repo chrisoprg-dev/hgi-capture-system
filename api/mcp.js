@@ -294,15 +294,49 @@ const handleTool = async (name, input) => {
       if (!actsRes.ok) return { error: 'Apify auth failed: ' + actsRes.status };
       const actsData = await actsRes.json();
       const actors = actsData.data?.items || [];
-      const actor = actors[0];
-      if (!actor) return { error: 'No HGI actors found', available: actors.map(a => a.name) };
-      const runsRes = await fetch('https://api.apify.com/v2/acts/' + actor.id + '/runs?token=' + APIFY_TOKEN + '&limit=3&desc=true');
-      const runsData = await runsRes.json();
-      const runs = runsData.data?.items || [];
-      const lastRun = runs[0];
-      const logRes = await fetch('https://api.apify.com/v2/actor-runs/' + (lastRun?.id) + '/log?token=' + APIFY_TOKEN);
-      const logText = logRes.ok ? (await logRes.text()).slice(-2000) : '';
-      return { actor: actor.name, actorId: actor.id, lastRun, recentRuns: runs.map(r => ({id:r.id,status:r.status,startedAt:r.startedAt,finishedAt:r.finishedAt})), log_tail: logText };
+      // Return all actors with their last run status
+      const actorSummaries = [];
+      for (const actor of actors) {
+        const runsRes = await fetch('https://api.apify.com/v2/acts/' + actor.id + '/runs?token=' + APIFY_TOKEN + '&limit=1&desc=true');
+        const runsData = await runsRes.json();
+        const lastRun = runsData.data?.items?.[0];
+        actorSummaries.push({ name: actor.name, id: actor.id, lastRun: lastRun ? { id: lastRun.id, status: lastRun.status, startedAt: lastRun.startedAt, finishedAt: lastRun.finishedAt } : null });
+      }
+      // Detailed log for first actor (Central Bidding)
+      const mainActor = actors[0];
+      let log_tail = '';
+      if (mainActor) {
+        const runsRes = await fetch('https://api.apify.com/v2/acts/' + mainActor.id + '/runs?token=' + APIFY_TOKEN + '&limit=1&desc=true');
+        const runsData = await runsRes.json();
+        const lastRun = runsData.data?.items?.[0];
+        if (lastRun) {
+          const logRes = await fetch('https://api.apify.com/v2/actor-runs/' + lastRun.id + '/log?token=' + APIFY_TOKEN);
+          log_tail = logRes.ok ? (await logRes.text()).slice(-2000) : '';
+        }
+      }
+      return { all_actors: actorSummaries, log_tail };
+    }
+
+    case 'trigger_lapac_run': {
+      const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
+      const actsRes = await fetch('https://api.apify.com/v2/acts?token=' + APIFY_TOKEN + '&my=true');
+      if (!actsRes.ok) return { error: 'Apify auth failed: ' + actsRes.status };
+      const actsData = await actsRes.json();
+      const actors = actsData.data?.items || [];
+      // Find LaPAC actor — name contains 'lapac', 'hgl', or 'hgi' (not 'central')
+      const lapacActor = actors.find(a => {
+        const n = a.name.toLowerCase();
+        return (n.includes('lapac') || n.includes('hgl') || n.includes('hgi')) && !n.includes('central') && !n.includes('my-actor');
+      }) || actors.find(a => !a.name.toLowerCase().includes('central') && a.name !== 'my-actor');
+      if (!lapacActor) return { error: 'LaPAC actor not found', available: actors.map(a => a.name) };
+      const trigRes = await fetch('https://api.apify.com/v2/acts/' + lapacActor.id + '/runs?token=' + APIFY_TOKEN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      if (!trigRes.ok) return { error: 'Trigger failed: ' + trigRes.status, actorId: lapacActor.id };
+      const trigData = await trigRes.json();
+      return { triggered: true, actor: lapacActor.name, actorId: lapacActor.id, runId: trigData.data?.id, status: trigData.data?.status };
     }
 
     case 'run_orchestrator': {
