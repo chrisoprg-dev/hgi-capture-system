@@ -222,7 +222,8 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                     title: bidno,
                     agency: 'Louisiana State Agency',
                     url: pdfUrl,
-                    description: 'LaPAC bid ' + bidno + '. Keyword: ' + keyword + '. ' + tableText.substring(0, 500),
+                    description: 'LaPAC open solicitation matched keyword "' + keyword + '". Bid number: ' + bidno + '. Source: Louisiana Procurement and Contract Network (LaPAC). Full RFP available at: ' + pdfUrl + '. This bid was found via keyword search indicating relevance to HGI service lines.',
+                    raw_html: tableText.substring(0, 2000),
                     state: 'LA',
                     response_deadline: ''
                 };
