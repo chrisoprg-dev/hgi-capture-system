@@ -215,8 +215,7 @@ const fetchBidsByKeyword = async (keyword, browser) => {
             const pdfUrl = pdfLinks[i];
             const bidno = bidnos[i] || ('bid-' + i);
             try {
-                // Step 1: Download PDF bytes using the live browser session (has LaPAC cookies)
-                log('Downloading PDF via browser session: ' + pdfUrl);
+                // Step 1: Extract PDF content via URL — extract-pdf passes URL directly to Claude
                 let extractedText = '';
                 let extractedTitle = bidno;
                 let extractedDeadline = '';
