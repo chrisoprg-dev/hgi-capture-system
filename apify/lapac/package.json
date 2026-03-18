@@ -1,0 +1,13 @@
+{
+  "name": "hgi-lapac-scraper",
+  "version": "1.0.0",
+  "description": "HGI LaPAC Louisiana state procurement scraper",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js"
+  },
+  "dependencies": {
+    "apify": "^3.0.0"
+  }
+}
