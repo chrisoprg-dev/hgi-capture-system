@@ -366,6 +366,19 @@ const handleTool = async (name, input) => {
     case 'fetch_source_page': {
       const { url } = input;
       
+      // Route PDF URLs to extract-pdf endpoint
+      const isPdf = url.toLowerCase().endsWith('.pdf') || url.includes('/agency/pdf/');
+      if (isPdf) {
+        const r = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        if (!r.ok) return { error: 'PDF extract failed: ' + r.status };
+        const d = await r.json();
+        return { url, textContent: (d.extractedText || '').slice(0, 5000), length: (d.extractedText || '').length, charCount: d.charCount, pdfSizeBytes: d.pdfSizeBytes };
+      }
+
       // Determine endpoint based on URL domain
       const isCentralBidding = url.includes('centralauctionhouse.com') || url.includes('centralbidding.com');
       const endpoint = isCentralBidding ? '/api/fetch-central-bidding' : '/api/fetch-rfp';
