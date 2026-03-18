@@ -427,7 +427,7 @@ const crawler = new PlaywrightCrawler({
                             stats.bids_reviewed++;
                             
                             // Check relevance against full page text
-                            const combinedText = finalTitle + ' ' + (bidData.description || '');
+                            const combinedText = finalTitle + ' ' + fullPageText;
                             if (!isRelevant(finalTitle, combinedText)) {
                                 log.info(`Not relevant: ${finalTitle}`);
                                 stats.filtered_out++;
