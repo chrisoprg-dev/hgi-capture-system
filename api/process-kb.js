@@ -70,24 +70,12 @@ export default async function handler(req, res) {
 
     rawText = rawText.slice(0, 200000);
 
-    // Classify via Haiku
-    var classResp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 800,
-        system: "Return ONLY valid JSON. No markdown. No backticks.",
-        messages: [{ role: "user", content: "Classify this HGI document. Return JSON: {\"document_class\":\"winning_proposal|rfp|capabilities_statement|corporate_profile|contract|past_performance|other\",\"vertical\":\"disaster|tpa|appeals|workforce|construction|federal|general\",\"client\":\"\",\"summary\":\"3 sentence summary\"}\nFilename: " + doc.filename + "\nContent: " + rawText.slice(0, 4000) }]
-      })
-    });
-    var classData = await classResp.json();
-    var classText = classData.content.filter(function(b){return b.type==="text"}).map(function(b){return b.text}).join("");
-    var classification = { document_class: "other", vertical: "general", client: "", summary: "" };
-    try {
-      var clean = classText.replace(/```json|```/g, "").trim();
-      classification = JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1));
-    } catch(e) {}
+    // Skip classification for now — just use filename hints
+    var classification = { document_class: "other", vertical: "general", client: "", summary: "Extracted " + rawText.length + " chars from " + doc.filename };
+    if ((doc.filename || "").toLowerCase().indexOf("proposal") !== -1) classification.document_class = "winning_proposal";
+    if ((doc.filename || "").toLowerCase().indexOf("rfp") !== -1) classification.document_class = "rfp";
+    if ((rawText || "").toLowerCase().indexOf("disaster") !== -1 || (rawText || "").toLowerCase().indexOf("fema") !== -1) classification.vertical = "disaster";
+    if ((rawText || "").toLowerCase().indexOf("workers comp") !== -1 || (rawText || "").toLowerCase().indexOf("tpa") !== -1) classification.vertical = "tpa";
 
     // Delete old chunks
     await fetch(SUPABASE_URL + "/rest/v1/knowledge_chunks?document_id=eq." + encodeURIComponent(doc.id), {
