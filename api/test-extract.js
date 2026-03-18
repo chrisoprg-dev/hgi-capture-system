@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     if (pdfRes.ok) {
       const buf = await pdfRes.arrayBuffer();
       pdfBytes = buf.byteLength;
-      const truncated = pdfBytes > 5000000 ? buf.slice(0, 5000000) : buf;
+      const truncated = buf.slice(0, 150000); // First 150KB — fits in 200K token limit; RFP title/agency/deadline in first pages
       base64 = Buffer.from(truncated).toString('base64');
     } else {
       return res.json({ pdfStatus, pdfBytes: 0, extractStatus: 'skipped', extractBody: 'PDF fetch failed' });
