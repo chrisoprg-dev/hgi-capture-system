@@ -390,7 +390,7 @@ export default async function handler(req, res) {
   }
 
   // ── Claude analysis ──────────────────────────────────────────────────────
-  const fullText = (description + " " + stripScripts(raw_html)).slice(0, 6000);
+  const fullText = (incomingRfpText || (description + " " + stripScripts(raw_html))).slice(0, 6000);
 
   // ── CONTENT GATE: No inference without real content ──────────────────────
   // If there's no meaningful content to analyze, save as pending_rfp and stop.
