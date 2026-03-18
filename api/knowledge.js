@@ -170,7 +170,7 @@ export default async function handler(req, res) {
         : mimeType;
 
       // Split large files into batches of ~1MB base64 each
-      const BATCH_SIZE = 500000; // 500KB base64 per batch — fits within Vercel timeout
+      const BATCH_SIZE = 99999999; // 500KB base64 per batch — fits within Vercel timeout
       const batches = [];
       for (let i = 0; i < fileBase64.length; i += BATCH_SIZE) {
         batches.push(fileBase64.slice(i, i + BATCH_SIZE));
