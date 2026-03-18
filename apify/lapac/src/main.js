@@ -112,14 +112,17 @@ const stats = {
 
 const parseBidLinks = (html, agency) => {
     const bids = [];
-    const bidLinkRegex = /href="([^"]*dspBid\.cfm[^"]*term=([^&"]+)[^"]*)"/gi;
+    const seen = new Set();
+    // LaPAC uses onclick popups: dspBidContact.cfm?bidno=XXXX
+    const onclickRegex = /dspBidContact\.cfm\?bidno=([^'"&]+)/gi;
     let match;
-    while ((match = bidLinkRegex.exec(html)) !== null) {
-        const href = match[1];
-        const term = match[2].trim();
-        if (!term || term.length < 2) continue;
-        const fullUrl = href.startsWith('http') ? href : LAPAC_BASE + '/' + href.replace(/^\/osp\/lapac\//, '').replace(/^\//, '');
-        bids.push({ url: fullUrl, bidNumber: term, agency });
+    while ((match = onclickRegex.exec(html)) !== null) {
+        const bidno = decodeURIComponent(match[1].trim());
+        if (!bidno || bidno.length < 2) continue;
+        if (seen.has(bidno)) continue;
+        seen.add(bidno);
+        const fullUrl = LAPAC_BASE + '/dspBid.cfm?search=openBid&term=' + encodeURIComponent(bidno);
+        bids.push({ url: fullUrl, bidNumber: bidno, agency });
     }
     return bids;
 };
