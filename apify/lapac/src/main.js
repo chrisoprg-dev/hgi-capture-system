@@ -314,7 +314,7 @@ const seenUrls = new Set();
 
 for (const keyword of SEARCH_KEYWORDS) {
     log(`Searching keyword: ${keyword}`);
-    const bids = await fetchBidsByKeyword(keyword);
+    const bids = await fetchBidsByKeyword(keyword, browser);
     stats.categories_searched++;
 
     for (const bid of bids) {
