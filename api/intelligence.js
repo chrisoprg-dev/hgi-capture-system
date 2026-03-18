@@ -266,7 +266,35 @@ export default async function handler(req, res) {
         description: evaluated.description || o.description
       });
     });
-
+// 4b. MEDIUM: Proposal-stage opportunities actively in progress
+    opps.filter(o => o.stage === 'proposal').forEach(o => {
+      const daysUntilDeadline = o.due_date ? Math.ceil((new Date(o.due_date) - now) / (1000*60*60*24)) : null;
+      const daysSince = o.last_updated ? Math.floor((now - new Date(o.last_updated)) / (1000*60*60*24)) : 999;
+      const evaluated = evaluateOpportunity(o);
+      actions.push({
+        priority: 3,
+        urgency: 'medium',
+        icon: '✦',
+        title: o.title,
+        agency: o.agency,
+        opportunity_id: o.id,
+        headline: 'Proposal in progress' + (daysUntilDeadline ? ' — ' + daysUntilDeadline + ' days until deadline' : '') + (daysSince > 0 ? ' · last updated ' + daysSince + 'd ago' : ''),
+        detail: 'Proposal draft active. Complete all sections, run Compliance Scan, then Export to Word for final review.',
+        action_label: 'Continue Proposal',
+        action_module: 'proposal',
+        opi: o.opi_score,
+        days_until_deadline: daysUntilDeadline,
+        why_hgi_wins: evaluated.why_hgi_wins,
+        key_requirements: evaluated.key_requirements,
+        scope_of_work: evaluated.scope_of_work,
+        hgi_fit: evaluated.hgi_fit,
+        incumbent: evaluated.incumbent,
+        recompete: evaluated.recompete,
+        estimated_value: evaluated.estimated_value || o.estimated_value,
+        source_url: evaluated.source_url,
+        description: evaluated.description || o.description
+      });
+    });
     // 5. INTELLIGENCE: New FEMA declarations in HGI states
     const recentDeclarations = declarations.filter(d => {
       const daysSince = Math.floor((now - new Date(d.declarationDate)) / (1000*60*60*24));
