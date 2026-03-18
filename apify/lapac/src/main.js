@@ -171,7 +171,9 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         const html = await page.content();
         log('Keyword "' + keyword + '" length: ' + html.length + ', dspBid: ' + html.includes('dspBid'));
         if (html.includes('dspBid')) { log('SAMPLE: ' + html.substring(html.indexOf('dspBid') - 100, html.indexOf('dspBid') + 200)); }
-        return parseBidLinks(html, '');
+        const bids = parseBidLinks(html, '');
+        log('Bids extracted: ' + bids.length + (bids.length > 0 ? ' first: ' + JSON.stringify(bids[0]) : ''));
+        return bids;
     } catch(e) {
         log('Error searching keyword ' + keyword + ': ' + e.message);
         return [];
