@@ -1,5 +1,4 @@
-import { Actor } from 'apify';
-import { chromium } from 'playwright';
+DELETEME_PLACEHOLDER
 
 await Actor.init();
 
