@@ -223,7 +223,10 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                 try {
                     const pdfPage = await context.newPage();
                     const pdfResponse = await pdfPage.goto(pdfUrl, { waitUntil: 'networkidle', timeout: 30000 });
-                    if (pdfResponse && pdfResponse.ok()) {
+                    log('PDF response status: ' + (pdfResponse ? pdfResponse.status() : 'null') + ' url: ' + pdfUrl);
+                    const pdfContentType = pdfResponse ? pdfResponse.headers()['content-type'] || '' : '';
+                    log('PDF content-type: ' + pdfContentType);
+                    if (pdfResponse && (pdfResponse.ok() || pdfResponse.status() === 200)) {
                         const pdfBytes = await pdfResponse.body();
                         const base64Pdf = pdfBytes.toString('base64');
                         await pdfPage.close();
