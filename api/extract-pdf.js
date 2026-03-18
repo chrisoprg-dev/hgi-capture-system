@@ -48,8 +48,8 @@ export default async function handler(req, res) {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 16000,
+        model: "claude-haiku-3-5-20241022",
+        max_tokens: 8000,
         system: "Extract ALL text from this PDF. Return ONLY the text. No commentary.",
         messages: [{ role: "user", content: [
           { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } },
