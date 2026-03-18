@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       url,
       extractedText,
       charCount: extractedText.length,
-      pdfSizeBytes: pdfBuffer.byteLength
+      pdfSizeBytes
     });
 
   } catch (e) {
