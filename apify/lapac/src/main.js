@@ -1,4 +1,5 @@
 import { Actor } from 'apify';
+import { chromium } from 'playwright';
 
 await Actor.init();
 
