@@ -112,7 +112,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
   };
 
   useEffect(() => {
-    if (!autoLoaded && sharedCtx.rfpText && !rfpText) {
+    if (!autoLoaded && sharedCtx.rfpText && !rfpText && !pl.selected) {
       setRfpText(sharedCtx.rfpText);
       setContext((sharedCtx.title || "") + (sharedCtx.agency ? " — " + sharedCtx.agency : ""));
       setAutoLoaded(true);
