@@ -197,7 +197,8 @@ const fetchBidsByKeyword = async (keyword, browser) => {
 
         for (const bidno of bidnos) {
             try {
-                await page.click('a:has-text("' + bidno + '")', { timeout: 5000 });
+                // Click the exact bid number link in the results table
+                await page.click('table a:has-text("' + bidno + '")', { timeout: 5000 });
                 await page.waitForLoadState('networkidle', { timeout: 20000 });
                 const detailUrl = page.url();
                 const detailHtml = await page.content();
