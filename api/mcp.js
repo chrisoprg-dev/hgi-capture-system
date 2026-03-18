@@ -304,8 +304,9 @@ const handleTool = async (name, input) => {
         const lastRun = runsData.data?.items?.[0];
         actorSummaries.push({ name: actor.name, id: actor.id, lastRun: lastRun ? { id: lastRun.id, status: lastRun.status, startedAt: lastRun.startedAt, finishedAt: lastRun.finishedAt } : null });
       }
-      // Detailed log for first actor (Central Bidding)
-      const mainActor = actors[0];
+      // Detailed log for whichever actor is currently RUNNING, else most recent
+      const runningActor = actors.find(a => actorSummaries.find(s => s.name === a.name && s.lastRun?.status === 'RUNNING')) || actors[0];
+      const mainActor = runningActor;
       let log_tail = '';
       if (mainActor) {
         const runsRes = await fetch('https://api.apify.com/v2/acts/' + mainActor.id + '/runs?token=' + APIFY_TOKEN + '&limit=1&desc=true');
