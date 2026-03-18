@@ -297,6 +297,9 @@ const fetchBidDetail = async (bidUrl, bidNumber, agency) => {
 
 log('Starting LaPAC scraper');
 
+const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+log('Browser launched');
+
 // Strategy 1: Search by HGI keywords directly — catches everything regardless of department
 const SEARCH_KEYWORDS = [
     'program management', 'grant management', 'disaster recovery',
