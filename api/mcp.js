@@ -107,6 +107,12 @@ const handleTool = async (name, input) => {
       } catch(e) {
         return { error: 'instruction must be JSON: {"find": "...", "replace": "..."} or {"replace_entire_file": true, "content": "..."}' };
       }
+      // Support full-file replacement via {replace_entire_file: true, content: '...'}
+      if (parsed.replace_entire_file === true) {
+        if (!parsed.content) return { error: 'replace_entire_file requires a content field' };
+        await pushFile(filename, parsed.content, file.sha, 'MCP: replace_entire_file ' + filename);
+        return { success: true, replaced_entire_file: true, message: 'Replaced ' + filename + ' entirely. Deploying in ~60 seconds.' };
+      }
       if (!file.content.includes(parsed.find)) return { error: 'Find string not found in ' + filename };
       const finalContent = file.content.replace(parsed.find, parsed.replace);
       await pushFile(filename, finalContent, file.sha, 'MCP: edit ' + filename);
