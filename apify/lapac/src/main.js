@@ -327,7 +327,7 @@ for (const keyword of SEARCH_KEYWORDS) {
         if (seenUrls.has(bid.url)) continue;
         seenUrls.add(bid.url);
         if (await checkDuplicate(bid.url)) { stats.duplicates_skipped++; continue; }
-        await processBid(bid, '');
+        await processBid(bid, '', browser);
     }
 
     await new Promise(r => setTimeout(r, 1000));
