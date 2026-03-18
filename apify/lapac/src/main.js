@@ -222,13 +222,18 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                 let extractedDeadline = '';
                 try {
                     const pdfPage = await context.newPage();
-                    const pdfResponse = await pdfPage.goto(pdfUrl, { waitUntil: 'networkidle', timeout: 30000 });
+                    const pdfResponse = await pdfPage.goto(pdfUrl, { waitUntil: 'commit', timeout: 30000 });
                     log('PDF response status: ' + (pdfResponse ? pdfResponse.status() : 'null') + ' url: ' + pdfUrl);
-                    const pdfContentType = pdfResponse ? pdfResponse.headers()['content-type'] || '' : '';
+                    const pdfContentType = pdfResponse ? (pdfResponse.headers()['content-type'] || '') : '';
                     log('PDF content-type: ' + pdfContentType);
-                    if (pdfResponse && (pdfResponse.ok() || pdfResponse.status() === 200)) {
-                        const pdfBytes = await pdfResponse.body();
-                        const base64Pdf = pdfBytes.toString('base64');
+                    // For PDFs, body() works after 'commit' — don't wait for networkidle
+                    if (pdfResponse && pdfResponse.status() === 200) {
+                        const pdfBytes = await pdfPage.evaluate(() => {
+                            return fetch(window.location.href).then(r => r.arrayBuffer()).then(buf => {
+                                return Array.from(new Uint8Array(buf));
+                            });
+                        });
+                        const base64Pdf = Buffer.from(pdfBytes).toString('base64');
                         await pdfPage.close();
                         log('PDF downloaded: ' + pdfBytes.length + ' bytes, sending to extract-pdf');
                         // Step 2: Send base64 bytes to extract-pdf endpoint
