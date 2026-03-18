@@ -101,7 +101,7 @@ const handleTool = async (name, input) => {
         await pushFile(filename, newContent, null, 'MCP: Create ' + filename);
         return { success: true, created: true, message: 'Created ' + filename + '. Deploying in ~60 seconds.' };
       }
-      const isLarge = file.content.length > 20000;
+      const isLarge = true;
       let finalContent;
       if (isLarge) {
         const result = await callClaude('File: ' + filename + '\nINSTRUCTION: ' + instruction + '\n\nFILE:\n' + file.content.slice(0, 80000) + '\n\nReturn ONLY raw JSON, no markdown:\n{"find": "exact string to find", "replace": "replacement string"}', 'Return ONLY valid JSON. No markdown. No backticks.', 4000);
