@@ -221,22 +221,14 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                 let extractedTitle = bidno;
                 let extractedDeadline = '';
                 try {
-                    const pdfPage = await context.newPage();
-                    const pdfResponse = await pdfPage.goto(pdfUrl, { waitUntil: 'commit', timeout: 30000 });
-                    log('PDF response status: ' + (pdfResponse ? pdfResponse.status() : 'null') + ' url: ' + pdfUrl);
-                    const pdfContentType = pdfResponse ? (pdfResponse.headers()['content-type'] || '') : '';
-                    log('PDF content-type: ' + pdfContentType);
-                    // For PDFs, body() works after 'commit' — don't wait for networkidle
-                    if (pdfResponse && pdfResponse.status() === 200) {
-                        const pdfBytes = await pdfPage.evaluate(() => {
-                            return fetch(window.location.href).then(r => r.arrayBuffer()).then(buf => {
-                                return Array.from(new Uint8Array(buf));
-                            });
-                        });
-                        const base64Pdf = Buffer.from(pdfBytes).toString('base64');
-                        await pdfPage.close();
-                        log('PDF downloaded: ' + pdfBytes.length + ' bytes, sending to extract-pdf');
-                        // Step 2: Send base64 bytes to extract-pdf endpoint
+                    // Use page.request.get() — inherits browser session cookies, handles binary PDF cleanly
+                    log('Downloading PDF via page.request.get: ' + pdfUrl);
+                    const pdfBuffer = await page.request.get(pdfUrl, { timeout: 30000 });
+                    log('PDF response status: ' + pdfBuffer.status() + ' url: ' + pdfUrl);
+                    if (pdfBuffer.status() === 200) {
+                        const pdfBodyBuffer = await pdfBuffer.body();
+                        const base64Pdf = pdfBodyBuffer.toString('base64');
+                        log('PDF downloaded: ' + pdfBodyBuffer.length + ' bytes, sending to extract-pdf');
                         const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -252,11 +244,9 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                             if (deadlineMatch) extractedDeadline = deadlineMatch[1].trim();
                         } else {
                             log('extract-pdf failed: ' + extractRes.status);
-                            await pdfPage.close().catch(() => {});
                         }
                     } else {
-                        await pdfPage.close().catch(() => {});
-                        log('PDF page load failed for: ' + pdfUrl);
+                        log('PDF request failed status ' + pdfBuffer.status() + ' for: ' + pdfUrl);
                     }
                 } catch(extractErr) {
                     log('PDF extract error: ' + extractErr.message);
