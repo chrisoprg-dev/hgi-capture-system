@@ -1,4 +1,6 @@
-// api/extract-pdf.js — URL source mode v2
+// api/extract-pdf.js — text extraction mode: fetch PDF, parse text, send text to Claude
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
+
 export const config = { maxDuration: 60, api: { bodyParser: { sizeLimit: '10mb' } } };
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
@@ -15,22 +17,42 @@ export default async function handler(req, res) {
   if (!url && !base64Input) return res.status(400).json({ error: 'url or base64 required' });
 
   try {
-    let documentSource;
+    // Step 1: Get PDF buffer
+    let pdfBuffer;
     let pdfSizeBytes = 0;
-
-    if (url && !base64Input) {
-      // Use URL source type — Claude fetches the PDF directly, no token limit issue
-      console.log('[extract-pdf] using URL source:', url);
-      documentSource = { type: 'url', url };
-      pdfSizeBytes = -1; // unknown until Claude fetches
+    if (base64Input) {
+      pdfBuffer = Buffer.from(base64Input, 'base64');
+      pdfSizeBytes = pdfBuffer.length;
+      console.log('[extract-pdf] base64 input bytes:', pdfSizeBytes);
     } else {
-      // Fall back to base64 if explicitly provided
-      pdfSizeBytes = Math.round(base64Input.length * 0.75);
-      console.log('[extract-pdf] base64 input, approx bytes:', pdfSizeBytes);
-      documentSource = { type: 'base64', media_type: 'application/pdf', data: base64Input };
+      console.log('[extract-pdf] fetching PDF:', url);
+      const pdfRes = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, redirect: 'follow' });
+      if (!pdfRes.ok) return res.status(502).json({ error: 'PDF fetch failed: ' + pdfRes.status, url });
+      const buf = await pdfRes.arrayBuffer();
+      pdfBuffer = Buffer.from(buf);
+      pdfSizeBytes = pdfBuffer.length;
+      console.log('[extract-pdf] fetched PDF bytes:', pdfSizeBytes);
     }
 
-    console.log('[extract-pdf] calling Claude with source type:', documentSource.type);
+    // Step 2: Extract text from PDF using pdf-parse
+    let rawText = '';
+    try {
+      const parsed = await pdfParse(pdfBuffer);
+      rawText = parsed.text || '';
+      console.log('[extract-pdf] pdf-parse extracted chars:', rawText.length);
+    } catch (parseErr) {
+      console.error('[extract-pdf] pdf-parse error:', parseErr.message);
+      return res.status(502).json({ error: 'PDF parse failed: ' + parseErr.message, url });
+    }
+
+    if (!rawText || rawText.trim().length < 50) {
+      return res.status(502).json({ error: 'PDF text extraction empty — may be scanned/image PDF', url });
+    }
+
+    // Step 3: Send extracted text to Claude (cap at 15K chars — ~4K tokens, well within limit)
+    const textForClaude = rawText.substring(0, 15000);
+    console.log('[extract-pdf] sending', textForClaude.length, 'chars to Claude');
+
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -43,10 +65,7 @@ export default async function handler(req, res) {
         max_tokens: 1000,
         messages: [{
           role: 'user',
-          content: [
-            { type: 'document', source: documentSource },
-            { type: 'text', text: 'Extract key procurement details from this RFP: title, issuing agency, deadline/due date, scope of work summary, key requirements. Return as plain text, concise.' }
-          ]
+          content: 'Extract key procurement details from this RFP text: title, issuing agency, deadline/due date, scope of work summary, key requirements. Return as plain text, concise.\n\n' + textForClaude
         }]
       })
     });
@@ -60,9 +79,9 @@ export default async function handler(req, res) {
 
     const data = await claudeRes.json();
     const extractedText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    console.log('[extract-pdf] extracted chars:', extractedText.length);
+    console.log('[extract-pdf] final extracted chars:', extractedText.length);
 
-    return res.json({ success: true, url, extractedText, charCount: extractedText.length, pdfSizeBytes });
+    return res.json({ success: true, url, extractedText, charCount: extractedText.length, pdfSizeBytes, rawTextChars: rawText.length });
 
   } catch (e) {
     console.error('[extract-pdf] catch error:', e.message);
