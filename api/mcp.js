@@ -283,9 +283,20 @@ const handleTool = async (name, input) => {
     }
 
     case 'check_apify_status': {
-      const r = await fetch('https://hgi-capture-system.vercel.app/api/apify-check');
-      if (!r.ok) throw new Error(`Apify check failed: ${r.status}`);
-      return await r.json();
+      const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
+      const actsRes = await fetch('https://api.apify.com/v2/acts?token=' + APIFY_TOKEN + '&my=true');
+      if (!actsRes.ok) return { error: 'Apify auth failed: ' + actsRes.status };
+      const actsData = await actsRes.json();
+      const actors = actsData.data?.items || [];
+      const actor = actors.find(a => a.name === 'hgi-central-bidding-scraper') || actors.find(a => a.name === 'hgi-lapac-scraper');
+      if (!actor) return { error: 'No HGI actors found', available: actors.map(a => a.name) };
+      const runsRes = await fetch('https://api.apify.com/v2/acts/' + actor.id + '/runs?token=' + APIFY_TOKEN + '&limit=3&desc=true');
+      const runsData = await runsRes.json();
+      const runs = runsData.data?.items || [];
+      const lastRun = runs[0];
+      const logRes = await fetch('https://api.apify.com/v2/actor-runs/' + (lastRun?.id) + '/log?token=' + APIFY_TOKEN);
+      const logText = logRes.ok ? (await logRes.text()).slice(-2000) : '';
+      return { actor: actor.name, actorId: actor.id, lastRun, recentRuns: runs.map(r => ({id:r.id,status:r.status,startedAt:r.startedAt,finishedAt:r.finishedAt})), log_tail: logText };
     }
 
     case 'run_orchestrator': {
