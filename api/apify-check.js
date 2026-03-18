@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const API_TOKEN = 'apify_api_CFeI1ZehZ3HHClJFJfsVypn0KMPJSQ1b7nmO';
+  const API_TOKEN = process.env.APIFY_API_TOKEN;
   const ACTOR_NAME = 'hgi-central-bidding-scraper';
 
   try {
