@@ -288,7 +288,7 @@ const handleTool = async (name, input) => {
       if (!actsRes.ok) return { error: 'Apify auth failed: ' + actsRes.status };
       const actsData = await actsRes.json();
       const actors = actsData.data?.items || [];
-      const actor = actors.find(a => a.name === 'hgi-central-bidding-scraper') || actors.find(a => a.name === 'hgi-lapac-scraper');
+      const actor = actors[0];
       if (!actor) return { error: 'No HGI actors found', available: actors.map(a => a.name) };
       const runsRes = await fetch('https://api.apify.com/v2/acts/' + actor.id + '/runs?token=' + APIFY_TOKEN + '&limit=3&desc=true');
       const runsData = await runsRes.json();
