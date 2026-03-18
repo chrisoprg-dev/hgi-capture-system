@@ -221,6 +221,7 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                 let extractedTitle = bidno;
                 let extractedDeadline = '';
                 try {
+                    log('ENTERING PDF BLOCK: ' + pdfUrl);
                     // Use page.request.get() — inherits browser session cookies, handles binary PDF cleanly
                     log('Downloading PDF via page.request.get: ' + pdfUrl);
                     const pdfBuffer = await page.request.get(pdfUrl, { timeout: 30000 });
