@@ -274,9 +274,10 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
     const updated = existingIdx >= 0 ? tracker.map((o,i) => i===existingIdx?entry:o) : [entry,...tracker];
     store.set("tracker", updated);
     // Write proposal data back to Supabase pipeline record
-    if (pl.selected && pl.selected.id) {
+    var activeOpp = pl.selected || selectedOpp;
+    if (activeOpp && activeOpp.id) {
       var proposalText = Object.entries(proposalDraft).map(function(e) { return '=== ' + e[0].toUpperCase().replace(/_/g,' ') + ' ===\n' + e[1]; }).join('\n\n');
-      pl.writeBack(pl.selected.id, {
+      pl.writeBack(activeOpp.id, {
         staffing_plan: proposalText.slice(0, 10000),
         stage: 'proposal',
         status: 'active',
@@ -287,9 +288,9 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           event_type: 'proposal.section_drafted',
-          opportunity_id: pl.selected.id,
-          opportunity_title: pl.selected.title || extractedTitle,
-          agency: pl.selected.agency || extractedAgency,
+          opportunity_id: activeOpp.id,
+          opportunity_title: activeOpp.title || extractedTitle,
+          agency: activeOpp.agency || extractedAgency,
           source_module: 'proposal_engine',
           data: { sections: sectionCount }
         })
