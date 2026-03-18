@@ -1,0 +1,1 @@
+{"find": "", "replace": "FROM apify/actor-node-playwright-chrome:20\n\nCOPY package*.json ./\nRUN npm --quiet set progress=false && npm install --only=prod --no-optional\n\nCOPY . ./\n\nCMD npm start --silent\n"}
