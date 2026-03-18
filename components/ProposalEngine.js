@@ -141,10 +141,10 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
   };
 
   const buildPrompt = (sLabel, activeRfp, kbInjection) => {
-    const decomp = sharedCtx.decomposition ? "\n\nRFP DECOMPOSITION:\n" + sharedCtx.decomposition.slice(0, 1200) : "";
-    const research = sharedCtx.research ? "\n\nCOMPETITIVE RESEARCH:\n" + sharedCtx.research.slice(0, 800) : "";
-    const brief = sharedCtx.execBrief ? "\n\nEXECUTIVE BRIEF SUMMARY:\n" + sharedCtx.execBrief.slice(0, 800) : "";
-    const kb = kbInjection ? "\n\nHGI INSTITUTIONAL KNOWLEDGE BASE:\n" + kbInjection.slice(0, 3000) : "";
+    const decomp = sharedCtx.decomposition ? "\n\nRFP DECOMPOSITION:\n" + sharedCtx.decomposition.slice(0, 4000) : "";
+    const research = sharedCtx.research ? "\n\nCOMPETITIVE RESEARCH:\n" + sharedCtx.research.slice(0, 2500) : "";
+    const brief = sharedCtx.execBrief ? "\n\nEXECUTIVE BRIEF SUMMARY:\n" + sharedCtx.execBrief.slice(0, 2000) : "";
+    const kb = kbInjection ? "\n\nHGI INSTITUTIONAL KNOWLEDGE BASE:\n" + kbInjection.slice(0, 5000) : "";
     return "Write a complete, detailed " + sLabel + " section for HGI proposal.\nRFP Context: " + (activeRfp||"General disaster recovery TPA services") + "\nAdditional Context: " + context + decomp + brief + research + kb + "\n\nWrite the full section. Be thorough and specific. Use real HGI past performance, staff credentials, and rates from the institutional knowledge base above. At least 600 words.";
   };
 
