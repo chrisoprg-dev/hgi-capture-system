@@ -1,115 +1,108 @@
 export const config = { maxDuration: 30 };
 
-// Calculate days since declaration
-function calculateDaysSince(declarationDate) {
-  const declaration = new Date(declarationDate);
-  const today = new Date();
-  const diffTime = Math.abs(today - declaration);
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+const HGI_STATES = ['LA', 'TX', 'FL', 'MS', 'AL', 'GA'];
+
+function daysSince(declarationDate) {
+  return Math.ceil((Date.now() - new Date(declarationDate)) / (1000 * 60 * 60 * 24));
 }
 
-// Assess opportunity window
-function assessOpportunity(daysSince) {
-  if (daysSince < 30) {
-    return "IMMEDIATE";
-  } else if (daysSince >= 30 && daysSince <= 90) {
-    return "ACTIVE";
-  } else {
-    return "PIPELINE";
-  }
+function opportunityWindow(days) {
+  if (days < 30)  return 'IMMEDIATE';
+  if (days < 90)  return 'ACTIVE';
+  return 'PIPELINE';
 }
 
-// Fetch FEMA disaster declarations
-async function fetchFEMADeclarations() {
-  try {
-    const femaUrl = "https://www.fema.gov/api/open/v2/disasterDeclarationsSummaries?$orderby=declarationDate%20desc&$top=20&$filter=stateCode%20in%20('LA','TX','FL','MS','AL','GA')";
-    
-    const response = await fetch(femaUrl);
-    if (!response.ok) {
-      throw new Error(`FEMA API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return data.DisasterDeclarationsSummaries || [];
-  } catch (error) {
-    console.error('FEMA API fetch error:', error);
-    return [];
-  }
+function hgiImplication(decl) {
+  const parts = [];
+  if (decl.paProgramDeclared) parts.push('FEMA PA Categories A-G — HGI core competency');
+  if (decl.hmProgramDeclared) parts.push('Hazard Mitigation 404/406 grants — HGI core competency');
+  if (decl.iaProgramDeclared) parts.push('Individual Assistance programs — potential CDBG-DR wave to follow');
+  if (decl.ihProgramDeclared) parts.push('IH Program declared');
+  return parts.length > 0 ? parts.join('; ') : 'Monitor for solicitations';
 }
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
   if (req.method === 'GET') {
     try {
-      const declarations = await fetchFEMADeclarations();
-      
-      const processedDeclarations = declarations.map(declaration => {
-        const daysSince = calculateDaysSince(declaration.declarationDate);
-        const opportunityWindow = assessOpportunity(daysSince);
-        
-        return {
-          declarationTitle: declaration.declarationTitle,
-          state: declaration.stateCode,
-          declarationDate: declaration.declarationDate,
-          incidentType: declaration.incidentType,
-          disasterNumber: declaration.disasterNumber,
-          daysSince,
-          opportunityWindow,
-          designatedArea: declaration.designatedArea,
-          ihProgramDeclared: declaration.ihProgramDeclared,
-          iaProgramDeclared: declaration.iaProgramDeclared,
-          paProgramDeclared: declaration.paProgramDeclared,
-          hmProgramDeclared: declaration.hmProgramDeclared
-        };
-      });
-      
-      return res.status(200).json(processedDeclarations);
-    } catch (error) {
-      console.error('Error fetching FEMA declarations:', error);
+      // Build FEMA OData filter — correct syntax is 'state eq X or state eq Y'
+      const stateFilter = HGI_STATES.map(s => `state eq '${s}'`).join(' or ');
+      const url = `https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries?$filter=${encodeURIComponent(stateFilter)}&$orderby=declarationDate%20desc&$top=50&$select=declarationTitle,state,declarationDate,incidentType,disasterNumber,designatedArea,ihProgramDeclared,iaProgramDeclared,paProgramDeclared,hmProgramDeclared`;
+
+      const femaRes = await fetch(url);
+      if (!femaRes.ok) throw new Error(`FEMA API ${femaRes.status}`);
+
+      const data = await femaRes.json();
+      const raw = data.DisasterDeclarationsSummaries || [];
+
+      // Deduplicate by disasterNumber — FEMA returns one row per designated area
+      const seen = new Set();
+      const declarations = [];
+      for (const d of raw) {
+        if (seen.has(d.disasterNumber)) continue;
+        seen.add(d.disasterNumber);
+        const days = daysSince(d.declarationDate);
+        declarations.push({
+          title: d.declarationTitle,
+          event: d.declarationTitle,
+          state: d.state,
+          declarationDate: d.declarationDate,
+          incidentType: d.incidentType,
+          disasterNumber: d.disasterNumber,
+          daysSince: days,
+          opportunityWindow: opportunityWindow(days),
+          urgency: opportunityWindow(days),
+          paProgramDeclared: d.paProgramDeclared,
+          hmProgramDeclared: d.hmProgramDeclared,
+          iaProgramDeclared: d.iaProgramDeclared,
+          ihProgramDeclared: d.ihProgramDeclared,
+          implication: hgiImplication(d),
+          timing: opportunityWindow(days) === 'IMMEDIATE'
+            ? 'RFPs likely within 30-60 days — position now'
+            : opportunityWindow(days) === 'ACTIVE'
+            ? 'Monitor procurement portals weekly'
+            : 'Watch for recompetes and supplemental awards'
+        });
+      }
+
+      return res.status(200).json(declarations);
+    } catch (err) {
+      console.error('disaster-monitor error:', err.message);
       return res.status(200).json([]);
     }
   }
-  
+
   if (req.method === 'POST') {
+    // Manual disaster tracking — log to hunt_runs
     try {
-      const supabaseUrl = process.env.SUPABASE_URL;
-      const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-      
-      if (!supabaseUrl || !serviceKey) {
-        console.error('Missing Supabase environment variables');
-        return res.status(500).json({ success: false, error: 'Configuration error' });
-      }
-      
-      // Insert into hunt_runs table
-      const insertResponse = await fetch(`${supabaseUrl}/rest/v1/hunt_runs`, {
+      const SB = process.env.SUPABASE_URL;
+      const KEY = process.env.SUPABASE_SERVICE_KEY;
+      if (!SB || !KEY) return res.status(500).json({ error: 'Missing env vars' });
+
+      await fetch(`${SB}/rest/v1/hunt_runs`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${serviceKey}`,
-          'apikey': serviceKey,
+          'Authorization': `Bearer ${KEY}`,
+          'apikey': KEY,
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify({
-          source: 'fema_declaration',
+          source: 'fema_declaration_manual',
           opportunities_found: 1,
           status: 'completed',
           run_at: new Date().toISOString()
         })
       });
-      
-      if (!insertResponse.ok) {
-        console.error('Error inserting hunt run:', insertResponse.status, insertResponse.statusText);
-        return res.status(500).json({ success: false, error: 'Failed to save hunt run' });
-      }
-      
-      return res.status(201).json({
-        success: true,
-        message: 'Hunt run recorded successfully'
-      });
-    } catch (error) {
-      console.error('Error recording hunt run:', error);
-      return res.status(500).json({ success: false, error: 'Internal server error' });
+      return res.status(201).json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
     }
   }
-  
-  return res.status(405).json({ success: false, error: 'Method not allowed' });
+
+  return res.status(405).json({ error: 'Method not allowed' });
 }
