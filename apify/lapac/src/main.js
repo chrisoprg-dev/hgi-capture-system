@@ -260,8 +260,8 @@ const sendToIntake = async (opportunity) => {
     }
 };
 
-const processBid = async (bid, agencyOverride) => {
-    const detail = await fetchBidDetail(bid.url, bid.bidNumber, agencyOverride || bid.agency);
+const processBid = async (bid, agencyOverride, browser) => {
+    const detail = await fetchBidDetail(bid.url, bid.bidNumber, agencyOverride || bid.agency, browser);
     if (!detail) return;
     stats.bids_reviewed++;
 
