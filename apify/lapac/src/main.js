@@ -161,6 +161,7 @@ const fetchBidDetail = async (bidUrl, bidNumber, agency) => {
 const fetchBidsByKeyword = async (keyword, browser) => {
     const context = await browser.newContext();
     const page = await context.newPage();
+    const bids = [];
     try {
         const searchUrl = LAPAC_BASE + '/srchopen.cfm';
         await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 30000 });
@@ -170,8 +171,35 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         await page.waitForLoadState('networkidle', { timeout: 30000 });
         const html = await page.content();
         log('Keyword "' + keyword + '" length: ' + html.length + ', dspBid: ' + html.includes('dspBid'));
-        if (html.includes('dspBid')) { log('SAMPLE: ' + html.substring(html.indexOf('dspBid') - 100, html.indexOf('dspBid') + 200)); }
-        const bids = parseBidLinks(html, '');
+
+        // Find all bid number links in the results table — these open bid detail pages
+        // LaPAC bid links are <a href="dspBid.cfm?..." or onclick with window.open
+        // Extract all hrefs that go to dspBid.cfm directly
+        const bidHrefRegex = /href=["']((?:\/osp\/lapac\/)?dspBid\.cfm[^"']+)["']/gi;
+        let match;
+        const seen = new Set();
+        while ((match = bidHrefRegex.exec(html)) !== null) {
+            const href = match[1];
+            const fullUrl = href.startsWith('http') ? href : 'https://wwwcfprd.doa.louisiana.gov/osp/lapac/' + href.replace(/^\/osp\/lapac\//, '').replace(/^\//, '');
+            if (seen.has(fullUrl)) continue;
+            seen.add(fullUrl);
+            // Extract bid number from URL for source_id
+            const bidNumMatch = fullUrl.match(/[?&](?:term|bid[nN]o)=([^&]+)/);
+            const bidNumber = bidNumMatch ? decodeURIComponent(bidNumMatch[1]) : fullUrl;
+            bids.push({ url: fullUrl, bidNumber, agency: '' });
+        }
+
+        // Also check for onclick-based links that open dspBid (not dspBidContact)
+        const onclickBidRegex = /window\.open\(['"]((?:https?:\/\/[^'"]*)?\/osp\/lapac\/dspBid\.cfm[^'"]+)/gi;
+        while ((match = onclickBidRegex.exec(html)) !== null) {
+            const fullUrl = match[1].startsWith('http') ? match[1] : 'https://wwwcfprd.doa.louisiana.gov' + match[1];
+            if (seen.has(fullUrl)) continue;
+            seen.add(fullUrl);
+            const bidNumMatch = fullUrl.match(/[?&](?:term|bid[nN]o)=([^&]+)/);
+            const bidNumber = bidNumMatch ? decodeURIComponent(bidNumMatch[1]) : fullUrl;
+            bids.push({ url: fullUrl, bidNumber, agency: '' });
+        }
+
         log('Bids extracted: ' + bids.length + (bids.length > 0 ? ' first: ' + JSON.stringify(bids[0]) : ''));
         return bids;
     } catch(e) {
