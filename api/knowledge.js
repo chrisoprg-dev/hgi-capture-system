@@ -115,6 +115,16 @@ export default async function handler(req, res) {
         }
       }
 
+      // Trigger background extraction for PDFs
+      if (docRecord.file_type === 'pdf' && docRecord.storage_path) {
+        // Fire and forget — don't block the response
+        fetch((process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : '') + '/api/extract-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-intake-secret': 'hgi-intake-2026-secure' },
+          body: JSON.stringify({ doc_id: docRecord.id, storage_path: docRecord.storage_path, filename: docRecord.filename })
+        }).catch(function(e) { console.error('Background extraction trigger failed:', e.message); });
+      }
+
       return res.status(200).json({ success: true, id: docRecord.id, data: result });
 
     } catch (error) {
