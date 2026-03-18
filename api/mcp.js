@@ -249,7 +249,8 @@ const handleTool = async (name, input) => {
 
     case 'query_database': {
       const { table, filters, select = '*', limit = 50 } = input;
-      let path = table + '?select=' + select + '&limit=' + limit + '&order=uploaded_at.desc';
+      const defaultOrder = table === 'opportunities' ? 'discovered_at.desc' : table === 'knowledge_documents' ? 'uploaded_at.desc' : 'id.desc';
+      let path = table + '?select=' + select + '&limit=' + limit + '&order=' + defaultOrder;
       if (filters) path += '&' + filters;
       const data = await sb(path);
       return { table, data, _debug_path: path };
