@@ -78,7 +78,8 @@ const TOOLS = [
   { name: 'update_opportunity', description: 'Update any field on an opportunity record in the pipeline.', inputSchema: { type: 'object', properties: { opportunity_id: { type: 'string' }, updates: { type: 'object', description: 'Key-value pairs to update, e.g. {opi_score: 75, status: "active"}' } }, required: ['opportunity_id', 'updates'] } },
   { name: 'fetch_source_page', description: 'Fetch and extract text content from an RFP source URL.', inputSchema: { type: 'object', properties: { url: { type: 'string', description: 'The URL to fetch' } }, required: ['url'] } },
   { name: 'search_opportunities', description: 'Fuzzy search opportunities by title or agency name.', inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'Search term to match against title or agency' }, status: { type: 'string', description: 'Filter by status (active, filtered, no_bid)' } }, required: ['query'] } },
-  { name: 'mark_stage', description: 'Set the stage of an opportunity (identified, qualifying, pursuing, proposal, submitted, won, lost, no_bid).', inputSchema: { type: 'object', properties: { opportunity_id: { type: 'string' }, stage: { type: 'string', description: 'New stage: identified, qualifying, pursuing, proposal, submitted, won, lost, no_bid' } }, required: ['opportunity_id', 'stage'] } }
+  { name: 'mark_stage', description: 'Set the stage of an opportunity (identified, qualifying, pursuing, proposal, submitted, won, lost, no_bid).', inputSchema: { type: 'object', properties: { opportunity_id: { type: 'string' }, stage: { type: 'string', description: 'New stage: identified, qualifying, pursuing, proposal, submitted, won, lost, no_bid' } }, required: ['opportunity_id', 'stage'] } },
+  { name: 'trigger_lapac_run', description: 'Trigger an immediate run of the LaPAC scraper Apify actor.', inputSchema: { type: 'object', properties: {} } }
 ];
 
 const handleTool = async (name, input) => {
