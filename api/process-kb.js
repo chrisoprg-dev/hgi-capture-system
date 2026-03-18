@@ -51,7 +51,7 @@ export default async function handler(req, res) {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
         body: JSON.stringify({
-          model: "claude-haiku-4-5-20241022",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 8000,
           messages: [{ role: "user", content: [
             { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } },
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20241022",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 800,
         system: "Return ONLY valid JSON. No markdown. No backticks.",
         messages: [{ role: "user", content: "Classify this HGI document. Return JSON: {\"document_class\":\"winning_proposal|rfp|capabilities_statement|corporate_profile|contract|past_performance|other\",\"vertical\":\"disaster|tpa|appeals|workforce|construction|federal|general\",\"client\":\"\",\"summary\":\"3 sentence summary\"}\nFilename: " + doc.filename + "\nContent: " + rawText.slice(0, 4000) }]
