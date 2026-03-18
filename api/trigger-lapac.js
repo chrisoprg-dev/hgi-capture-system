@@ -1,7 +1,11 @@
 export const config = { maxDuration: 30 };
 const ACTOR_ID = 'hVmvojDyPeJ799Suf';
 export default async function handler(req, res) {
+  // Prevent all caching
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
   res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') return res.status(200).end();
   const token = process.env.APIFY_API_TOKEN;
   const aborted = [];
   // Abort all RUNNING and READY runs
@@ -19,5 +23,5 @@ export default async function handler(req, res) {
   // Trigger fresh run
   const r = await fetch('https://api.apify.com/v2/acts/' + ACTOR_ID + '/runs?token=' + token, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
   const d = await r.json();
-  return res.json({ aborted, triggered: r.ok, runId: d.data?.id, status: d.data?.status, actorId: ACTOR_ID });
+  return res.json({ aborted, triggered: r.ok, runId: d.data?.id, status: d.data?.status, actorId: ACTOR_ID, ts: Date.now() });
 }
