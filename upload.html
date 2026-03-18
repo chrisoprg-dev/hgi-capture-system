@@ -554,19 +554,111 @@
         const docId = 'doc-' + Date.now() + '-' + item.file.name.replace(/[^a-zA-Z0-9.-]/g, '-').slice(0, 60);
         const storagePath = docId + '/' + item.file.name;
 
-        // Step 1: Upload directly to Supabase Storage — no size limit
+        // Step 1: Upload directly to Supabase Storage
         await uploadToStorage(item.file, storagePath, mimeType);
 
-        // Step 2: Tell Vercel to register and process
-        const data = await registerWithVercel(item.file.name, ext, mimeType, storagePath, item.file.size);
+        // Step 2: Extract text from the file
+        var extractedText = null;
+        var chunks = null;
+
+        if (ext === 'txt' || ext === 'md') {
+          // Plain text - read directly
+          extractedText = await item.file.text();
+        } else if (ext === 'pdf') {
+          // PDF - send to Claude for extraction
+          var base64 = await toBase64(item.file);
+          var claudeResp = await fetch('/api/claude', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-20250514',
+              max_tokens: 16000,
+              system: 'Extract ALL text from this document. Return ONLY the text, no commentary.',
+              messages: [{ role: 'user', content: [
+                { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+                { type: 'text', text: 'Extract all text from this document.' }
+              ]}]
+            })
+          });
+          var claudeData = await claudeResp.json();
+          if (claudeData.content) {
+            extractedText = claudeData.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+          }
+        } else if (ext === 'docx' || ext === 'doc') {
+          // Word docs - send to Claude as PDF proxy wont work, use mammoth or direct extraction
+          // Read file as ArrayBuffer and use basic XML extraction for .docx
+          var arrayBuf = await item.file.arrayBuffer();
+          try {
+            // .docx is a ZIP containing XML. Try to extract word/document.xml
+            var jszip = null;
+            // Use the built-in browser approach: send as base64 to Claude and ask it to read
+            // Since Claude API rejects .docx as document type, we describe it as text
+            var base64doc = await toBase64(item.file);
+            var claudeResp2 = await fetch('/api/claude', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 16000,
+                system: 'You receive a base64-encoded .docx file. A .docx is a ZIP archive. The user will give you the base64 data. Decode it mentally and extract all readable text content from the document. Return ONLY the extracted text, preserving paragraph structure. No commentary.',
+                messages: [{ role: 'user', content: 'Here is a base64-encoded .docx file. Please extract all the text content from it:\n\n' + base64doc }]
+              })
+            });
+            var claudeData2 = await claudeResp2.json();
+            if (claudeData2.content) {
+              extractedText = claudeData2.content.filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+            }
+          } catch(extractErr) {
+            console.warn('DOCX extraction failed:', extractErr.message);
+          }
+        }
+
+        // Build chunks from extracted text
+        if (extractedText && extractedText.length > 100) {
+          chunks = [];
+          var chunkSize = 4000;
+          for (var ci = 0; ci < extractedText.length; ci += chunkSize) {
+            chunks.push({ chunk_index: chunks.length, chunk_text: extractedText.slice(ci, ci + chunkSize) });
+          }
+        }
+
+        // Step 3: Register with API and include chunks if we have them
+        var regBody = {
+          filename: item.file.name,
+          file_type: ext,
+          mime_type: mimeType,
+          storage_path: storagePath,
+          content_base64: null,
+          document_class: 'other',
+          vertical: 'general',
+          char_count: extractedText ? extractedText.length : 0
+        };
+        if (chunks && chunks.length > 0) {
+          regBody.chunks = chunks;
+        }
+        if (extractedText) {
+          regBody.raw_text = extractedText.slice(0, 5000);
+        }
+
+        var regResp = await fetch(API_BASE + '/api/knowledge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-intake-secret': INTAKE_SECRET },
+          body: JSON.stringify(regBody)
+        });
+        if (!regResp.ok) {
+          var regErr = await regResp.text();
+          throw new Error('Registration failed: ' + regErr);
+        }
+        var regData = await regResp.json();
 
         item.status = 'done';
-        item.result = data;
-        showToast(`${item.file.name} — stored & processing`, 'success');
+        item.result = regData;
+        var chunkMsg = chunks ? ' (' + chunks.length + ' chunks extracted)' : ' (stored, pending extraction)';
+        showToast(item.file.name + ' — uploaded' + chunkMsg, 'success');
       } catch(e) {
         item.status = 'error';
         item.error = e.message;
-        showToast(`${item.file.name} — ${e.message.slice(0,80)}`, 'error');
+        showToast(item.file.name + ' — ' + e.message.slice(0,80), 'error');
       }
 
       renderQueue();
