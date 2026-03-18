@@ -5,15 +5,46 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-intake-secret");
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
-
-  var secret = req.headers["x-intake-secret"];
-  if (secret !== "hgi-intake-2026-secure") return res.status(401).json({ error: "Unauthorized" });
 
   var SUPABASE_URL = process.env.SUPABASE_URL;
   var SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
   var ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
   var BUCKET = "knowledge-docs";
+
+  // GET = one-click extract for HTHA document
+  if (req.method === "GET") {
+    var hDocId = "doc-1773803700859-HTHA-WorkingDraft-v4-Final.pdf";
+    var hStoragePath = "";
+    // Look up the storage path from the DB
+    try {
+      var lookupResp = await fetch(SUPABASE_URL + "/rest/v1/knowledge_documents?id=eq." + encodeURIComponent(hDocId) + "&select=storage_path,filename,status,chunk_count", {
+        headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
+      });
+      var lookupDocs = await lookupResp.json();
+      if (!lookupDocs || !lookupDocs.length) return res.status(404).json({ error: "HTHA doc not found in DB", id: hDocId });
+      if (lookupDocs[0].chunk_count > 0) return res.status(200).json({ message: "Already extracted", chunks: lookupDocs[0].chunk_count, status: lookupDocs[0].status });
+      hStoragePath = lookupDocs[0].storage_path;
+      if (!hStoragePath) return res.status(400).json({ error: "No storage_path on record", doc: lookupDocs[0] });
+
+      // Redirect to self as POST
+      var postBody = JSON.stringify({ doc_id: hDocId, storage_path: hStoragePath, filename: lookupDocs[0].filename || "HTHA_WorkingDraft_v4_Final.pdf" });
+      var selfUrl = (process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "") + "/api/extract-pdf";
+      var postResp = await fetch(selfUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-intake-secret": "hgi-intake-2026-secure" },
+        body: postBody
+      });
+      var postData = await postResp.json();
+      return res.status(postResp.status).json(postData);
+    } catch(e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+
+  var secret = req.headers["x-intake-secret"];
+  if (secret !== "hgi-intake-2026-secure") return res.status(401).json({ error: "Unauthorized" });
 
   var dbHeaders = {
     "Content-Type": "application/json",
