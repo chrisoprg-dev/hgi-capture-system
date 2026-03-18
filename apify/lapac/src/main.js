@@ -170,7 +170,6 @@ const fetchBidDetail = async (bidUrl, bidNumber, agency, browser) => {
 const fetchBidsByKeyword = async (keyword, browser) => {
     const context = await browser.newContext();
     const page = await context.newPage();
-    const bids = [];
     try {
         const searchUrl = LAPAC_BASE + '/srchopen.cfm';
         await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 30000 });
