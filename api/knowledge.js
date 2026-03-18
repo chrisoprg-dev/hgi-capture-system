@@ -545,7 +545,7 @@ Content: ${rawText.slice(0, 8000)}`,
       filename,
       status: "error",
       storage_path: uploadedToStorage ? storagePath : null,
-      message: "File saved to storage but text extraction failed. Click Reprocess in the Knowledge Base to retry.",
+      message: "File saved to storage. Extraction queued for next processing cycle.",
       error: e.message,
     });
   }
