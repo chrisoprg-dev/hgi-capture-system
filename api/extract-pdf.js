@@ -1,6 +1,6 @@
 // api/extract-pdf.js — Fetch a PDF by URL and extract text via Claude
 // Used by LaPAC scraper before sending to intake.
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 60, api: { bodyParser: { sizeLimit: '10mb' } } };
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 
