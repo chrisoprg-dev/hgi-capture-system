@@ -104,15 +104,17 @@ COMPANY: HGI Global, Inc. / Hammerman & Gainer LLC
 Founded: 1929 | 95+ years | Kenner, Louisiana
 Leadership: Larry D. Oney (Chairman), Christopher J. Oney (President), Louis J. Resweber (CEO), Candy L. Dottolo (CAO), Vanessa R. James (SVP Claims), S. Adaan Uzzaman (Chief Strategy Officer)
 Certifications: Women/Minority-Owned
+Insurance: $5M Fidelity Bond, $5M E&O, $2M GL ($1M per occurrence/$2M aggregate), Auto $1M CSL, Workers Comp statutory. SAM UEI: DL4SJEVKZ6H4. Staff: ~67 FT employees + 43 contract professionals. Offices: Kenner (HQ), Shreveport, Alexandria, New Orleans.
 
-CORE BUSINESS LINES:
+CORE BUSINESS LINES (8 confirmed verticals):
 1. Disaster Recovery — CDBG-DR, FEMA PA, HMGP, BRIC, housing recovery
-2. TPA / Claims — Workers Comp, Auto, GL, P&C, Insurance Guaranty Associations
-3. Appeals & Dispute Administration — Property tax appeals, utility billing disputes
-4. Construction Management — School repair, capital programs
-5. Workforce Development — Job readiness, talent pipelining
-6. Health & Human Services — Public health program admin, case management
-7. Federal Programs — Trust administration, claims, pension guaranty
+2. TPA / Claims — Full P&C including workers comp, property, liability, auto, GL, insurance guaranty associations
+3. Property Tax Appeals — Assessment challenges, valuation disputes
+4. Workforce Services / WIOA — Job readiness, talent pipelining, workforce development programs
+5. Construction Management — School repair, capital programs, any client
+6. Program Administration — Federal/state program management (NOT healthcare/Medicaid)
+7. Housing / HUD — Public housing, Section 8, housing authority support
+8. Grant Management — Federal and state grant application, administration, compliance
 
 KEY PAST PERFORMANCE:
 - Road Home Program: $12B federal funds, post-Katrina/Rita, zero misappropriation
@@ -124,20 +126,20 @@ KEY PAST PERFORMANCE:
 - Orleans Parish School Board: 22 years multi-line TPA
 - Terrebonne Parish School Board: Construction management
 
-CURRENT AUTHORIZED RATE CARD (confirmed 2026):
-- Principal: $180/hr
-- Program Director: $165/hr
-- Subject Matter Expert: $155/hr
-- Senior Grant Manager: $150/hr
-- Grant Manager: $120/hr
-- Senior Project Manager: $150/hr
-- Project Manager: $140/hr
-- Grant Writer: $105/hr
-- Architect Engineer: $135/hr
+CURRENT AUTHORIZED RATE CARD (confirmed March 2026 — HTHA proposal rates):
+- Principal: $220/hr
+- Program Director: $210/hr
+- Subject Matter Expert: $200/hr
+- Senior Grant Manager: $180/hr
+- Grant Manager: $175/hr
+- Senior Project Manager: $180/hr
+- Project Manager: $155/hr
+- Grant Writer: $145/hr
+- Architect/Engineer: $135/hr
 - Cost Estimator: $125/hr
 - Appeals Specialist: $145/hr
 - Senior Damage Assessor: $115/hr
-- Damage Assessor: $95/hr
+- Damage Assessor: $105/hr
 - Administrative Support Specialist: $65/hr
 
 GEOGRAPHY: Louisiana, Texas, Florida, Mississippi, Alabama, Georgia, Federal
