@@ -195,15 +195,68 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         }
         log('Bidnos found: ' + bidnos.length + (bidnos.length ? ' first: ' + bidnos[0] : ''));
 
-        // Use page.evaluate to extract all anchor hrefs and text — no selector guessing
-        const allLinks = await page.evaluate(() =>
-            Array.from(document.querySelectorAll('a')).map(a => ({ text: a.innerText.trim(), href: a.href }))
-        );
-        log('PAGE LINKS: ' + JSON.stringify(allLinks.filter(l => l.text.length > 0).slice(0, 40)));
+        // Extract PDF links directly from HTML — bid number links open PDFs
+        const pdfRegex = /href="([^"]*\/agency\/pdf\/[^"]+\.pdf)"/gi;
+        let pm;
+        const pdfLinks = [];
+        while ((pm = pdfRegex.exec(html)) !== null) {
+            const pdfUrl = pm[1].startsWith('http') ? pm[1] : 'https://wwwcfprd.doa.louisiana.gov' + pm[1];
+            pdfLinks.push(pdfUrl);
+        }
+        log('PDF links found: ' + pdfLinks.length + (pdfLinks.length ? ' first: ' + pdfLinks[0] : ''));
 
-        for (const bidno of bidnos) {
-            const match = allLinks.find(l => l.text === bidno);
-            log('Link for ' + bidno + ': ' + JSON.stringify(match));
+        for (let i = 0; i < pdfLinks.length; i++) {
+            const pdfUrl = pdfLinks[i];
+            const bidno = bidnos[i] || ('bid-' + i);
+            try {
+                // Fetch PDF and send to Claude for text extraction
+                const pdfRes = await fetch(pdfUrl);
+                if (!pdfRes.ok) { log('PDF fetch failed: ' + pdfUrl); continue; }
+                const pdfBuf = await pdfRes.arrayBuffer();
+                const base64 = Buffer.from(pdfBuf).toString('base64');
+                log('PDF fetched: ' + pdfUrl + ' size: ' + pdfBuf.byteLength);
+
+                // Extract text via Claude
+                const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': process.env.ANTHROPIC_API_KEY,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-haiku-4-5-20251001',
+                        max_tokens: 2000,
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+                                { type: 'text', text: 'Extract: title, agency, description/scope, deadline/due date, and any key requirements. Return as JSON with fields: title, agency, description, deadline.' }
+                            ]
+                        }]
+                    })
+                });
+                if (!claudeRes.ok) { log('Claude API error: ' + claudeRes.status); continue; }
+                const claudeData = await claudeRes.json();
+                const extracted = claudeData.content?.[0]?.text || '';
+                log('Extracted: ' + extracted.substring(0, 200));
+
+                let parsed = { title: bidno, agency: '', description: '', deadline: '' };
+                try {
+                    const clean = extracted.replace(/|/gi, '').trim();
+                    parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1));
+                } catch(e) { parsed.description = extracted.substring(0, 500); }
+
+                const fullText = extracted;
+                if (isRelevant(fullText)) {
+                    results.push({ url: pdfUrl, bidNumber: bidno, agency: parsed.agency || '', fullText, html: '', parsedTitle: parsed.title, parsedDeadline: parsed.deadline, parsedDescription: parsed.description });
+                    log('PDF relevant: ' + (parsed.title || bidno));
+                } else {
+                    log('PDF not relevant: ' + (parsed.title || bidno));
+                }
+            } catch(e) {
+                log('Error processing PDF ' + pdfUrl + ': ' + e.message);
+            }
         }
         return results;
     } catch(e) {
