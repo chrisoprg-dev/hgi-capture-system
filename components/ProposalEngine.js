@@ -149,7 +149,7 @@ function ProposalEngine({ sharedCtx={}, defaultSection="executive_summary" }) {
   };
 
   const buildSys = (sLabel, kbInjection, pastPerformance) => {
-    const kb = kbInjection ? kbInjection.slice(0, 2000) : HGI_CONTEXT;
+    const kb = kbInjection ? kbInjection.slice(0, 5000) : HGI_CONTEXT;
     let pastPerfSection = "";
     
     if (pastPerformance && pastPerformance.length > 0) {
