@@ -167,6 +167,7 @@ const fetchBidsByKeyword = async (keyword, browser) => {
         await page.waitForLoadState('networkidle', { timeout: 30000 });
         const html = await page.content();
         log('Keyword "' + keyword + '" length: ' + html.length + ', dspBid: ' + html.includes('dspBid'));
+        if (html.includes('dspBid')) { log('SAMPLE: ' + html.substring(html.indexOf('dspBid') - 100, html.indexOf('dspBid') + 200)); }
         return parseBidLinks(html, '');
     } catch(e) {
         log('Error searching keyword ' + keyword + ': ' + e.message);
