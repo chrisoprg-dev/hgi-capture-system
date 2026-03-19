@@ -15,6 +15,7 @@ const MODULES = [
   {id:"content", label:"Content Engine", icon:"◭"},
   {id:"digest", label:"Weekly Digest", icon:"◇"},
   {id:"execbrief", label:"Executive Brief", icon:"◈"},
+  {id:"scraperinsights", label:"Scraper Insights", icon:"⊗"},
   {id:"knowledge", label:"Knowledge Base", icon:"⬡"},
   {id:"chat", label:"System Chat", icon:"💬"},
 ];
