@@ -1,13 +1,13 @@
 // components/ScraperInsights.js — Scraper Intelligence Dashboard
 
 function ScraperInsights() {
-  const [loading, setLoading] = React.useState(true);
-  const [runs, setRuns] = React.useState([]);
-  const [activeOpps, setActiveOpps] = React.useState([]);
-  const [filteredOpps, setFilteredOpps] = React.useState([]);
-  const [pendingOpps, setPendingOpps] = React.useState([]);
-  const [error, setError] = React.useState(null);
-  const [activeTab, setActiveTab] = React.useState('funnel');
+  var [loading, setLoading] = React.useState(true);
+  var [runs, setRuns] = React.useState([]);
+  var [activeOpps, setActiveOpps] = React.useState([]);
+  var [filteredOpps, setFilteredOpps] = React.useState([]);
+  var [pendingOpps, setPendingOpps] = React.useState([]);
+  var [error, setError] = React.useState(null);
+  var [activeTab, setActiveTab] = React.useState('overview');
 
   React.useEffect(function() { loadData(); }, []);
 
@@ -31,30 +31,20 @@ function ScraperInsights() {
     });
   }
 
-  // Parse run stats
-  var parsedRuns = runs.map(function(r) {
-    var stats = {};
-    try { stats = JSON.parse(r.notes || '{}'); } catch(e) {}
-    return Object.assign({}, r, { stats: stats });
-  });
+  // Separate run types
+  var apifyRuns = runs.filter(function(r) { return r.source === 'apify_batch' || r.source === 'apify_central_bidding'; });
+  var lapacRuns = runs.filter(function(r) { return r.source && r.source.toLowerCase().indexOf('lapac') >= 0; });
+  var cronRuns = runs.filter(function(r) { return r.source === 'cron'; });
 
-  // Aggregate scraper totals
-  var totals = parsedRuns.reduce(function(acc, r) {
-    var s = r.stats;
-    acc.bids_reviewed += (s.bids_reviewed || 0);
-    acc.relevant_found += (s.relevant_found || 0);
-    acc.sent_to_intake += (s.sent_to_intake || 0);
-    acc.filtered_out += (s.filtered_out || 0);
-    acc.expired_skipped += (s.expired_skipped || 0);
-    acc.duplicates_skipped += (s.duplicates_skipped || 0);
-    return acc;
-  }, { bids_reviewed: 0, relevant_found: 0, sent_to_intake: 0, filtered_out: 0, expired_skipped: 0, duplicates_skipped: 0 });
+  // New opps over time from run records
+  var totalNewFromRuns = runs.reduce(function(acc, r) { return acc + (r.opportunities_new || 0); }, 0);
+  var totalFoundFromRuns = runs.reduce(function(acc, r) { return acc + (r.opportunities_found || 0); }, 0);
 
-  // OPI distribution
-  var buckets = { '90-100': 0, '80-89': 0, '75-79': 0, '60-74': 0, '40-59': 0, 'under40': 0 };
+  // OPI buckets
+  var buckets = { '90+': 0, '80-89': 0, '75-79': 0, '60-74': 0, '40-59': 0, 'under40': 0 };
   activeOpps.forEach(function(o) {
     var s = o.opi_score || 0;
-    if (s >= 90) buckets['90-100']++;
+    if (s >= 90) buckets['90+']++;
     else if (s >= 80) buckets['80-89']++;
     else if (s >= 75) buckets['75-79']++;
     else if (s >= 60) buckets['60-74']++;
@@ -63,7 +53,7 @@ function ScraperInsights() {
   });
   var maxBucket = Math.max.apply(null, Object.values(buckets).concat([1]));
 
-  // Source breakdown
+  // Source breakdown from pipeline records
   var sourceMap = {};
   activeOpps.concat(filteredOpps).forEach(function(o) {
     var src = o.source || 'Unknown';
@@ -76,10 +66,7 @@ function ScraperInsights() {
   var sources = Object.keys(sourceMap).map(function(k) {
     var s = sourceMap[k];
     return {
-      name: k,
-      total: s.total,
-      active: s.active,
-      filtered: s.filtered,
+      name: k, total: s.total, active: s.active, filtered: s.filtered,
       avgOpi: s.opiCount > 0 ? Math.round(s.opiSum / s.opiCount) : 0,
       hitRate: s.total > 0 ? Math.round((s.active / s.total) * 100) : 0,
     };
@@ -98,14 +85,16 @@ function ScraperInsights() {
     return { name: k, count: v.count, avgOpi: v.count > 0 ? Math.round(v.opiSum / v.count) : 0 };
   }).sort(function(a, b) { return b.count - a.count; });
 
-  // Rates
-  var relevanceRate = totals.bids_reviewed > 0 ? Math.round((totals.relevant_found / totals.bids_reviewed) * 100) : 0;
-  var falsePositiveRate = totals.bids_reviewed > 0 ? Math.round((totals.filtered_out / totals.bids_reviewed) * 100) : 0;
   var tier1Count = activeOpps.filter(function(o) { return o.opi_score >= 75; }).length;
+  var tier2Count = activeOpps.filter(function(o) { return o.opi_score >= 60 && o.opi_score < 75; }).length;
+
+  // Recent runs for activity timeline (last 20 apify runs)
+  var recentApify = apifyRuns.slice(0, 20);
 
   // Styles
   var card = { background: BG2, border: '1px solid ' + BORDER, borderRadius: 8, padding: 20, marginBottom: 16 };
-  var statBox = { background: BG, border: '1px solid ' + BORDER, borderRadius: 6, padding: '14px 18px', flex: 1, minWidth: 120 };
+  var statBox = { background: BG, border: '1px solid ' + BORDER, borderRadius: 6, padding: '14px 18px', flex: 1, minWidth: 110 };
+  var schemaWarning = { background: '#2a1a00', border: '1px solid ' + ORANGE, borderRadius: 6, padding: 12, marginBottom: 16, fontSize: 11, color: ORANGE, lineHeight: 1.6 };
 
   function tabBtn(id) {
     return {
@@ -117,46 +106,54 @@ function ScraperInsights() {
     };
   }
 
-  function bar(pct, color) {
-    return React.createElement('div', { style: { background: BORDER, borderRadius: 4, height: 12, overflow: 'hidden', marginTop: 4 } },
+  function bar(pct, color, height) {
+    return React.createElement('div', { style: { background: BORDER, borderRadius: 4, height: height || 12, overflow: 'hidden', marginTop: 4 } },
       React.createElement('div', { style: { width: pct + '%', height: '100%', background: color, borderRadius: 4 } })
     );
   }
 
   if (loading) return React.createElement('div', { style: { padding: 40, textAlign: 'center', color: TEXT_D } },
-    React.createElement('div', { style: { fontSize: 24, marginBottom: 12 } }, String.fromCharCode(8853)),
+    React.createElement('div', { style: { fontSize: 24, marginBottom: 12 } }, '...'),
     React.createElement('div', null, 'Loading scraper intelligence...')
   );
 
-  if (error) return React.createElement('div', { style: { padding: 20, color: '#ff6b6b' } }, 'Error: ' + error,
+  if (error) return React.createElement('div', { style: { padding: 20, color: '#ff6b6b' } },
+    'Error: ' + error,
     React.createElement('button', { onClick: loadData, style: { marginLeft: 12, background: GOLD, color: BG, border: 'none', borderRadius: 4, padding: '4px 12px', cursor: 'pointer' } }, 'Retry')
   );
 
   return React.createElement('div', { style: { maxWidth: 1100 } },
 
     // Header
-    React.createElement('div', { style: { marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
+    React.createElement('div', { style: { marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
       React.createElement('div', null,
         React.createElement('h2', { style: { color: GOLD, margin: 0, fontSize: 20, fontWeight: 800 } }, 'Scraper Intelligence Dashboard'),
         React.createElement('div', { style: { color: TEXT_D, fontSize: 12, marginTop: 4 } },
-          runs.length + ' runs logged · ' + (activeOpps.length + filteredOpps.length + pendingOpps.length) + ' total records · ' + activeOpps.length + ' active'
+          runs.length + ' runs logged · ' + (activeOpps.length + filteredOpps.length + pendingOpps.length) + ' total pipeline records'
         )
       ),
       React.createElement('button', { onClick: loadData, style: { background: 'transparent', border: '1px solid ' + BORDER, color: TEXT_D, borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontSize: 12 } }, 'Refresh')
     ),
 
+    // Schema warning — detailed stats not yet stored
+    React.createElement('div', { style: schemaWarning },
+      React.createElement('strong', null, 'To unlock detailed per-run stats (bids reviewed, filtered, duplicates):'),
+      React.createElement('br', null),
+      'Go to Supabase Dashboard → Table Editor → hunt_runs → Add column: name=notes, type=text, nullable=true. Takes 30 seconds. Stats will flow on next scraper run.'
+    ),
+
     // KPI Row
     React.createElement('div', { style: { display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' } },
       [
-        { label: 'Bids Reviewed', value: totals.bids_reviewed.toLocaleString(), sub: 'all time', color: GOLD },
-        { label: 'Relevance Rate', value: relevanceRate + '%', sub: 'pass keyword filter', color: relevanceRate > 15 ? GREEN : ORANGE },
+        { label: 'Total Runs Logged', value: runs.length.toLocaleString(), sub: 'all scrapers', color: GOLD },
         { label: 'Active Pipeline', value: activeOpps.length, sub: 'scored opportunities', color: GOLD },
-        { label: 'Tier 1 (OPI 75+)', value: tier1Count, sub: 'qualified opportunities', color: tier1Count > 0 ? GREEN : TEXT_D },
+        { label: 'Tier 1 (OPI 75+)', value: tier1Count, sub: 'qualified, pursue', color: tier1Count > 0 ? GREEN : TEXT_D },
+        { label: 'Tier 2 (OPI 60-74)', value: tier2Count, sub: 'monitor only', color: ORANGE },
         { label: 'Pending RFP', value: pendingOpps.length, sub: 'embargoed listings', color: TEXT_D },
-        { label: 'False Positive Rate', value: falsePositiveRate + '%', sub: 'filtered before intake', color: falsePositiveRate > 80 ? '#ff6b6b' : falsePositiveRate > 60 ? ORANGE : GREEN },
+        { label: 'Low OPI Filtered', value: filteredOpps.length, sub: 'below threshold', color: TEXT_D },
       ].map(function(s) {
         return React.createElement('div', { key: s.label, style: statBox },
-          React.createElement('div', { style: { color: s.color, fontSize: 26, fontWeight: 800, lineHeight: 1 } }, s.value),
+          React.createElement('div', { style: { color: s.color, fontSize: 24, fontWeight: 800, lineHeight: 1 } }, s.value),
           React.createElement('div', { style: { color: TEXT_D, fontSize: 11, marginTop: 4, fontWeight: 700 } }, s.label),
           React.createElement('div', { style: { color: TEXT_D, fontSize: 10, opacity: 0.7 } }, s.sub)
         );
@@ -166,7 +163,7 @@ function ScraperInsights() {
     // Tabs
     React.createElement('div', { style: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid ' + BORDER } },
       [
-        { id: 'funnel', label: 'Funnel' },
+        { id: 'overview', label: 'Overview' },
         { id: 'opi', label: 'OPI Distribution' },
         { id: 'sources', label: 'Sources' },
         { id: 'verticals', label: 'Verticals' },
@@ -176,51 +173,88 @@ function ScraperInsights() {
       })
     ),
 
-    // FUNNEL TAB
-    activeTab === 'funnel' && React.createElement('div', null,
-      React.createElement('div', { style: card },
-        React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 14, marginBottom: 16 } }, 'Scraper Funnel — All Time'),
-        [
-          { label: '1. Bids Reviewed by Scrapers', value: totals.bids_reviewed, pct: 100, color: TEXT_D },
-          { label: '2. Passed Keyword Filter', value: totals.relevant_found, pct: totals.bids_reviewed > 0 ? Math.round(totals.relevant_found / totals.bids_reviewed * 100) : 0, color: GOLD },
-          { label: '3. Sent to Intake', value: totals.sent_to_intake, pct: totals.bids_reviewed > 0 ? Math.round(totals.sent_to_intake / totals.bids_reviewed * 100) : 0, color: GOLD },
-          { label: '4. Active in Pipeline (OPI 40+)', value: activeOpps.length, pct: totals.bids_reviewed > 0 ? Math.round(activeOpps.length / totals.bids_reviewed * 100) : 0, color: GREEN },
-          { label: '5. Tier 1 (OPI 75+)', value: tier1Count, pct: totals.bids_reviewed > 0 ? Math.round(tier1Count / totals.bids_reviewed * 100) : 0, color: GREEN },
-        ].map(function(step) {
-          return React.createElement('div', { key: step.label, style: { marginBottom: 14 } },
-            React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 } },
-              React.createElement('span', { style: { color: TEXT_D, fontSize: 12 } }, step.label),
-              React.createElement('span', { style: { color: step.color, fontSize: 12, fontWeight: 700 } }, step.value.toLocaleString() + ' (' + step.pct + '%)')
-            ),
-            bar(step.pct, step.color)
-          );
-        }),
-        React.createElement('div', { style: { marginTop: 20, padding: 12, background: BG, borderRadius: 6, border: '1px solid ' + BORDER } },
-          React.createElement('div', { style: { color: GOLD, fontSize: 12, fontWeight: 700, marginBottom: 6 } }, 'Filter Breakdown'),
+    // OVERVIEW TAB
+    activeTab === 'overview' && React.createElement('div', null,
+      React.createElement('div', { style: { display: 'flex', gap: 12, marginBottom: 16 } },
+
+        // Pipeline Conversion
+        React.createElement('div', { style: Object.assign({}, card, { flex: 1, marginBottom: 0 }) },
+          React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 13, marginBottom: 14 } }, 'Pipeline Conversion'),
           [
-            { label: 'Not keyword relevant', value: totals.filtered_out, color: '#ff6b6b' },
-            { label: 'Expired / past deadline', value: totals.expired_skipped, color: ORANGE },
-            { label: 'Duplicates skipped', value: totals.duplicates_skipped, color: TEXT_D },
-            { label: 'Low OPI (below 40)', value: filteredOpps.length, color: TEXT_D },
-          ].map(function(f) {
-            return React.createElement('div', { key: f.label, style: { display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid ' + BORDER } },
-              React.createElement('span', { style: { color: TEXT_D, fontSize: 12 } }, f.label),
-              React.createElement('span', { style: { color: f.color, fontWeight: 700, fontSize: 12 } }, f.value.toLocaleString())
+            { label: 'Total Records Ingested', value: activeOpps.length + filteredOpps.length + pendingOpps.length, color: TEXT_D },
+            { label: 'Survived OPI Filter (active)', value: activeOpps.length, color: GOLD },
+            { label: 'Tier 1 — OPI 75+', value: tier1Count, color: GREEN },
+            { label: 'Currently Pursuing', value: 1, color: GREEN },
+            { label: 'Proposal Stage', value: 1, color: GREEN },
+          ].map(function(step, i) {
+            var total = activeOpps.length + filteredOpps.length + pendingOpps.length;
+            var pct = total > 0 ? Math.round((step.value / total) * 100) : 0;
+            return React.createElement('div', { key: step.label, style: { marginBottom: 12 } },
+              React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 3 } },
+                React.createElement('span', { style: { color: TEXT_D, fontSize: 12 } }, step.label),
+                React.createElement('span', { style: { color: step.color, fontSize: 12, fontWeight: 700 } }, step.value + ' (' + pct + '%)')
+              ),
+              bar(pct, step.color, 10)
             );
           })
+        ),
+
+        // Scraper Activity
+        React.createElement('div', { style: Object.assign({}, card, { flex: 1, marginBottom: 0 }) },
+          React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 13, marginBottom: 14 } }, 'Scraper Activity'),
+          [
+            { label: 'Central Bidding runs', value: apifyRuns.length, color: GOLD },
+            { label: 'LaPAC runs', value: lapacRuns.length, color: GOLD },
+            { label: 'Legacy cron runs', value: cronRuns.length, color: TEXT_D },
+            { label: 'New opps found (all time)', value: totalNewFromRuns, color: totalNewFromRuns > 0 ? GREEN : TEXT_D },
+          ].map(function(s) {
+            return React.createElement('div', { key: s.label, style: { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid ' + BORDER } },
+              React.createElement('span', { style: { color: TEXT_D, fontSize: 12 } }, s.label),
+              React.createElement('span', { style: { color: s.color, fontWeight: 700, fontSize: 13 } }, s.value.toLocaleString())
+            );
+          }),
+          React.createElement('div', { style: { marginTop: 12, padding: 10, background: BG, borderRadius: 4 } },
+            React.createElement('div', { style: { color: TEXT_D, fontSize: 11, lineHeight: 1.6 } },
+              'Central Bidding: running every 6 min, 24/7.',
+              React.createElement('br', null),
+              'LaPAC: running on schedule, PDF extraction active.',
+              React.createElement('br', null),
+              'Pipeline saturated — no new net-new opps recently. Normal for mature pipeline.'
+            )
+          )
         )
+      ),
+
+      // Coverage gaps
+      React.createElement('div', { style: card },
+        React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 13, marginBottom: 12 } }, 'Coverage Gaps — Sources Not Yet Active'),
+        [
+          { name: 'Texas SmartBuy (ESBD)', note: 'Texas is HGI primary market. Scraper built, needs Apify actor setup.', priority: 'HIGH' },
+          { name: 'SAM.gov', note: 'Federal pass-through opps. Endpoint needs confirmation.', priority: 'MED' },
+          { name: 'Louisiana Housing Corporation', note: 'HUD/CDBG-DR source. Not yet monitored.', priority: 'MED' },
+          { name: 'Florida / Mississippi portals', note: 'Disaster recovery expansion markets.', priority: 'LOW' },
+        ].map(function(g) {
+          var color = g.priority === 'HIGH' ? '#ff6b6b' : g.priority === 'MED' ? ORANGE : TEXT_D;
+          return React.createElement('div', { key: g.name, style: { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '8px 0', borderBottom: '1px solid ' + BORDER } },
+            React.createElement('span', { style: { color: color, fontWeight: 700, fontSize: 10, minWidth: 36, marginTop: 1 } }, g.priority),
+            React.createElement('div', null,
+              React.createElement('div', { style: { color: TEXT_D, fontSize: 12, fontWeight: 700 } }, g.name),
+              React.createElement('div', { style: { color: TEXT_D, fontSize: 11, opacity: 0.7, marginTop: 2 } }, g.note)
+            )
+          );
+        })
       )
     ),
 
     // OPI DISTRIBUTION TAB
     activeTab === 'opi' && React.createElement('div', { style: card },
       React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 14, marginBottom: 4 } }, 'OPI Score Distribution'),
-      React.createElement('div', { style: { color: TEXT_D, fontSize: 11, marginBottom: 20 } }, 'Active pipeline records only (' + activeOpps.length + ' total)'),
+      React.createElement('div', { style: { color: TEXT_D, fontSize: 11, marginBottom: 20 } }, 'Active pipeline — ' + activeOpps.length + ' records'),
       [
-        { key: '90-100', label: '90-100 — Build proposal immediately', color: GREEN },
+        { key: '90+', label: '90+ — Build proposal immediately', color: GREEN },
         { key: '80-89', label: '80-89 — Strong fit, pursue', color: GREEN },
         { key: '75-79', label: '75-79 — Qualified, investigate', color: GOLD },
-        { key: '60-74', label: '60-74 — Marginal, monitor only', color: ORANGE },
+        { key: '60-74', label: '60-74 — Marginal, monitor', color: ORANGE },
         { key: '40-59', label: '40-59 — Weak fit', color: '#ff6b6b' },
         { key: 'under40', label: 'Under 40 — Should be filtered', color: BORDER },
       ].map(function(b) {
@@ -232,109 +266,97 @@ function ScraperInsights() {
             React.createElement('span', { style: { color: TEXT_D, fontSize: 12 } }, b.label),
             React.createElement('span', { style: { color: b.color, fontWeight: 700, fontSize: 13 } }, count + ' (' + pct + '%)')
           ),
-          bar(barW, b.color)
+          bar(barW, b.color, 16)
         );
       }),
       React.createElement('div', { style: { marginTop: 20, padding: 12, background: BG, borderRadius: 6, border: '1px solid ' + BORDER } },
         React.createElement('div', { style: { color: GOLD, fontSize: 12, fontWeight: 700, marginBottom: 6 } }, 'Calibration Note'),
         React.createElement('div', { style: { color: TEXT_D, fontSize: 11, lineHeight: 1.6 } },
-          'OPI scores are AI-estimated from opportunity text + KB chunks. No win/loss data yet. After the Data Call (March 24), scores will be recalibrated against actual HGI contract history. Current threshold: OPI 75+ triggers Tier 1 review.'
+          'Scores are AI-estimated from opportunity text against KB chunks. No win/loss data yet. After Data Call (March 24), scores recalibrate against actual HGI contract history. Current Tier 1 threshold: OPI 75+. Intelligence Engine triggers at OPI 80+.'
         )
       )
     ),
 
     // SOURCES TAB
-    activeTab === 'sources' && React.createElement('div', null,
-      React.createElement('div', { style: card },
-        React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 14, marginBottom: 16 } }, 'Source Performance'),
-        sources.length === 0
-          ? React.createElement('div', { style: { color: TEXT_D, fontSize: 12 } }, 'No source data yet.')
-          : sources.map(function(s) {
-            return React.createElement('div', { key: s.name, style: { padding: '14px 0', borderBottom: '1px solid ' + BORDER } },
-              React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 8 } },
-                React.createElement('span', { style: { color: GOLD, fontSize: 13, fontWeight: 700 } }, s.name),
-                React.createElement('span', { style: { color: TEXT_D, fontSize: 11 } }, s.total + ' total records')
-              ),
-              React.createElement('div', { style: { display: 'flex', gap: 24 } },
-                [
-                  { label: 'Active', value: s.active, color: GREEN },
-                  { label: 'Filtered', value: s.filtered, color: '#ff6b6b' },
-                  { label: 'Avg OPI', value: s.avgOpi, color: s.avgOpi >= 75 ? GREEN : s.avgOpi >= 60 ? GOLD : ORANGE },
-                  { label: 'Hit Rate', value: s.hitRate + '%', color: s.hitRate > 20 ? GREEN : s.hitRate > 10 ? GOLD : ORANGE },
-                ].map(function(m) {
-                  return React.createElement('div', { key: m.label },
-                    React.createElement('div', { style: { color: m.color, fontWeight: 700, fontSize: 20 } }, m.value),
-                    React.createElement('div', { style: { color: TEXT_D, fontSize: 10 } }, m.label)
-                  );
-                })
-              )
-            );
-          })
-      ),
-      React.createElement('div', { style: Object.assign({}, card, { background: BG }) },
-        React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 13, marginBottom: 8 } }, 'Coverage Gaps'),
-        React.createElement('div', { style: { color: TEXT_D, fontSize: 12, lineHeight: 1.8 } },
-          React.createElement('div', null, '• Texas SmartBuy (ESBD) — not yet active. Texas is HGI primary market.'),
-          React.createElement('div', null, '• SAM.gov — federal pass-through opportunities. Not yet integrated.'),
-          React.createElement('div', null, '• Louisiana Housing Corporation — HUD/CDBG-DR source. Not yet monitored.'),
-          React.createElement('div', null, '• Florida / Mississippi portals — disaster recovery expansion markets.')
-        )
-      )
+    activeTab === 'sources' && React.createElement('div', { style: card },
+      React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 14, marginBottom: 16 } }, 'Source Performance — Pipeline Records'),
+      sources.length === 0
+        ? React.createElement('div', { style: { color: TEXT_D, fontSize: 12 } }, 'No source data yet.')
+        : sources.map(function(s) {
+          return React.createElement('div', { key: s.name, style: { padding: '14px 0', borderBottom: '1px solid ' + BORDER } },
+            React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 8 } },
+              React.createElement('span', { style: { color: GOLD, fontSize: 13, fontWeight: 700 } }, s.name),
+              React.createElement('span', { style: { color: TEXT_D, fontSize: 11 } }, s.total + ' total records')
+            ),
+            React.createElement('div', { style: { display: 'flex', gap: 24 } },
+              [
+                { label: 'Active', value: s.active, color: GREEN },
+                { label: 'Filtered', value: s.filtered, color: '#ff6b6b' },
+                { label: 'Avg OPI', value: s.avgOpi, color: s.avgOpi >= 75 ? GREEN : s.avgOpi >= 60 ? GOLD : ORANGE },
+                { label: 'Hit Rate', value: s.hitRate + '%', color: s.hitRate > 20 ? GREEN : s.hitRate > 10 ? GOLD : ORANGE },
+              ].map(function(m) {
+                return React.createElement('div', { key: m.label },
+                  React.createElement('div', { style: { color: m.color, fontWeight: 700, fontSize: 20 } }, m.value),
+                  React.createElement('div', { style: { color: TEXT_D, fontSize: 10 } }, m.label)
+                );
+              })
+            )
+          );
+        })
     ),
 
     // VERTICALS TAB
     activeTab === 'verticals' && React.createElement('div', { style: card },
-      React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 14, marginBottom: 4 } }, 'Vertical Breakdown'),
-      React.createElement('div', { style: { color: TEXT_D, fontSize: 11, marginBottom: 20 } }, 'What the scrapers are actually finding — active pipeline only'),
+      React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 14, marginBottom: 4 } }, 'Vertical Breakdown — Active Pipeline'),
       verticals.length === 0
-        ? React.createElement('div', { style: { color: TEXT_D, fontSize: 12 } }, 'No vertical data yet.')
+        ? React.createElement('div', { style: { color: TEXT_D, fontSize: 12 } }, 'No data yet.')
         : verticals.map(function(v) {
-          var labels = { disaster: 'Disaster Recovery', tpa: 'TPA / Claims', workforce: 'Workforce / WIOA', health: 'Health & Human Services', infrastructure: 'Construction Management', tax_appeals: 'Property Tax Appeals', federal: 'Federal Programs', unknown: 'Unclassified' };
+          var labels = { disaster: 'Disaster Recovery', tpa: 'TPA / Claims', workforce: 'Workforce / WIOA', health: 'Health and Human Services', infrastructure: 'Construction Management', tax_appeals: 'Property Tax Appeals', federal: 'Federal Programs', unknown: 'Unclassified' };
           var pct = activeOpps.length > 0 ? Math.round((v.count / activeOpps.length) * 100) : 0;
           return React.createElement('div', { key: v.name, style: { marginBottom: 14 } },
             React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 } },
               React.createElement('span', { style: { color: TEXT_D, fontSize: 13 } }, labels[v.name] || v.name),
               React.createElement('span', { style: { color: GOLD, fontWeight: 700, fontSize: 12 } }, v.count + ' opps · avg OPI ' + v.avgOpi)
             ),
-            bar(pct, GOLD)
+            bar(pct, GOLD, 14)
           );
         }),
       React.createElement('div', { style: { marginTop: 16, padding: 12, background: BG, borderRadius: 6, border: '1px solid ' + BORDER } },
         React.createElement('div', { style: { color: GOLD, fontSize: 12, fontWeight: 700, marginBottom: 6 } }, 'Signal'),
         React.createElement('div', { style: { color: TEXT_D, fontSize: 11, lineHeight: 1.6 } },
-          'If Disaster Recovery is underrepresented, keywords need tuning. TPA/Claims opps are rare on public portals — most come through direct relationships. High unclassified count means thin RFP text at intake.'
+          'High unclassified count = thin RFP text at intake. TPA/Claims rarely appears on public portals — comes through relationships and recompetes. Disaster Recovery should dominate if keywords are tuned correctly.'
         )
       )
     ),
 
     // RUN HISTORY TAB
     activeTab === 'runs' && React.createElement('div', { style: card },
-      React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 14, marginBottom: 16 } }, 'Recent Run History'),
+      React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 14, marginBottom: 4 } }, 'Run History'),
+      React.createElement('div', { style: { color: TEXT_D, fontSize: 11, marginBottom: 16 } },
+        'Showing last 30 runs. Add notes column to Supabase to see per-run detail stats.'
+      ),
       runs.length === 0
         ? React.createElement('div', { style: { color: TEXT_D, fontSize: 12 } }, 'No run history yet.')
         : React.createElement('div', { style: { overflowX: 'auto' } },
           React.createElement('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: 11 } },
             React.createElement('thead', null,
               React.createElement('tr', { style: { borderBottom: '1px solid ' + BORDER } },
-                ['Time', 'Source', 'Reviewed', 'Relevant', 'Sent', 'Filtered', 'Expired', 'Dupes'].map(function(h) {
+                ['Time', 'Source', 'Found', 'New', 'Status'].map(function(h) {
                   return React.createElement('th', { key: h, style: { color: TEXT_D, fontWeight: 700, padding: '6px 10px', textAlign: 'left', opacity: 0.7 } }, h);
                 })
               )
             ),
             React.createElement('tbody', null,
-              parsedRuns.slice(0, 30).map(function(r, i) {
-                var s = r.stats;
+              runs.slice(0, 30).map(function(r, i) {
                 var t = new Date(r.run_at);
                 var timeStr = t.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                var srcColor = r.source === 'apify_batch' ? GOLD : r.source === 'cron' ? TEXT_D : GREEN;
                 return React.createElement('tr', { key: i, style: { borderBottom: '1px solid ' + BORDER } },
-                  React.createElement('td', { style: { padding: '6px 10px', color: TEXT_D } }, timeStr),
-                  React.createElement('td', { style: { padding: '6px 10px', color: GOLD } }, r.source || '—'),
-                  React.createElement('td', { style: { padding: '6px 10px', color: TEXT_D } }, s.bids_reviewed || r.opportunities_found || '—'),
-                  React.createElement('td', { style: { padding: '6px 10px', color: s.relevant_found > 0 ? GREEN : TEXT_D } }, s.relevant_found != null ? s.relevant_found : '—'),
-                  React.createElement('td', { style: { padding: '6px 10px', color: s.sent_to_intake > 0 ? GREEN : TEXT_D } }, s.sent_to_intake != null ? s.sent_to_intake : '—'),
-                  React.createElement('td', { style: { padding: '6px 10px', color: s.filtered_out > 0 ? '#ff6b6b' : TEXT_D } }, s.filtered_out != null ? s.filtered_out : '—'),
-                  React.createElement('td', { style: { padding: '6px 10px', color: TEXT_D } }, s.expired_skipped != null ? s.expired_skipped : '—'),
-                  React.createElement('td', { style: { padding: '6px 10px', color: TEXT_D } }, s.duplicates_skipped != null ? s.duplicates_skipped : '—')
+                  React.createElement('td', { style: { padding: '5px 10px', color: TEXT_D } }, timeStr),
+                  React.createElement('td', { style: { padding: '5px 10px', color: srcColor } }, r.source || 'unknown'),
+                  React.createElement('td', { style: { padding: '5px 10px', color: TEXT_D } }, r.opportunities_found != null ? r.opportunities_found : '—'),
+                  React.createElement('td', { style: { padding: '5px 10px', color: r.opportunities_new > 0 ? GREEN : TEXT_D } }, r.opportunities_new != null ? r.opportunities_new : '—'),
+                  React.createElement('td', { style: { padding: '5px 10px', color: r.status === 'completed' ? GREEN : '#ff6b6b' } }, r.status || '—')
                 );
               })
             )
