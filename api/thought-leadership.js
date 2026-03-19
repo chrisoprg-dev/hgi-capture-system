@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   const { action, topic, audience, format, length } = req.body || {};
 
-  const HGI_VOICE = 'You are writing on behalf of Hammerman & Gainer LLC (HGI), a 95-year-old Louisiana-based government consulting firm specializing in disaster recovery, FEMA Public Assistance, CDBG-DR, TPA/claims administration, and workforce services. HGI has managed $12B+ through the Road Home Program, processed 1M+ claims for BP GCCF, served 34M beneficiaries for PBGC, and has 20+ years with TPCIGA. Write in an authoritative, specific, relationship-forward tone. Cite real HGI experience. Never use generic consulting language.';
+  const HGI_VOICE = 'You are writing on behalf of Hammerman & Gainer LLC (HGI), a 95-year-old 100% minority-owned Louisiana-based government consulting firm founded in 1929. Specialties: disaster recovery, FEMA Public Assistance, CDBG-DR, TPA/claims administration, workforce services, property tax appeals, construction management, housing/HUD. CONFIRMED past performance to cite: Road Home Program ($67M direct / $13B+ program administered, 2006-2015, zero misappropriation, 185,000+ applications); Restore Louisiana ($42.3M CDBG-DR post-2016 flood); BP GCCF ($1.65M, 1M+ claims for Presidential Appointee Kenneth Feinberg, 2010-2013); City of New Orleans workers comp TPA ($283K/mo, active); TPSD construction management ($2.96M, 2022-2025, recently completed). DO NOT cite PBGC, TPCIGA, or LIGA without explicit confirmation. Write in an authoritative, specific, relationship-forward tone. Never use generic consulting language.';
 
   try {
     if (action === 'article') {
