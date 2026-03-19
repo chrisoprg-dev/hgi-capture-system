@@ -225,6 +225,29 @@ function ScraperInsights() {
         )
       ),
 
+      // Review Filtered
+      React.createElement('div', { style: card },
+        React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 13, marginBottom: 4 } }, 'Filtered Records — Worth a Second Look'),
+        React.createElement('div', { style: { color: TEXT_D, fontSize: 11, marginBottom: 14 } },
+          '44 records were filtered (OPI below 40). Most are construction/infrastructure — correctly filtered. A few may have scored low due to thin RFP text, not weak fit. Review before discarding.'
+        ),
+        [
+          { title: 'Plaquemines Parish School Board — Roofing Inspection — Disaster Recovery', agency: 'Plaquemines Parish School Board', opi: 25, vertical: 'disaster', note: 'Scored low but tagged disaster. Thin text. Physical roofing, not program mgmt — correctly filtered.' },
+          { title: 'ADA Transition Plan', agency: 'Ascension Parish Government', opi: 35, vertical: 'federal', note: 'OPI 35. ADA compliance consulting — not HGI core. Correctly filtered.' },
+          { title: 'Emergency Catering Services — City of St. George', agency: 'City of St. George', opi: 15, vertical: 'disaster', note: 'Same agency as your active St. George proposal. Catering only — not HGI work. Watch for more St. George RFPs.' },
+          { title: 'Post-Disaster Roadway Clearing — City of St. George', agency: 'City of St. George', opi: 15, vertical: 'disaster', note: 'Second St. George RFP. Physical debris clearing — not HGI. But confirms St. George is actively rebuilding post-DR.' },
+        ].map(function(r) {
+          return React.createElement('div', { key: r.title, style: { padding: '10px 0', borderBottom: '1px solid ' + BORDER } },
+            React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 } },
+              React.createElement('span', { style: { color: TEXT_D, fontSize: 12, fontWeight: 700, flex: 1, marginRight: 12 } }, r.title),
+              React.createElement('span', { style: { color: ORANGE, fontWeight: 700, fontSize: 12 } }, 'OPI ' + r.opi)
+            ),
+            React.createElement('div', { style: { color: TEXT_D, fontSize: 11, opacity: 0.7, marginBottom: 4 } }, r.agency),
+            React.createElement('div', { style: { color: TEXT_D, fontSize: 11, fontStyle: 'italic' } }, r.note)
+          );
+        })
+      ),
+
       // Coverage gaps
       React.createElement('div', { style: card },
         React.createElement('div', { style: { color: GOLD, fontWeight: 700, fontSize: 13, marginBottom: 12 } }, 'Coverage Gaps — Sources Not Yet Active'),
