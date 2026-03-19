@@ -33,7 +33,7 @@ function ScraperInsights() {
 
   // Separate run types
   var apifyRuns = runs.filter(function(r) { return r.source === 'apify_batch' || r.source === 'apify_central_bidding'; });
-  var lapacRuns = runs.filter(function(r) { return r.source && r.source.toLowerCase().indexOf('lapac') >= 0; });
+  var lapacRuns = runs.filter(function(r) { return r.source && (r.source.toLowerCase().indexOf('lapac') >= 0 || r.source === 'LaPAC'); });
   var cronRuns = runs.filter(function(r) { return r.source === 'cron'; });
 
   // New opps over time from run records
