@@ -462,6 +462,98 @@ function PipelineTracker({ goToWorkflow }) {
                       </div>
                     </div>
                   )}
+                  {['submitted','won','lost'].includes(item.stage) && (
+                    <div style={{marginBottom:16,padding:14,background:BG2,borderRadius:6,border:'1px solid ' + (item.outcome === 'won' ? GREEN + '44' : item.outcome === 'lost' ? RED + '44' : '#9B59B644')}}>
+                      <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.08em',marginBottom:10}}>POST-SUBMISSION TRACKING</div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                        <div>
+                          <div style={{color:TEXT_D,fontSize:10,fontWeight:700,marginBottom:4}}>ORAL PRESENTATION DATE</div>
+                          <input
+                            type="text"
+                            defaultValue={item.oral_presentation_date || ''}
+                            placeholder="e.g. April 15, 2026 or TBD"
+                            onBlur={async function(e) {
+                              var val = e.target.value.trim();
+                              if (val !== (item.oral_presentation_date || '')) {
+                                await fetch('/api/opportunities', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: item.id, oral_presentation_date: val}) });
+                                item.oral_presentation_date = val;
+                              }
+                            }}
+                            style={{width:'100%',background:BG,border:'1px solid '+BORDER,borderRadius:4,padding:'6px 8px',color:TEXT,fontFamily:'inherit',fontSize:11}}
+                          />
+                        </div>
+                        <div>
+                          <div style={{color:TEXT_D,fontSize:10,fontWeight:700,marginBottom:4}}>AWARD NOTIFICATION DATE</div>
+                          <input
+                            type="text"
+                            defaultValue={item.award_notification_date || ''}
+                            placeholder="e.g. May 1, 2026 or TBD"
+                            onBlur={async function(e) {
+                              var val = e.target.value.trim();
+                              if (val !== (item.award_notification_date || '')) {
+                                await fetch('/api/opportunities', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: item.id, award_notification_date: val}) });
+                                item.award_notification_date = val;
+                              }
+                            }}
+                            style={{width:'100%',background:BG,border:'1px solid '+BORDER,borderRadius:4,padding:'6px 8px',color:TEXT,fontFamily:'inherit',fontSize:11}}
+                          />
+                        </div>
+                        <div>
+                          <div style={{color:TEXT_D,fontSize:10,fontWeight:700,marginBottom:4}}>OUTCOME</div>
+                          <select
+                            defaultValue={item.outcome || ''}
+                            onChange={async function(e) {
+                              var val = e.target.value;
+                              await fetch('/api/opportunities', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: item.id, outcome: val}) });
+                              item.outcome = val;
+                            }}
+                            style={{width:'100%',background:BG,border:'1px solid '+BORDER,borderRadius:4,padding:'6px 8px',color:TEXT,fontFamily:'inherit',fontSize:11}}
+                          >
+                            <option value="">— Pending —</option>
+                            <option value="won">Won</option>
+                            <option value="lost">Lost</option>
+                            <option value="no_award">No Award Issued</option>
+                            <option value="withdrawn">We Withdrew</option>
+                          </select>
+                        </div>
+                        <div>
+                          <div style={{color:TEXT_D,fontSize:10,fontWeight:700,marginBottom:4}}>RFP DOCUMENT URL</div>
+                          <input
+                            type="text"
+                            defaultValue={item.rfp_document_url || ''}
+                            placeholder="Link to original RFP"
+                            onBlur={async function(e) {
+                              var val = e.target.value.trim();
+                              if (val !== (item.rfp_document_url || '')) {
+                                await fetch('/api/opportunities', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: item.id, rfp_document_url: val}) });
+                                item.rfp_document_url = val;
+                              }
+                            }}
+                            style={{width:'100%',background:BG,border:'1px solid '+BORDER,borderRadius:4,padding:'6px 8px',color:TEXT,fontFamily:'inherit',fontSize:11}}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{color:TEXT_D,fontSize:10,fontWeight:700,marginBottom:4}}>OUTCOME NOTES</div>
+                        <textarea
+                          defaultValue={item.outcome_notes || ''}
+                          placeholder="Who won, why we lost, debrief notes, lessons learned..."
+                          rows={2}
+                          onBlur={async function(e) {
+                            var val = e.target.value.trim();
+                            if (val !== (item.outcome_notes || '')) {
+                              await fetch('/api/opportunities', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: item.id, outcome_notes: val}) });
+                              item.outcome_notes = val;
+                            }
+                          }}
+                          style={{width:'100%',background:BG,border:'1px solid '+BORDER,borderRadius:4,padding:'6px 8px',color:TEXT,fontFamily:'inherit',fontSize:11,resize:'vertical'}}
+                        />
+                      </div>
+                      <div style={{color:TEXT_D,fontSize:10,marginTop:8,fontStyle:'italic'}}>
+                        Fields save automatically on blur. Outcome data feeds OPI calibration after Data Call.
+                      </div>
+                    </div>
+                  )}
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     <Btn small onClick={()=>getStrategy(item)} disabled={aiLoading[item.id]}>{aiLoading[item.id]?"Getting Strategy...":"Get Capture Strategy"}</Btn>
                     <Btn small variant="secondary" onClick={()=>editBtn(item)}>Edit</Btn>
