@@ -152,7 +152,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ exists: records.length > 0 });
     }
 
-    const filters = ["status=eq.active"];
+    const statusFilter = req.query.status || "active";
+    const filters = [`status=eq.${statusFilter}`];
     if (vertical !== "all") filters.push(`vertical=eq.${vertical}`);
     if (state !== "all") filters.push(`state=eq.${state}`);
     if (urgency !== "all") filters.push(`urgency=eq.${urgency}`);
