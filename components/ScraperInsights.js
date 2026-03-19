@@ -94,8 +94,6 @@ function ScraperInsights() {
   // Styles
   var card = { background: BG2, border: '1px solid ' + BORDER, borderRadius: 8, padding: 20, marginBottom: 16 };
   var statBox = { background: BG, border: '1px solid ' + BORDER, borderRadius: 6, padding: '14px 18px', flex: 1, minWidth: 110 };
-  var schemaWarning = { background: '#2a1a00', border: '1px solid ' + ORANGE, borderRadius: 6, padding: 12, marginBottom: 16, fontSize: 11, color: ORANGE, lineHeight: 1.6 };
-
   function tabBtn(id) {
     return {
       padding: '8px 16px', border: 'none', borderRadius: 4, cursor: 'pointer',
