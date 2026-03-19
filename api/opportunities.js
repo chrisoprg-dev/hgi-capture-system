@@ -165,7 +165,7 @@ export default async function handler(req, res) {
       `limit=${limit}`,
     ].filter(Boolean).join("&");
 
-    const opportunities = await supabaseGet(`?${queryParams}`);
+    const opportunities = await supabaseGet(`?${queryParams}&select=*,oral_presentation_date,award_notification_date,outcome,outcome_notes,rfp_document_url`);
 
     const response = { opportunities, total: opportunities.length };
 
