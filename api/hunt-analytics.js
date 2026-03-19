@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const r = await fetch(supabaseUrl + '/rest/v1/hunt_runs?order=run_at.desc&limit=50', { headers: H });
+      const r = await fetch(supabaseUrl + '/rest/v1/hunt_runs?order=run_at.desc&limit=200', { headers: H });
       const data = await r.json();
       
       if (!r.ok) {
