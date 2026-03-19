@@ -75,7 +75,12 @@ function PipelineTracker({ goToWorkflow }) {
             stage: item.stage || 'identified',
             opiScore: item.opi_score,
             addedDate: item.discovered_at,
-            source_url: item.source_url
+            source_url: item.source_url,
+            rfp_document_url: item.rfp_document_url,
+            oral_presentation_date: item.oral_presentation_date,
+            award_notification_date: item.award_notification_date,
+            outcome: item.outcome,
+            outcome_notes: item.outcome_notes,
           }));
           setItems(mappedData);
         }
