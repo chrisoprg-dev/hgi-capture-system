@@ -135,13 +135,6 @@ function ScraperInsights() {
       React.createElement('button', { onClick: loadData, style: { background: 'transparent', border: '1px solid ' + BORDER, color: TEXT_D, borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontSize: 12 } }, 'Refresh')
     ),
 
-    // Schema warning — detailed stats not yet stored
-    React.createElement('div', { style: schemaWarning },
-      React.createElement('strong', null, 'To unlock detailed per-run stats (bids reviewed, filtered, duplicates):'),
-      React.createElement('br', null),
-      'Go to Supabase Dashboard → Table Editor → hunt_runs → Add column: name=notes, type=text, nullable=true. Takes 30 seconds. Stats will flow on next scraper run.'
-    ),
-
     // KPI Row
     React.createElement('div', { style: { display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' } },
       [
