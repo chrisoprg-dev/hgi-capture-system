@@ -379,6 +379,9 @@ export default async function handler(req, res) {
       status: initialStatus,
       discovered_at: now,
       last_updated: now,
+      rfp_document_url: url || '',
+      oral_presentation_date: (() => { const m = (incomingRfpText + ' ' + description).match(/oral.{0,20}presentation.{0,60}?(\w+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i); return m ? m[1] : null; })(),
+      award_notification_date: (() => { const m = (incomingRfpText + ' ' + description).match(/(?:award|notification|contract award|selection).{0,60}?(\w+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i); return m ? m[1] : null; })(),
     };
 
 
