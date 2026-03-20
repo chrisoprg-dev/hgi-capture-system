@@ -189,24 +189,10 @@ export default async function handler(req, res) {
   // ══════════════════════════════════════════════════════════════════════════
   let webIntel = '';
   try {
-    var webR = await fetch('https://hgi-capture-system.vercel.app/api/web-research', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        opportunity_id: opportunity_id,
-        agency: opp.agency,
-        title: opp.title,
-        state: opp.state || 'Louisiana',
-        description: (opp.description || '').slice(0, 500)
-      })
-    });
-    if (webR.ok) {
-      var webData = await webR.json();
-      if (webData.success && webData.summary) {
-        webIntel = webData.summary;
-        results.web_intel_loaded = true;
-        results.web_intel_length = webIntel.length;
-      }
+    webIntel = await webResearch(opp.agency, opp.title, opp.state || 'Louisiana', (opp.description || '').slice(0, 400), opportunity_id);
+    if (webIntel && webIntel.length > 100) {
+      results.web_intel_loaded = true;
+      results.web_intel_length = webIntel.length;
     }
   } catch(e) { results.web_intel_error = e.message; }
 
