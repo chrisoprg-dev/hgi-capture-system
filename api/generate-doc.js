@@ -201,16 +201,16 @@ async function buildBriefingDoc(opp) {
         pRich([{text:'Generated: '+genDate+'  |  OPI: '+opi+'  |  PWIN: '+pwin+'%  |  '+rec,color:GRAY,size:18}],{after:60}),
         blank(100),
 
-        // BADGES
+        // BADGES — all cells must have explicit width (Word requires dual widths on every cell)
         new Table({
           width:{size:9360,type:WidthType.DXA},
           columnWidths:[1300,1300,1000,1000,4760],
           rows:[new TableRow({children:[
-            new TableCell({borders:noBorders,shading:{fill:NAVY,type:ShadingType.CLEAR},margins:{top:60,bottom:60,left:80,right:80},children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:'OPI: '+opi,font:'Arial',size:22,bold:true,color:'FFFFFF'})]})] }),
-            new TableCell({borders:noBorders,shading:{fill:'2E7D32',type:ShadingType.CLEAR},margins:{top:60,bottom:60,left:80,right:80},children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:'PWIN: '+pwin+'%',font:'Arial',size:22,bold:true,color:'FFFFFF'})]})] }),
-            new TableCell({borders:noBorders,shading:{fill:recColor,type:ShadingType.CLEAR},margins:{top:60,bottom:60,left:80,right:80},children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:rec,font:'Arial',size:22,bold:true,color:'FFFFFF'})]})] }),
-            new TableCell({borders:noBorders,shading:{fill:GOLD,type:ShadingType.CLEAR},margins:{top:60,bottom:60,left:80,right:80},children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:'TIER 1',font:'Arial',size:22,bold:true,color:'FFFFFF'})]})] }),
-            new TableCell({borders:noBorders,margins:{top:60,bottom:60,left:200,right:60},children:[new Paragraph({children:[new TextRun({text:'Deadline: '+deadline,font:'Arial',size:20,bold:true,color:NAVY})]})] }),
+            badgeCell('OPI: '+opi, NAVY, 1300),
+            badgeCell('PWIN: '+pwin+'%', '2E7D32', 1300),
+            badgeCell(rec, recColor, 1000),
+            badgeCell('TIER 1', GOLD, 1000),
+            new TableCell({borders:noBorders,width:{size:4760,type:WidthType.DXA},margins:{top:60,bottom:60,left:200,right:60},children:[new Paragraph({children:[new TextRun({text:'Deadline: '+deadline,font:'Arial',size:20,bold:true,color:NAVY})]})] }),
           ]})]
         }),
         blank(140),
