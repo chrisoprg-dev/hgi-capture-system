@@ -1,1 +1,1 @@
-{"replace_entire_file": true, "content": "export const config = { maxDuration: 30 };"}
+export const config = { maxDuration: 30 };
