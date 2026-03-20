@@ -25,7 +25,7 @@ async function searchGrants(kw, debug) {
     if (debug) return { __debug: true, status: r.status, ok: r.ok, body: await r.text() };
     if (!r.ok) return [];
     var d = await r.json();
-    return d.oppHits || d.data || d.results || d.opportunities || [];
+    return (d.data && d.data.oppHits) || d.oppHits || [];
   } catch(e) {
     if (debug) return { __debug: true, error: e.message };
     return [];
