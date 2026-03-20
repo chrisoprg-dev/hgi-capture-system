@@ -238,7 +238,7 @@ export default async function handler(req, res) {
   // ══════════════════════════════════════════════════════════════════════════
   // STEP 6: AUTO-PROPOSAL PACKAGE — Full proposal if RFP present, team briefing if not
   // ══════════════════════════════════════════════════════════════════════════
-  if ((recommendation === 'GO' || recommendation === 'CONDITIONAL GO') && revisedOpi >= 75 && !hasRfpDocument) {
+  if ((recommendation === 'GO' || recommendation === 'CONDITIONAL GO') && revisedOpi >= 70 && !hasRfpDocument) {
     // NO RFP DOCUMENT — Generate team briefing package instead
     try {
       var briefingPackage = await claudeCall(
