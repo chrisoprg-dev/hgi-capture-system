@@ -13,6 +13,7 @@ export default async function handler(req, res) {
   if (req.query && req.query.ping === '1') return res.status(200).json({ status: 'ok', message: 'self-assess endpoint live' });
   if (req.query && req.query.latest === '1') { var latestR = await fetch(SB + '/rest/v1/hunt_runs?source=eq.self_assess&order=run_at.desc&limit=1', { headers: H }); var latestD = await latestR.json(); if (!latestD || latestD.length === 0) return res.status(200).json({ status: 'no_assessments', message: 'No self-assessments recorded yet. Trigger a full run first.' }); var entry = latestD[0]; var parsed = null; try { parsed = JSON.parse(entry.notes); } catch(e) { parsed = { raw: entry.notes }; } return res.status(200).json({ status: 'ok', generated_at: entry.run_at, assessment: parsed }); }
 
+  var isDebug = req.query && req.query.debug === '1';
   try {
     var now = new Date();
     var sevenDaysAgo = new Date(now - 7*24*60*60*1000).toISOString();
