@@ -110,6 +110,10 @@ export default async function handler(req, res) {
     });
 
     var d = await r.json();
+    if (d.type === 'error' || d.error) {
+      var errMsg = (d.error && d.error.message) || JSON.stringify(d).slice(0, 500);
+      await fetch(SB + '/rest/v1/hunt_runs', { method: 'POST', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ source: 'self_assess', status: 'claude_error', run_at: new Date().toISOString(), notes: JSON.stringify({ claude_error: errMsg, http_status: r.status }) }) }).catch(function(){});
+    }
     var assessment = (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
 
     // Store assessment in hunt_runs for async retrieval
