@@ -88,7 +88,7 @@ export default async function handler(req, res) {
       'OPI CALIBRATION: ' + JSON.stringify(opiAccuracy) + '\n\n' +
       'QUALITY GATE RUNS: ' + JSON.stringify(qgSummary) + '\n\n' +
       'KB GAP REPORTS: ' + kbGaps.length + ' active opps have KB gaps. Examples: ' + JSON.stringify(kbGaps.slice(0,3)) + '\n\n' +
-      'KB DOCUMENTS: ' + kbDocs.length + ' total. Extracted: ' + kbDocs.filter(function(d){return d.extracted;}).length + '\n\n' +
+      'KB DOCUMENTS: ' + kbDocs.length + ' total. Extracted: ' + kbDocs.filter(function(d){return d.status==='processed';}).length + '\n\n' +
       'Provide a structured self-assessment with these exact sections:\n\n' +
       '## SYSTEM HEALTH SCORE\nGive the system an overall score 1-10 with one sentence justification.\n\n' +
       '## WHAT IS WORKING\n3-5 specific things the system is doing well based on the data above.\n\n' +
