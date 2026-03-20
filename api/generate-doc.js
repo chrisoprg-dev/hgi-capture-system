@@ -154,6 +154,24 @@ async function buildBriefingDoc(opp) {
         i++; continue;
       }
 
+      // Open item pattern: "1. **TITLE** | Suggested owner: Role | Detail text"
+      if (/^\d+\.\s*\*\*/.test(trimmed) && trimmed.includes('|')) {
+        const numMatch = trimmed.match(/^(\d+)\.\s*/);
+        const num = numMatch ? numMatch[1] : '';
+        const rest = trimmed.replace(/^\d+\.\s*/,'');
+        const parts = rest.split('|').map(p2=>p2.trim());
+        const title = (parts[0]||'').replace(/\*\*/g,'');
+        const owner = parts[1]||'';
+        const detail = parts[2]||'';
+        output.push(new Paragraph({spacing:{before:120,after:40},children:[
+          new TextRun({text:num+'.  ',font:'Arial',size:22,bold:true,color:NAVY}),
+          new TextRun({text:title,font:'Arial',size:22,bold:true,color:BLACK}),
+        ]}));
+        if(owner) output.push(new Paragraph({spacing:{before:0,after:40},indent:{left:360},children:[new TextRun({text:owner,font:'Arial',size:20,italic:true,color:GRAY})]}));
+        if(detail) output.push(new Paragraph({spacing:{before:0,after:100},indent:{left:360},children:[new TextRun({text:detail,font:'Arial',size:20,color:BLACK})]}));
+        i++; continue;
+      }
+
       // Plain paragraph
       output.push(p(trimmed,{after:80}));
       i++;
