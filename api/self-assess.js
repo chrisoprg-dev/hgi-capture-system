@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     // Pull all data in parallel
     var [activeOpps, allOutcomes, recentHunts, qualityGateRuns, kbDocs] = await Promise.all([
-      fetch(SB + '/rest/v1/opportunities?status=eq.active&select=id,title,agency,vertical,opi_score,stage,kb_coverage_gaps,discovered_at,last_updated&order=opi_score.desc&limit=50', { headers: H }).then(r => r.json()).catch(() => []),
+      fetch(SB + '/rest/v1/opportunities?status=eq.active&select=id,title,agency,vertical,opi_score,stage,kb_coverage_gaps,discovered_at,last_updated&order=opi_score.desc&limit=50', { headers: H }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
       fetch(SB + '/rest/v1/opportunities?outcome=not.is.null&select=id,title,agency,vertical,opi_score,outcome,outcome_notes&limit=100', { headers: H }).then(r => r.json()).catch(() => []),
       fetch(SB + '/rest/v1/hunt_runs?order=run_at.desc&limit=200', { headers: H }).then(r => r.json()).catch(() => []),
       fetch(SB + '/rest/v1/hunt_runs?source=eq.quality_gate&order=run_at.desc&limit=20', { headers: H }).then(r => r.json()).catch(() => []),
