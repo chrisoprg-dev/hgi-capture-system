@@ -174,7 +174,26 @@ export default async function handler(req, res) {
   // STEP 4: REVISED OPI SCORE — Now score with real scope and financial data
   // ══════════════════════════════════════════════════════════════════════════
   let revisedOpi = opp.opi_score;
+
+  // CONTENT QUALITY GUARD: Detect blank questionnaire/form templates in rfp_text
+  var skipOpiRescore = false;
+  var rfpCheck = (opp.rfp_text || '').toLowerCase();
+  if (rfpCheck.length > 500) {
+    var adminIndicators = ['disqualification', 'notarized', 'affidavit', 'authorized signature', 'campaign contribution', 'complete this section', 'fill in the', 'check one', 'choice a', 'choice b', 'attach hereto', 'sworn to', 'subscribed'];
+    var scopeIndicators = ['scope of work', 'scope of services', 'deliverables', 'services shall', 'contractor shall', 'consultant shall', 'tasks include', 'evaluation criteria', 'technical approach', 'work plan', 'statement of work'];
+    var adminHits = adminIndicators.filter(function(t) { return rfpCheck.includes(t); }).length;
+    var scopeHits = scopeIndicators.filter(function(t) { return rfpCheck.includes(t); }).length;
+    if (adminHits >= 3 && scopeHits <= 1) {
+      skipOpiRescore = true;
+      results.opi_guard = 'Form template detected (admin:' + adminHits + ' scope:' + scopeHits + '). Preserving OPI ' + opp.opi_score + '.';
+    }
+  }
+
   try {
+    if (skipOpiRescore) {
+      revisedOpi = opp.opi_score;
+      results.steps_completed.push('revised_scoring_skipped');
+    } else {
     const scoreResponse = await claudeCall(
       'Re-score this opportunity for HGI using FULL scope and financial analysis.\n\n' +
       'Title: ' + opp.title + '\nAgency: ' + opp.agency + '\nOriginal OPI: ' + opp.opi_score +
