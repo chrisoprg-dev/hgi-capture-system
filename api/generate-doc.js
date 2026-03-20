@@ -181,7 +181,8 @@ async function buildBriefingDoc(opp) {
         // TITLE
         p(opp.agency||'Agency',{size:20,color:GRAY,after:60}),
         p(opp.title||'Opportunity',{bold:true,size:30,color:NAVY,after:60}),
-        blank(140),
+        pRich([{text:'Generated: '+genDate+'  |  OPI: '+opi+'  |  PWIN: '+pwin+'%  |  '+rec,color:GRAY,size:18}],{after:60}),
+        blank(100),
 
         // BADGES
         new Table({
