@@ -129,5 +129,8 @@ export default async function handler(req, res) {
       assessment
     });
 
-  } catch(e) { return res.status(500).json({ error: e.message }); }
+  } catch(e) {
+    try { await fetch(SB + '/rest/v1/hunt_runs', { method: 'POST', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ source: 'self_assess', status: 'error', run_at: new Date().toISOString(), notes: JSON.stringify({ error: e.message, stack: (e.stack||'').slice(0,500) }) }) }); } catch(le) {}
+    return res.status(500).json({ error: e.message });
+  }
 }
