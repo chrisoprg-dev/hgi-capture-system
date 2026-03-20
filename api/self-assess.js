@@ -100,6 +100,7 @@ export default async function handler(req, res) {
       '## WHAT IS FAILING OR WEAK\n3-5 specific gaps, errors, or underperforming components. Be direct — do not sugarcoat.\n\n' +
       '## OPI CALIBRATION STATUS\nAssess whether OPI scores are likely to be accurate based on available data. What would improve calibration?\n\n' +
       '## KB COVERAGE ASSESSMENT\nWhat is the KB missing? What documents should be added? Which verticals are weak?\n\n' +
+      '## ORGANISM STATUS\nAssess the state of the 20-agent organism. How many agents are live vs partial vs planned? Which partial agents should be prioritized for completion? Which planned agents would unlock the most value? Are any live agents showing errors or degraded performance?\n\n' +
       '## TOP 3 IMPROVEMENT RECOMMENDATIONS\nThe 3 highest-leverage actions to improve system performance this week. Be specific and actionable.\n\n' +
       '## CHRISTOPHER ACTION ITEMS\nWhat does Christopher need to do that the system cannot do itself? (e.g. data call, API keys, outcome recording)';
 
