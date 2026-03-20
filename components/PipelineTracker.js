@@ -392,7 +392,7 @@ function PipelineTracker({ goToWorkflow }) {
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
                     <div>
                       <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>OPPORTUNITY DETAILS</div>
-                      {[["Agency",item.agency],["Type",item.type],["Value",item.value],["Deadline",item.deadline],["Decision",item.decision],["OPI Score",item.opiScore],["Added",item.addedDate?new Date(item.addedDate).toLocaleDateString():""]].concat(item.source_url ? [["Source",item.source_url]] : []).map(([k,v])=>v?(
+                      {[["Agency",item.agency],["Type",item.type],["Value",item.value],["Deadline",item.deadline],["Decision",item.decision],["OPI Score",item.opiScore],["Added",item.addedDate?new Date(item.addedDate).toLocaleDateString():""]].concat(item.source_url ? [["Source",item.source_url]] : []).concat(item.rfp_document_url ? [["Briefing",item.rfp_document_url]] : []).map(([k,v])=>v?(
                         <div key={k} style={{display:"flex",gap:8,marginBottom:4,fontSize:12}}>
                           <span style={{color:TEXT_D,minWidth:80}}>{k}:</span>
                           {k === "Source" ? React.createElement('a', {href: v, target: '_blank', rel: 'noopener', style: {color: '#2980B9', textDecoration: 'underline', fontSize: 12}}, 'View Original RFP ↗') : React.createElement('span', {style: {color: TEXT}}, v)}
