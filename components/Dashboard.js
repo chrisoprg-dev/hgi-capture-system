@@ -4,6 +4,8 @@ function Dashboard({ setActive }) {
   const [loading, setLoading] = useState(true);
   const [time, setTime] = useState(new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}));
   const [exp, setExp] = useState({});
+  const [selfAssess, setSelfAssess] = useState(null);
+  const [registry, setRegistry] = useState(null);
 
   const greeting = () => { const h=new Date().getHours(); return h<12?'Good morning':h<17?'Good afternoon':'Good evening'; };
 
