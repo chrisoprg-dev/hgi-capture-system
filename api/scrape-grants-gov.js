@@ -66,6 +66,11 @@ export default async function handler(req, res) {
   var results = { source: 'grants.gov', started: new Date().toISOString(), keywords_searched: 0, found: 0, ingested: 0, skipped: 0, errors: 0, details: [] };
   var seenIds = new Set();
   var allOpps = [];
+  var isDebug = req.query && req.query.debug === '1';
+  if (isDebug) {
+    var debugResult = await searchGrants(KEYWORDS[0], true);
+    return res.status(200).json({ debug: true, keyword: KEYWORDS[0], api_url: GRANTS_API, result: debugResult });
+  }
   for (var i = 0; i < KEYWORDS.length; i++) {
     results.keywords_searched++;
     var hits = await searchGrants(KEYWORDS[i]);
