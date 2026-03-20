@@ -93,7 +93,7 @@ export default async function handler(req, res) {
     var prompt = 'Generate a weekly self-assessment digest for the HGI Capture System. Be honest, specific, and directive. This is for Christopher Oney (President, HGI) to understand what the system is doing well and where it needs improvement.\n\nDATA AS OF ' + now.toISOString() + ':\n\n' +
       'PIPELINE: ' + activeOpps.length + ' active opportunities. Vertical mix: ' + JSON.stringify(verticalCounts) + '. Stage mix: ' + JSON.stringify(stageCounts) + '.\n\n' +
       'STALE HIGH-OPI (70+, no activity 5+ days): ' + JSON.stringify(staleHighOpi) + '\n\n' +
-      'SCRAPER HEALTH: ' + JSON.stringify(scraperHealth) + '\n\n' +
+      'AGENT HEALTH (auto-discovered from hunt_runs — every agent that logs activity appears here, including error rates): ' + JSON.stringify(scraperHealth) + '\n\n' +
       'OPI CALIBRATION: ' + JSON.stringify(opiAccuracy) + '\n\n' +
       'QUALITY GATE RUNS: ' + JSON.stringify(qgSummary) + '\n\n' +
       'KB GAP REPORTS: ' + kbGaps.length + ' active opps have KB gaps. Examples: ' + JSON.stringify(kbGaps.slice(0,3)) + '\n\n' +
