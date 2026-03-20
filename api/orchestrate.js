@@ -198,6 +198,7 @@ export default async function handler(req, res) {
     researchBrief = await claudeCall(
       'Capture intelligence brief for HGI. You have the scope and financial analysis — use them.\n\n' +
       'Opportunity: ' + opp.title + '\nAgency: ' + opp.agency + '\nState: ' + (opp.state || 'LA') + ' (IMPORTANT: Use the correct state. If agency is in Louisiana, research the Louisiana entity, NOT any same-named entity in another state.)' + '\nOriginal OPI: ' + opp.opi_score +
+      (webIntel ? '\n\nLIVE WEB INTELLIGENCE (verified via real-time web search — use this over training data for agency facts, incumbent, budget, incorporation dates):\n' + webIntel.slice(0, 2000) : '') +
       '\nSCOPE:\n' + scopeAnalysis.slice(0, 1200) +
       '\nFINANCIAL:\n' + financialAnalysis.slice(0, 1200) +
       '\nHGI KB:\n' + kbContext.slice(0, 1500) +
