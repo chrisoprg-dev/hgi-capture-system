@@ -362,6 +362,12 @@ export default async function handler(req, res) {
     } catch(e) { results.proposal_error = e.message; }
   }
 
+  // Store KB coverage gaps on opportunity record for visibility
+  if (kbGapReport) {
+    try { await patchOpp(opportunity_id, { kb_coverage_gaps: kbGapReport }); } catch(e) {}
+    results.kb_gap_report = kbGapReport;
+  }
+
   results.completed_at = new Date().toISOString();
   results.duration_ms = new Date(results.completed_at) - new Date(results.started_at);
 
