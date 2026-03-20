@@ -26,7 +26,8 @@
     "api/scrape-grants-gov.js": { "maxDuration": 60 },
     "api/quality-gate.js": { "maxDuration": 60 },
     "api/outcome.js": { "maxDuration": 30 },
-    "api/self-assess.js": { "maxDuration": 60 }
+    "api/self-assess.js": { "maxDuration": 120 },
+    "api/agent-registry.js": { "maxDuration": 30 }
   },
   "crons": [{ "path": "/api/hunt", "schedule": "*/6 * * * *" }, { "path": "/api/process-kb", "schedule": "*/6 * * * *" }, { "path": "/api/scrape-grants-gov", "schedule": "0 6,18 * * *" }]
 }
