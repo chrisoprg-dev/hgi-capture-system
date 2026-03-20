@@ -28,14 +28,23 @@ export default async function handler(req, res) {
       fetch(SB + '/rest/v1/knowledge_documents?select=id,filename,vertical,status,chunk_count&limit=50', { headers: H }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => [])
     ]);
 
-    // SCRAPER HEALTH
-    var scraperHealth = {};
-    var sources = ['apify_central_bidding', 'lapac', 'grants_gov', 'web_research', 'quality_gate', 'outcome', 'orchestrator'];
-    sources.forEach(function(src) {
-      var runs = recentHunts.filter(function(h) { return (h.source||'').includes(src); });
-      var last7 = runs.filter(function(h) { return h.run_at > sevenDaysAgo; });
-      scraperHealth[src] = { total_runs: runs.length, runs_last_7d: last7.length, last_run: runs[0] ? runs[0].run_at : null };
+    // AGENT HEALTH — dynamically discovers ALL sources from hunt_runs. No hardcoded list.
+    // When a new agent starts logging to hunt_runs, it appears here automatically.
+    var agentHealth = {};
+    var ignoreSources = ['batch_counter', 'self_assess'];
+    var discoveredSources = {};
+    recentHunts.forEach(function(h) {
+      var src = h.source || 'unknown';
+      if (ignoreSources.indexOf(src) === -1) discoveredSources[src] = true;
     });
+    Object.keys(discoveredSources).forEach(function(src) {
+      var runs = recentHunts.filter(function(h) { return h.source === src; });
+      var last7 = runs.filter(function(h) { return h.run_at > sevenDaysAgo; });
+      var errors = runs.filter(function(h) { return (h.status||'').includes('error') || (h.status||'').includes('fail'); });
+      var errors7d = errors.filter(function(h) { return h.run_at > sevenDaysAgo; });
+      agentHealth[src] = { total_runs: runs.length, runs_last_7d: last7.length, errors_last_7d: errors7d.length, error_rate_7d: last7.length > 0 ? Math.round(errors7d.length / last7.length * 100) : 0, last_run: runs[0] ? runs[0].run_at : null, last_status: runs[0] ? runs[0].status : null };
+    });
+    var scraperHealth = agentHealth;
 
     // PIPELINE HEALTH
     var verticalCounts = {};
