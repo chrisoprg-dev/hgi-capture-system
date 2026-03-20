@@ -123,7 +123,7 @@ export default async function handler(req, res) {
     var assessment = (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
 
     // Store assessment in hunt_runs for async retrieval
-    var assessData = JSON.stringify({ assessment: assessment, data: { pipeline_active: activeOpps.length, outcomes_recorded: allOutcomes.length, stale_high_opi: staleHighOpi.length, kb_gaps: kbGaps.length, scraper_health: scraperHealth, opi_calibration: opiAccuracy, quality_gate_summary: qgSummary } });
+    var assessData = JSON.stringify({ assessment: assessment, data: { pipeline_active: activeOpps.length, outcomes_recorded: allOutcomes.length, stale_high_opi: staleHighOpi.length, kb_gaps: kbGaps.length, organism: agentSummary, agents: agentDetails, opi_calibration: opiAccuracy, quality_gate_summary: qgSummary } });
     try {
       await fetch(SB + '/rest/v1/hunt_runs', {
         method: 'POST',
