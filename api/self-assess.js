@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     }
 
     // KB GAPS (from active opps that have gap reports)
-    var kbGaps = activeOpps.filter(function(o) { return o.kb_coverage_gaps && o.kb_coverage_gaps.includes('GAPS:'); }).map(function(o) { return { title: o.title, gap: o.kb_coverage_gaps }; });
+    var kbGaps = [];
 
     // QUALITY GATE SUMMARY
     var qgSummary = { runs: qualityGateRuns.length, fails: 0, conditionals: 0, passes: 0 };
