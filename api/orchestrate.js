@@ -212,6 +212,7 @@ export default async function handler(req, res) {
       results.original_opi = opp.opi_score;
     }
     results.steps_completed.push('revised_scoring');
+    } // end else (not skipOpiRescore)
   } catch(e) { results.scoring_error = e.message; }
 
   // ══════════════════════════════════════════════════════════════════════════
