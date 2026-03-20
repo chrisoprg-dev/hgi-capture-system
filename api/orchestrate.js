@@ -236,8 +236,43 @@ export default async function handler(req, res) {
   } catch(e) { results.winnability_error = e.message; }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // STEP 6: AUTO-PROPOSAL PACKAGE — Generate complete proposal from RFP
+  // STEP 6: AUTO-PROPOSAL PACKAGE — Full proposal if RFP present, team briefing if not
   // ══════════════════════════════════════════════════════════════════════════
+  if ((recommendation === 'GO' || recommendation === 'CONDITIONAL GO') && revisedOpi >= 75 && !hasRfpDocument) {
+    // NO RFP DOCUMENT — Generate team briefing package instead
+    try {
+      var briefingPackage = await claudeCall(
+        'Generate a COMPLETE team briefing package for HGI leadership to evaluate and act on this opportunity.\n\n' +
+        'OPPORTUNITY: ' + opp.title + '\nAGENCY: ' + opp.agency + '\nDEADLINE: ' + (opp.due_date || 'TBD') + '\nOPI: ' + revisedOpi + ' | PWIN: ' + pwin + '% | ' + recommendation + '\nSOURCE: ' + (opp.source_url || 'N/A') + '\n\n' +
+        'SCOPE ANALYSIS:\n' + scopeAnalysis.slice(0, 2000) + '\n\n' +
+        'FINANCIAL ANALYSIS:\n' + financialAnalysis.slice(0, 2000) + '\n\n' +
+        'COMPETITIVE INTELLIGENCE:\n' + researchBrief.slice(0, 2000) + '\n\n' +
+        'HGI KB:\n' + kbContext.slice(0, 1000) + '\n\n' +
+        'Generate the following sections for the team briefing:\n\n' +
+        '## OPPORTUNITY SNAPSHOT\n' +
+        'One paragraph: what this is, why it matters, deadline, OPI, PWIN, recommendation. Plain English.\n\n' +
+        '## EVALUATION CRITERIA SUMMARY\n' +
+        'Table: Criterion | Points | HGI Projected Score | Notes. Include honest projected score for each criterion.\n\n' +
+        '## WHY HGI WINS\n' +
+        'Top 3 differentiators mapped to specific evaluation criteria. Be concrete — cite real HGI past performance by name and value.\n\n' +
+        '## COMPETITIVE THREATS\n' +
+        'Who will submit and why they are dangerous. Be specific about their strengths vs. HGI weaknesses.\n\n' +
+        '## FINANCIAL SUMMARY\n' +
+        'Estimated contract value (LOW/MID/HIGH), base period only. Staffing approach. Flag any margin concerns honestly.\n\n' +
+        '## OPEN ITEMS — TEAM MUST CONFIRM\n' +
+        'Numbered list of every item that must be confirmed before submission: certifications needed, personnel to assign, past performance references to pull, documents to gather. Flag GPC certification specifically if the solicitation mentions it. Flag any incumbent or relationship information needed. Be specific about who on the HGI team owns each item.\n\n' +
+        '## REQUIRED ACTIONS THIS WEEK\n' +
+        'Day-by-day action plan from today through submission. Assign each action to a specific HGI team member by name where possible (Lou Resweber, Candy LeBlanc Dottolo, Vanessa James, Adaan Uzzaman). Include: relationship outreach, document gathering, draft sections, internal review, submission.\n\n' +
+        '## SUBMISSION REQUIREMENTS\n' +
+        'How to submit, where, what format, what exhibits are required. Note anything unusual.',
+        'You are HGI senior capture manager preparing a briefing for the President and leadership team. Be direct and honest. Flag risks clearly. Use real HGI past performance: Road Home $13B zero misappropriation, Restore Louisiana $42.3M, BP GCCF 1M+ claims, TPSD $2.96M completed 2022-2025, St. John Sheriff $788K, City of New Orleans WC TPA $283K/month active, SWBNO $200K/month active. Do not fabricate past performance. Do not sugarcoat risks.', 4000
+      );
+      await patchOpp(opportunity_id, { staffing_plan: briefingPackage });
+      await logEvent('proposal.briefing_generated', opportunity_id, opp.title, { type: 'team_briefing', auto: true });
+      results.steps_completed.push('team_briefing');
+    } catch(e) { results.briefing_error = e.message; }
+  }
+
   if ((recommendation === 'GO' || recommendation === 'CONDITIONAL GO') && revisedOpi >= 75 && hasRfpDocument) {
     try {
       // Parse the RFP to extract evaluation criteria, required sections, and key personnel
