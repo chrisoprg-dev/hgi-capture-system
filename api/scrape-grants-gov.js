@@ -1,1 +1,93 @@
-{"replace_entire_file": true, "content": "// api/scrape-grants-gov.js — Grants.gov Federal Grant Opportunity Scraper\n// PUBLIC API — No authentication required\n// Endpoint: https://api.grants.gov/v1/api/search2 (POST)\n// Searches for HGI-relevant federal grant opportunities across all agencies\nexport const config = { maxDuration: 60 };\n\nvar INTAKE_URL = 'https://hgi-capture-system.vercel.app/api/intake';\nvar GRANTS_API = 'https://api.grants.gov/v1/api/search2';\nvar INTAKE_SECRET = process.env.INTAKE_SECRET;\n\n// HGI-relevant keyword sets mapped to verticals\nvar KEYWORD_SETS = [\n  { keywords: 'disaster recovery program management', vertical: 'disaster' },\n  { keywords: 'CDBG-DR administration', vertical: 'disaster' },\n  { keywords: 'FEMA public assistance', vertical: 'disaster' },\n  { keywords: 'hazard mitigation grant', vertical: 'disaster' },\n  { keywords: 'housing recovery program', vertical: 'disaster' },\n  { keywords: 'claims administration third party', vertical: 'tpa' },\n  { keywords: 'workers compensation administration', vertical: 'tpa' },\n  { keywords: 'grant management administration services', vertical: 'grant' },\n  { keywords: 'workforce development WIOA', vertical: 'workforce' },\n  { keywords: 'public housing authority management', vertical: 'housing' },\n  { keywords: 'program administration professional services', vertical: 'general' },\n];\n\nasync function searchGrants(keyword) {\n  try {\n    var r = await fetch(GRANTS_API, {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({\n        keyword: keyword,\n        oppStatuses: ['posted', 'forecasted'],\n        rows: 10,\n        sortBy: 'openDate|desc'\n      })\n    });\n    if (!r.ok) return [];\n    var data = await r.json();\n    return data.oppHits || [];\n  } catch(e) {\n    console.warn('Grants.gov search failed for: ' + keyword, e.message);\n    return [];\n  }\n}\n\nasync function sendToIntake(opp, vertical) {\n  try {\n    var title = opp.title || opp.oppTitle || 'Untitled Federal Grant';\n    var agency = opp.agency || opp.agencyName || 'Federal Agency';\n    var oppNumber = opp.number || opp.oppNumber || opp.id || '';\n    var closeDate = opp.closeDate || opp.applicationDeadline || '';\n    var openDate = opp.openDate || opp.postedDate || '';\n    var description = opp.description || opp.synopsis || '';\n    var oppId = opp.id || opp.oppId || oppNumber;\n\n    var body = {\n      source: 'grants.gov',\n      source_id: 'grants-' + (oppId || title.replace(/[^a-zA-Z0-9]/g, '-').slice(0, 60)),\n      title: title,\n      agency: agency,\n      url: 'https://www.grants.gov/search-results-detail/' + oppId,\n      posted_date: openDate,\n      response_deadline: closeDate,\n      estimated_value: opp.awardCeiling ? (String.fromCharCode(36) + opp.awardCeiling.toLocaleString()) : '',\n      state: 'Federal',\n      description: description.slice(0, 2000),\n      rfp_text: description.slice(0, 10000),\n      intake_secret: INTAKE_SECRET\n    };\n\n    var r = await fetch(INTAKE_URL, {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json', 'x-intake-secret': INTAKE_SECRET },\n      body: JSON.stringify(body)\n    });\n    var result = await r.json();\n    return { title: title, status: result.success ? 'ingested' : (result.skipped ? 'skipped' : 'failed'), opi: result.opi_score, reason: result.reason };\n  } catch(e) {\n    return { title: opp.title || 'unknown', status: 'error', error: e.message };\n  }\n}\n\nexport default async function handler(req, res) {\n  res.setHeader('Access-Control-Allow-Origin', '*');\n  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');\n  if (req.method === 'OPTIONS') return res.status(200).end();\n\n  var results = { source: 'grants.gov', started: new Date().toISOString(), keywords_searched: 0, opportunities_found: 0, ingested: 0, skipped: 0, errors: 0, details: [] };\n\n  // Deduplicate across keyword sets\n  var seenIds = new Set();\n  var allOpps = [];\n\n  for (var ks of KEYWORD_SETS) {\n    results.keywords_searched++;\n    var hits = await searchGrants(ks.keywords);\n    for (var hit of hits) {\n      var id = hit.id || hit.oppId || hit.number || '';\n      if (id && !seenIds.has(id)) {\n        seenIds.add(id);\n        allOpps.push({ opp: hit, vertical: ks.vertical });\n      }\n    }\n  }\n\n  results.opportunities_found = allOpps.length;\n\n  // Send to intake (limit to 20 per run to avoid overwhelming)\n  var batch = allOpps.slice(0, 20);\n  for (var item of batch) {\n    var intakeResult = await sendToIntake(item.opp, item.vertical);\n    results.details.push(intakeResult);\n    if (intakeResult.status === 'ingested') results.ingested++;\n    else if (intakeResult.status === 'skipped') results.skipped++;\n    else results.errors++;\n  }\n\n  results.completed = new Date().toISOString();\n  results.duration_ms = new Date(results.completed) - new Date(results.started);\n\n  // Log the run\n  try {\n    var SUPABASE_URL = process.env.SUPABASE_URL;\n    var SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;\n    await fetch(SUPABASE_URL + '/rest/v1/hunt_runs', {\n      method: 'POST',\n      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },\n      body: JSON.stringify({ source: 'grants_gov', status: 'found:' + results.opportunities_found + '|ingested:' + results.ingested + '|skipped:' + results.skipped, run_at: new Date().toISOString(), opportunities_found: results.ingested })\n    });\n  } catch(e) {}\n\n  return res.status(200).json(results);\n}"}
+export const config = { maxDuration: 60 };
+var INTAKE_URL = 'https://hgi-capture-system.vercel.app/api/intake';
+var GRANTS_API = 'https://api.grants.gov/v1/api/search2';
+var INTAKE_SECRET = process.env.INTAKE_SECRET;
+var KEYWORDS = [
+  'disaster recovery program management',
+  'CDBG-DR administration',
+  'FEMA public assistance',
+  'hazard mitigation grant program',
+  'housing recovery program administration',
+  'claims administration third party',
+  'workers compensation administration',
+  'grant management administration services',
+  'workforce development WIOA',
+  'public housing authority management',
+  'program administration professional services'
+];
+async function searchGrants(kw) {
+  try {
+    var r = await fetch(GRANTS_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword: kw, oppStatuses: ['posted', 'forecasted'], rows: 10, sortBy: 'openDate|desc' })
+    });
+    if (!r.ok) return [];
+    var d = await r.json();
+    return d.oppHits || [];
+  } catch(e) { return []; }
+}
+async function sendToIntake(opp) {
+  try {
+    var title = opp.title || opp.oppTitle || 'Untitled Grant';
+    var agency = opp.agency || opp.agencyName || 'Federal Agency';
+    var oppId = opp.id || opp.oppId || opp.number || '';
+    var body = {
+      source: 'grants.gov',
+      source_id: 'grants-' + (oppId || title.replace(/[^a-zA-Z0-9]/g, '-').slice(0, 60)),
+      title: title,
+      agency: agency,
+      url: 'https://www.grants.gov/search-results-detail/' + oppId,
+      posted_date: opp.openDate || '',
+      response_deadline: opp.closeDate || '',
+      estimated_value: opp.awardCeiling ? (String.fromCharCode(36) + Number(opp.awardCeiling).toLocaleString()) : '',
+      state: 'Federal',
+      description: (opp.description || opp.synopsis || '').slice(0, 2000),
+      rfp_text: (opp.description || opp.synopsis || '').slice(0, 10000),
+      intake_secret: INTAKE_SECRET
+    };
+    var r = await fetch(INTAKE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-intake-secret': INTAKE_SECRET },
+      body: JSON.stringify(body)
+    });
+    var res2 = await r.json();
+    return { title: title, status: res2.success ? 'ingested' : (res2.skipped ? 'skipped' : 'failed'), opi: res2.opi_score };
+  } catch(e) { return { title: 'error', status: 'error', error: e.message }; }
+}
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  var results = { source: 'grants.gov', started: new Date().toISOString(), keywords_searched: 0, found: 0, ingested: 0, skipped: 0, errors: 0, details: [] };
+  var seenIds = new Set();
+  var allOpps = [];
+  for (var i = 0; i < KEYWORDS.length; i++) {
+    results.keywords_searched++;
+    var hits = await searchGrants(KEYWORDS[i]);
+    for (var j = 0; j < hits.length; j++) {
+      var id = hits[j].id || hits[j].oppId || hits[j].number || '';
+      if (id && !seenIds.has(id)) { seenIds.add(id); allOpps.push(hits[j]); }
+    }
+  }
+  results.found = allOpps.length;
+  var batch = allOpps.slice(0, 20);
+  for (var k = 0; k < batch.length; k++) {
+    var ir = await sendToIntake(batch[k]);
+    results.details.push(ir);
+    if (ir.status === 'ingested') results.ingested++;
+    else if (ir.status === 'skipped') results.skipped++;
+    else results.errors++;
+  }
+  results.completed = new Date().toISOString();
+  try {
+    var SB = process.env.SUPABASE_URL;
+    var SK = process.env.SUPABASE_SERVICE_KEY;
+    await fetch(SB + '/rest/v1/hunt_runs', {
+      method: 'POST',
+      headers: { 'apikey': SK, 'Authorization': 'Bearer ' + SK, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ source: 'grants_gov', status: 'found:' + results.found + '|in:' + results.ingested + '|skip:' + results.skipped, run_at: new Date().toISOString(), opportunities_found: results.ingested })
+    });
+  } catch(e) {}
+  return res.status(200).json(results);
+}
