@@ -26,8 +26,9 @@ async function buildBriefingDoc(opp) {
   const sectionHdr=(text)=>new Paragraph({spacing:{before:280,after:140},shading:{fill:NAVY,type:ShadingType.CLEAR},children:[new TextRun({text:'  '+text,font:'Arial',size:24,bold:true,color:'FFFFFF'})]});
   const subHdr=(text)=>new Paragraph({spacing:{before:180,after:80},children:[new TextRun({text,font:'Arial',size:22,bold:true,color:NAVY})]});
   const bullet=(text,opts={})=>new Paragraph({spacing:{before:0,after:opts.after??80},numbering:{reference:'bullets',level:0},children:[new TextRun({text:text??'',font:'Arial',size:opts.size??22,bold:opts.bold??false,color:opts.color??BLACK})]});
-  const cell=(text,opts={})=>new TableCell({borders,width:opts.width?{size:opts.width,type:WidthType.DXA}:undefined,shading:{fill:opts.fill||'FFFFFF',type:ShadingType.CLEAR},margins:{top:80,bottom:80,left:100,right:100},children:[new Paragraph({alignment:opts.align??AlignmentType.LEFT,children:[new TextRun({text:text??'',font:'Arial',size:opts.size??18,bold:opts.bold??false,color:opts.color??BLACK,italics:opts.italic??false})]})]});
-  const hCell=(text,w)=>new TableCell({borders,width:{size:w,type:WidthType.DXA},shading:{fill:NAVY,type:ShadingType.CLEAR},margins:{top:80,bottom:80,left:100,right:100},children:[new Paragraph({children:[new TextRun({text,font:'Arial',size:18,bold:true,color:'FFFFFF'})]})]});
+  // CRITICAL: ALL cells must have explicit width (WidthType.DXA) — Word requires dual widths on every cell
+  const cell=(text,opts={})=>new TableCell({borders,width:{size:opts.width||1000,type:WidthType.DXA},shading:{fill:opts.fill||'FFFFFF',type:ShadingType.CLEAR},margins:{top:80,bottom:80,left:100,right:100},children:[new Paragraph({alignment:opts.align??AlignmentType.LEFT,children:[new TextRun({text:text??'',font:'Arial',size:opts.size??18,bold:opts.bold??false,color:opts.color??BLACK,italics:opts.italic??false})]})]});
+  const badgeCell=(text,fill,w)=>new TableCell({borders:noBorders,width:{size:w,type:WidthType.DXA},shading:{fill,type:ShadingType.CLEAR},margins:{top:60,bottom:60,left:80,right:80},children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text,font:'Arial',size:22,bold:true,color:'FFFFFF'})]})]});
 
   // Parse briefing content from staffing_plan field
   const briefing = opp.staffing_plan || '';
