@@ -353,7 +353,7 @@ export default async function handler(req, res) {
         'List the formal written questions to submit before the question deadline. Each question should reference the specific RFP section it relates to.\n\n' +
         '## 8. SUBMISSION TIMELINE\n' +
         'Create a day-by-day timeline from today through submission deadline showing every milestone: question submission, team assignments, draft sections, internal review, red team, final assembly, submission.',
-        'You are HGI senior proposal manager. Generate a COMPLETE submission-ready proposal package. Use real HGI past performance only: Road Home $12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 28 years, Orleans Parish School Board 22 years, City of New Orleans WC TPA. Every section must directly address the RFP evaluation criteria.', 4000
+        'You are HGI senior proposal manager. Generate a COMPLETE submission-ready proposal package. CONFIRMED PAST PERFORMANCE ONLY: Road Home Program $67M direct/$13B+ program zero misappropriation, HAP $950M, Restore Louisiana $42.3M CDBG-DR, TPSD $2.96M construction mgmt 2022-2025 (completed), St. John Sheriff $788K, Rebuild NJ $67.7M, BP GCCF $1.65M 1M+ claims Kenneth Feinberg, City of New Orleans WC TPA $283K/month (active), SWBNO billing appeals $200K/month (active). Do NOT list PBGC, Orleans Parish School Board, LIGA, or TPCIGA without explicit confirmation. Do NOT fabricate past performance. PRICING: Build all rates specific to this RFP — do not copy a rate card. STAFFING: Build staffing plan from this RFP required positions — do not use generic templates. Every section must directly address the RFP evaluation criteria.', 4000
       );
 
       await patchOpp(opportunity_id, { staffing_plan: proposalPackage });
