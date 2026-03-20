@@ -45,15 +45,29 @@ export default async function handler(req, res) {
 
   const results = { opportunity_id, steps_completed: [], started_at: new Date().toISOString() };
 
-  // Load KB for this vertical
+  // Load KB with intelligent reranking — passes opportunity context for smart chunk selection
   let kbContext = '';
+  let kbGapReport = '';
   try {
+    var kbBody = {
+      vertical: opp.vertical || 'disaster',
+      max_chunks: 10,
+      opportunity_text: (opp.title || '') + ' | ' + (opp.agency || '') + ' | ' + (opp.description || '').slice(0, 1500) + ' | ' + (opp.rfp_text || '').slice(0, 2000),
+      eval_criteria: (opp.description || '').slice(0, 500),
+      step: 'scope'
+    };
     const kbR = await fetch('https://hgi-capture-system.vercel.app/api/knowledge-query', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ vertical: opp.vertical || 'disaster', max_chunks: 6 })
+      body: JSON.stringify(kbBody)
     });
-    if (kbR.ok) { const kbData = await kbR.json(); kbContext = kbData.prompt_injection || ''; }
-  } catch(e) {}
+    if (kbR.ok) {
+      const kbData = await kbR.json();
+      kbContext = kbData.prompt_injection || '';
+      kbGapReport = kbData.gap_report || '';
+      results.kb_smart_mode = kbData.smart_mode || false;
+      results.kb_chunks_used = kbData.chunk_count || 0;
+    }
+  } catch(e) { results.kb_error = e.message; }
 
   // Fetch source page for more detail — use authenticated fetcher for Central Bidding
   let sourceContent = '';
