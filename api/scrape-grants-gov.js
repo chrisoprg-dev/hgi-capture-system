@@ -20,7 +20,7 @@ async function searchGrants(kw, debug) {
     var r = await fetch(GRANTS_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword: kw, oppStatuses: ['posted', 'forecasted'], rows: 10, sortBy: 'openDate|desc' })
+      body: JSON.stringify({ keyword: kw, rows: 10, sortBy: 'openDate|desc' })
     });
     if (debug) return { __debug: true, status: r.status, ok: r.ok, body: await r.text() };
     if (!r.ok) return [];
