@@ -102,7 +102,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 2500,
         system: 'You are the HGI Capture System self-awareness module. Your job is to honestly assess your own performance. Use the live data provided. Be specific — cite actual numbers from the data. Do not be generic. Flag real problems. The President needs accurate system intelligence, not flattery.',
         messages: [{ role: 'user', content: prompt }]
