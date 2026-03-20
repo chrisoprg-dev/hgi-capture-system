@@ -277,7 +277,9 @@ const crawler = new PlaywrightCrawler({
                 'council', 'planning', 'citizens',
                 // Federal Programs
                 'federal program', 'program administration', 'grant management',
-                'program management', 'grant administration'
+                'program management', 'grant administration',
+                'pre-award', 'grant services', 'grant writing', 'grant research',
+                'grant support', 'grant consulting', 'grant application'
             ];
             const TIER2_KEYWORDS = [
                 // Infrastructure / Construction Management
