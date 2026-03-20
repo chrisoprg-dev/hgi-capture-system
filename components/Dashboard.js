@@ -117,6 +117,31 @@ function Dashboard({ setActive }) {
         ))}
       </div>
 
+      {(selfAssess||registry)&&(
+        React.createElement('div',{style:{marginBottom:20}},
+          React.createElement('div',{className:'card',style:{background:BG2,border:'1px solid '+GOLD+'33',borderRadius:8,padding:'16px 20px'}},
+            React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}},
+              React.createElement('div',{style:{color:GOLD,fontWeight:700,fontSize:13,letterSpacing:'0.08em'}},'\uD83E\uDDE0 ORGANISM STATUS'),
+              registry&&React.createElement('div',{style:{display:'flex',gap:8}},
+                React.createElement('span',{style:{background:GREEN+'22',color:GREEN,padding:'2px 8px',borderRadius:4,fontSize:11,fontWeight:700}},registry.summary.live+' LIVE'),
+                React.createElement('span',{style:{background:ORANGE+'22',color:ORANGE,padding:'2px 8px',borderRadius:4,fontSize:11,fontWeight:700}},registry.summary.partial+' PARTIAL'),
+                React.createElement('span',{style:{background:TEXT_D+'22',color:TEXT_D,padding:'2px 8px',borderRadius:4,fontSize:11,fontWeight:700}},registry.summary.planned+' PLANNED')
+              )
+            ),
+            registry&&React.createElement('div',{style:{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}},
+              registry.agents.map(function(a){return React.createElement('div',{key:a.id,title:a.name+': '+a.notes,style:{width:10,height:10,borderRadius:2,background:a.status==='live'?GREEN:a.status==='partial'?ORANGE:BORDER}});})
+            ),
+            selfAssess&&selfAssess.assessment&&React.createElement('div',null,
+              React.createElement('div',{style:{color:TEXT,fontSize:13,lineHeight:1.7,maxHeight:120,overflow:'hidden',whiteSpace:'pre-wrap'}},
+                (selfAssess.assessment.assessment||'').split('\n').slice(0,8).join('\n')
+              ),
+              React.createElement('div',{style:{color:TEXT_D,fontSize:10,marginTop:8}},'Last assessed: '+new Date(selfAssess.generated_at).toLocaleString())
+            ),
+            !selfAssess&&React.createElement('div',{style:{color:TEXT_D,fontSize:12}},'No self-assessment yet. The organism has not checked itself.')
+          )
+        )
+      )}
+
       {intel?.new_declarations?.length>0&&(
         <Card style={{marginBottom:20,border:`2px solid ${RED}44`,background:RED+'08'}}>
           <div style={{color:RED,fontWeight:700,fontSize:13,marginBottom:10}}>🚨 NEW DISASTER DECLARATIONS — HGI RESPONSE REQUIRED</div>
