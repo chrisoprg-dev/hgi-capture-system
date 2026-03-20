@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       fetch(SB + '/rest/v1/opportunities?outcome=not.is.null&select=id,title,agency,vertical,opi_score,outcome,outcome_notes&limit=100', { headers: H }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
       fetch(SB + '/rest/v1/hunt_runs?order=run_at.desc&limit=200', { headers: H }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
       fetch(SB + '/rest/v1/hunt_runs?source=eq.quality_gate&order=run_at.desc&limit=20', { headers: H }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
-      fetch(SB + '/rest/v1/knowledge_docs?select=id,title,vertical,extracted&limit=50', { headers: H }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => [])
+      fetch(SB + '/rest/v1/knowledge_documents?select=id,filename,vertical,status,chunk_count&limit=50', { headers: H }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => [])
     ]);
 
     // SCRAPER HEALTH
