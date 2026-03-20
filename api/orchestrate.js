@@ -340,9 +340,9 @@ export default async function handler(req, res) {
         '## 1. COMPLIANCE MATRIX\n' +
         'Map every RFP requirement to where it is addressed in the proposal. Format: Requirement | Section | Status (Compliant/Partial/Gap)\n\n' +
         '## 2. KEY PERSONNEL ASSIGNMENTS\n' +
-        'Map each RFP-required role to the HGI position title and rate that fills it. Do NOT assign specific people by name — leave all personnel as TBD. Format: RFP Role | HGI Title | HGI Rate | Personnel: TBD | Justification. Use the HGI rate card: Principal $180, Program Director $165, SME $155, Sr Grant Mgr $150, Grant Mgr $120, Sr PM $150, PM $140, Grant Writer $105, Cost Estimator $125, Appeals Specialist $145, Admin Support $65.\n\n' +
+        'Map each RFP-required role to the HGI position title that fills it. Do NOT assign specific people by name — leave all personnel as TBD. Format: RFP Role | HGI Title | Proposed Rate | Personnel: TBD | Justification. CRITICAL PRICING RULE: Do NOT use a fixed rate card. Build rates specific to THIS RFP by starting from the RFP required positions, referencing the HGI KB rate card as ONE data point, and adjusting based on: (1) the evaluation weight of pricing in this specific RFP, (2) comparable contract rates for this agency/vertical, (3) competitive positioning. Every rate must be justified for THIS opportunity.\n\n' +
         '## 3. PRICING EXHIBIT\n' +
-        'Build the pricing table matching the RFP format exactly. Show every position requested in the RFP with the proposed fully-burdened hourly rate from HGI rate card.\n\n' +
+        'Build the pricing table matching the RFP format exactly. Use the RFP position titles — do not rename them. For each position, propose a fully-burdened hourly rate built specifically for this opportunity. Reference the HGI KB rate card as a starting point but adjust based on competitive landscape, agency budget expectations, and evaluation criteria weight of pricing. Show your reasoning for rate selection.\n\n' +
         '## 4. TECHNICAL APPROACH\n' +
         'Draft the technical approach section (600+ words) addressing the evaluation criteria. Reference specific scope requirements and how HGI addresses each one.\n\n' +
         '## 5. PAST PERFORMANCE MATRIX\n' +
