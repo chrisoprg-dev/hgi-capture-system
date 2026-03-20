@@ -54,7 +54,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, error: 'Parse error', raw: raw.slice(0, 500) });
     }
 
-    return res.status(200).json({
+    var resultPayload = {
       success: true,
       opportunity_id: opportunity_id,
       opportunity_title: opp.title,
@@ -69,7 +69,24 @@ export default async function handler(req, res) {
       strengths: report.strengths || [],
       ready_to_submit: report.ready_to_submit || '',
       generated_at: new Date().toISOString()
-    });
+    };
+
+    // Save summary to hunt_runs for verification
+    try {
+      await fetch(SB + '/rest/v1/hunt_runs', {
+        method: 'POST',
+        headers: { apikey: SK, Authorization: 'Bearer ' + SK, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          source: 'quality_gate',
+          status: report.overall_status + '|dis:' + (report.disqualifying_count||0) + '|hi:' + (report.high_count||0) + '|med:' + (report.medium_count||0),
+          run_at: new Date().toISOString(),
+          opportunities_found: 0,
+          notes: JSON.stringify({ opportunity_id, title: opp.title.slice(0,80), submission_ready: report.submission_ready, ready_to_submit: (report.ready_to_submit||'').slice(0,200) })
+        })
+      });
+    } catch(e) {}
+
+    return res.status(200).json(resultPayload);
 
   } catch(e) {
     return res.status(500).json({ error: e.message });
