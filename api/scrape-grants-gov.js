@@ -15,17 +15,21 @@ var KEYWORDS = [
   'public housing authority management',
   'program administration professional services'
 ];
-async function searchGrants(kw) {
+async function searchGrants(kw, debug) {
   try {
     var r = await fetch(GRANTS_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ keyword: kw, oppStatuses: ['posted', 'forecasted'], rows: 10, sortBy: 'openDate|desc' })
     });
+    if (debug) return { __debug: true, status: r.status, ok: r.ok, body: await r.text() };
     if (!r.ok) return [];
     var d = await r.json();
-    return d.oppHits || [];
-  } catch(e) { return []; }
+    return d.oppHits || d.data || d.results || d.opportunities || [];
+  } catch(e) {
+    if (debug) return { __debug: true, error: e.message };
+    return [];
+  }
 }
 async function sendToIntake(opp) {
   try {
