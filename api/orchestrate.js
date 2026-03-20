@@ -270,6 +270,20 @@ export default async function handler(req, res) {
       await patchOpp(opportunity_id, { staffing_plan: briefingPackage });
       await logEvent('proposal.briefing_generated', opportunity_id, opp.title, { type: 'team_briefing', auto: true });
       results.steps_completed.push('team_briefing');
+
+      // Auto-generate Word doc and store download URL
+      try {
+        const docR = await fetch('https://hgi-capture-system.vercel.app/api/generate-doc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ opportunity_id })
+        });
+        if (docR.ok) {
+          const docData = await docR.json();
+          results.briefing_doc_url = docData.download_url;
+          results.steps_completed.push('doc_generated');
+        }
+      } catch(e) { results.doc_error = e.message; }
     } catch(e) { results.briefing_error = e.message; }
   }
 
