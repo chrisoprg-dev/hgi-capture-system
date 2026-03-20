@@ -45,7 +45,7 @@ export default async function handler(req, res) {
 
     var d = await r.json();
     var raw = (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
-    var clean = raw.replace(/|/g, '').trim();
+    var clean = raw.replace(/[`]{3}(json)?/g, '').trim();
 
     var report;
     try {
