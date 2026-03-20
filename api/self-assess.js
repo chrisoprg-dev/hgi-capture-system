@@ -135,7 +135,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       generated_at: now.toISOString(),
-      data: { pipeline_active: activeOpps.length, outcomes_recorded: allOutcomes.length, stale_high_opi: staleHighOpi.length, kb_gaps: kbGaps.length, scraper_health: scraperHealth, opi_calibration: opiAccuracy, quality_gate_summary: qgSummary },
+      data: { pipeline_active: activeOpps.length, outcomes_recorded: allOutcomes.length, stale_high_opi: staleHighOpi.length, kb_gaps: kbGaps.length, organism: agentSummary, opi_calibration: opiAccuracy, quality_gate_summary: qgSummary },
       assessment
     });
 
