@@ -15,6 +15,26 @@ async function claudeCall(prompt, system, maxTokens) {
   return d.content?.filter(b => b.type === 'text').map(b => b.text).join('') || '';
 }
 
+async function webResearch(agency, title, state, description, opportunity_id) {
+  try {
+    var prompt = 'Research this government procurement opportunity using live web search. OPPORTUNITY: ' + title + ' | AGENCY: ' + agency + ' | STATE: ' + (state || 'Louisiana') + ' | DESCRIPTION: ' + (description || '').slice(0, 400) + '\n\nSearch and provide: 1. AGENCY PROFILE — budget, leadership, when established/incorporated (use verified current data, not assumptions). 2. INCUMBENT CONTRACTOR — who currently holds this or a similar contract? Search award notices. 3. RECENT NEWS — last 12 months relevant to this procurement. 4. BUDGET & FUNDING — annual budget, recent FEMA/HUD/CDBG-DR grants received. 5. VERIFIED FACTS — 3-5 specific facts with sources. Flag anything contradicting common assumptions about this agency.';
+    var wr = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        system: 'You are a government contracting intelligence analyst. Always search the web before answering. Never rely on training data for specific agency facts, incumbents, incorporation dates, or budgets. Be precise and cite what you found.',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    if (!wr.ok) return '';
+    var wd = await wr.json();
+    return (wd.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('\n');
+  } catch(e) { return ''; }
+}
+
 async function patchOpp(id, data) {
   await fetch(SUPABASE_URL + '/rest/v1/opportunities?id=eq.' + encodeURIComponent(id), {
     method: 'PATCH', headers: H, body: JSON.stringify({ ...data, last_updated: new Date().toISOString() })
