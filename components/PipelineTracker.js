@@ -395,7 +395,7 @@ function PipelineTracker({ goToWorkflow }) {
                       {[["Agency",item.agency],["Type",item.type],["Value",item.value],["Deadline",item.deadline],["Decision",item.decision],["OPI Score",item.opiScore],["Added",item.addedDate?new Date(item.addedDate).toLocaleDateString():""]].concat(item.source_url ? [["Source",item.source_url]] : []).concat(item.rfp_document_url ? [["Briefing",item.rfp_document_url]] : []).map(([k,v])=>v?(
                         <div key={k} style={{display:"flex",gap:8,marginBottom:4,fontSize:12}}>
                           <span style={{color:TEXT_D,minWidth:80}}>{k}:</span>
-                          {k === "Source" ? React.createElement('a', {href: v, target: '_blank', rel: 'noopener', style: {color: '#2980B9', textDecoration: 'underline', fontSize: 12}}, 'View Original RFP ↗') : React.createElement('span', {style: {color: TEXT}}, v)}
+                          {k === "Source" ? React.createElement('a', {href: v, target: '_blank', rel: 'noopener', style: {color: '#2980B9', textDecoration: 'underline', fontSize: 12}}, 'View Original RFP ↗') : k === "Briefing" ? React.createElement('a', {href: v, target: '_blank', rel: 'noopener', style: {color: GREEN, textDecoration: 'none', fontSize: 11, fontWeight: 700, padding: '3px 10px', background: GREEN + '22', borderRadius: 4, border: '1px solid ' + GREEN + '44', display: 'inline-block'}}, '⬇ Download Briefing Doc') : React.createElement('span', {style: {color: TEXT}}, v)}
                         </div>
                       ):null)}
                     </div>
