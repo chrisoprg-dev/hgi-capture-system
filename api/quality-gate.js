@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   var body = req.body || {};
-  var opportunity_id = body.opportunity_id;
+  var opportunity_id = body.opportunity_id || (req.query && req.query.opportunity_id);
   if (!opportunity_id) return res.status(400).json({ error: 'opportunity_id required' });
 
   try {
