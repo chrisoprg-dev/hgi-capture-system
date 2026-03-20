@@ -73,6 +73,13 @@ export default async function handler(req, res) {
       else if (s.includes('pass')) qgSummary.passes++;
     });
 
+    // DEBUG MODE — skip Claude call, test data gathering + Supabase write
+    if (isDebug) {
+      var debugData = JSON.stringify({ debug: true, pipeline_active: activeOpps.length, outcomes: allOutcomes.length, hunts: recentHunts.length, qg: qualityGateRuns.length, kb: kbDocs.length, stale: staleHighOpi.length, scraper_health: scraperHealth, opi_calibration: opiAccuracy });
+      await fetch(SB + '/rest/v1/hunt_runs', { method: 'POST', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ source: 'self_assess', status: 'debug', run_at: new Date().toISOString(), opportunities_found: activeOpps.length, notes: debugData }) });
+      return res.status(200).json({ status: 'debug_ok', data_gathered: { pipeline: activeOpps.length, outcomes: allOutcomes.length, hunts: recentHunts.length, qg: qualityGateRuns.length, kb: kbDocs.length }, stored_to_hunt_runs: true });
+    }
+
     // BUILD PROMPT FOR SELF-ASSESSMENT
     var prompt = 'Generate a weekly self-assessment digest for the HGI Capture System. Be honest, specific, and directive. This is for Christopher Oney (President, HGI) to understand what the system is doing well and where it needs improvement.\n\nDATA AS OF ' + now.toISOString() + ':\n\n' +
       'PIPELINE: ' + activeOpps.length + ' active opportunities. Vertical mix: ' + JSON.stringify(verticalCounts) + '. Stage mix: ' + JSON.stringify(stageCounts) + '.\n\n' +
