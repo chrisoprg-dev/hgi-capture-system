@@ -248,23 +248,26 @@ export default async function handler(req, res) {
         'FINANCIAL ANALYSIS:\n' + financialAnalysis.slice(0, 2000) + '\n\n' +
         'COMPETITIVE INTELLIGENCE:\n' + researchBrief.slice(0, 2000) + '\n\n' +
         'HGI KB:\n' + kbContext.slice(0, 1000) + '\n\n' +
+        'FINAL DECISION (use exactly as stated — do not re-derive): PWIN: ' + pwin + '% | RECOMMENDATION: ' + recommendation + '\n\n' +
+        'KNOWN EVALUATION CRITERIA (extracted from opportunity description — use these exactly, do not invent different criteria):\n' + (opp.description || '').slice(0, 500) + '\n\n' +
+        'FINANCIAL CONSOLIDATED ESTIMATE (from financial analysis — use these numbers, do not re-estimate):\n' + financialAnalysis.slice(0, 600) + '\n\n' +
         'Generate the following sections for the team briefing:\n\n' +
         '## OPPORTUNITY SNAPSHOT\n' +
-        'One paragraph: what this is, why it matters, deadline, OPI, PWIN, recommendation. Plain English.\n\n' +
+        'One paragraph: what this is, why it matters, deadline, OPI ' + revisedOpi + ', PWIN ' + pwin + '%, recommendation ' + recommendation + '. Use these exact values. Plain English. No hedging language — this is the final decision.\n\n' +
         '## EVALUATION CRITERIA SUMMARY\n' +
-        'Table: Criterion | Points | HGI Projected Score | Notes. Include honest projected score for each criterion.\n\n' +
+        'CRITICAL: Use ONLY the evaluation criteria extracted from the opportunity description above. Do NOT invent criteria. Format each row as a pipe-delimited table row: Criterion | Points | HGI Projected Score | Notes. Start with a header row: CRITERION | POINTS | HGI SCORE | NOTES. Base projected scores on HGI capability vs. each criterion — flag honestly where gaps exist. If criteria are unknown, say so and do not fabricate a table.\n\n' +
         '## WHY HGI WINS\n' +
-        'Top 3 differentiators mapped to specific evaluation criteria. Be concrete — cite real HGI past performance by name and value.\n\n' +
+        'Top 3 differentiators mapped to the KNOWN evaluation criteria above. Be concrete — cite real HGI past performance by name and dollar value.\n\n' +
         '## COMPETITIVE THREATS\n' +
-        'Who will submit and why they are dangerous. Be specific about their strengths vs. HGI weaknesses.\n\n' +
+        'Who will submit and why they are dangerous. Format each competitor as: Competitor Name | Threat Level | Why Dangerous | HGI Advantage. Start with header row: COMPETITOR | THREAT | WHY DANGEROUS | HGI ADVANTAGE.\n\n' +
         '## FINANCIAL SUMMARY\n' +
-        'Estimated contract value (LOW/MID/HIGH), base period only. Staffing approach. Flag any margin concerns honestly.\n\n' +
+        'Use the consolidated estimate from the financial analysis provided above — do not re-estimate. Show LOW/MID/HIGH base period only. Show option years as separate POTENTIAL UPSIDE line. Flag margin concerns honestly.\n\n' +
         '## OPEN ITEMS — TEAM MUST CONFIRM\n' +
-        'Numbered list of every item that must be confirmed before submission: certifications needed, personnel to assign, past performance references to pull, documents to gather. Flag GPC certification specifically if the solicitation mentions it. Flag any incumbent or relationship information needed. For each item, suggest the functional role best suited to own it (e.g. "Suggested owner: Business Development", "Suggested owner: Contracts/Compliance", "Suggested owner: Finance", "Suggested owner: Technical Lead") — do NOT assign any specific person by name.\n\n' +
+        'Numbered list of every item that must be confirmed before submission. Format each as: [number]. [ITEM TITLE] | Suggested owner: [functional role] | [detail]. Flag GPC certification specifically if mentioned in the solicitation. Flag incumbent research. Flag any document gaps. Do NOT assign any specific person by name — use role labels only.\n\n' +
         '## REQUIRED ACTIONS THIS WEEK\n' +
-        'Day-by-day action plan from today through submission. For each action, suggest the functional role best suited to handle it — do NOT use any individual names. Use role labels such as: Business Development, Contracts & Compliance, Finance, Technical Lead, Program Director, Business Intelligence. Include: relationship outreach, document gathering, draft sections, internal review, submission.\n\n' +
+        'Day-by-day action plan from today through submission deadline. Format each day as a subheader (e.g. MONDAY, TUESDAY). Under each day, list actions as bullets. For each action suggest the functional role — do NOT use any individual names. Use: Business Development, Contracts & Compliance, Finance, Technical Lead, Program Director, Business Intelligence.\n\n' +
         '## SUBMISSION REQUIREMENTS\n' +
-        'How to submit, where, what format, what exhibits are required. Note anything unusual.',
+        'How to submit, where, what format, what exhibits are required. Only state what is known from the solicitation. Note anything unusual or that requires confirmation.',
         'You are HGI senior capture manager preparing a briefing for the President and leadership team. Be direct and honest. Flag risks clearly. Use real HGI past performance: Road Home $13B zero misappropriation, Restore Louisiana $42.3M, BP GCCF 1M+ claims, TPSD $2.96M completed 2022-2025, St. John Sheriff $788K, City of New Orleans WC TPA $283K/month active, SWBNO $200K/month active. Do not fabricate past performance. Do not sugarcoat risks. CRITICAL: Never assign actions or items to specific people by name. Always use functional role labels (Business Development, Contracts/Compliance, Finance, Technical Lead, Program Director, Business Intelligence). The system does not know who holds each role.', 4000
       );
       await patchOpp(opportunity_id, { staffing_plan: briefingPackage });
