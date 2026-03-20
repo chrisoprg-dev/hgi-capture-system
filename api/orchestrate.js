@@ -348,7 +348,7 @@ export default async function handler(req, res) {
         '## 5. PAST PERFORMANCE MATRIX\n' +
         'List 3 relevant past performance references with: Program Name, Client, Contract Value, Period, HGI Role, Key Outcomes, Relevance to this RFP. Use real HGI past performance only.\n\n' +
         '## 6. STAFFING & CAPACITY\n' +
-        'Describe HGI staffing approach, surge capacity, and current workload availability. Address the RFP requirement to demonstrate available capacity.\n\n' +
+        'Build the staffing plan from THIS RFP required positions — do not use a generic template. For each position the RFP requests: identify the HGI role that fills it, describe the qualifications required, and explain how HGI sources that talent. Then address surge capacity and current workload availability. All personnel TBD — names are assigned by the team, not the system.\n\n' +
         '## 7. QUESTIONS FOR THE AGENCY\n' +
         'List the formal written questions to submit before the question deadline. Each question should reference the specific RFP section it relates to.\n\n' +
         '## 8. SUBMISSION TIMELINE\n' +
