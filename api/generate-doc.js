@@ -55,31 +55,112 @@ async function buildBriefingDoc(opp) {
   const actions = getSection(briefing, 'REQUIRED ACTIONS');
   const submissionReqs = getSection(briefing, 'SUBMISSION REQUIREMENTS');
 
-  // Format plain text block as bullets
+  // Detect if a block of lines is a pipe-delimited table
+  const isPipeTable = (lines) => lines.length >= 2 && lines.filter(l => l.includes('|')).length >= lines.length * 0.6;
+
+  // Render pipe-delimited lines as a Word table
+  const pipeToTable = (lines) => {
+    const rows = lines.map(l => l.split('|').map(c => c.trim()).filter((c,i,a) => !(i===0&&c==='') && !(i===a.length-1&&c==='') ));
+    if (!rows.length || !rows[0].length) return [];
+    const colCount = Math.max(...rows.map(r=>r.length));
+    const colW = Math.floor(9360 / colCount);
+    const colWidths = Array(colCount).fill(colW);
+    return [new Table({
+      width:{size:9360,type:WidthType.DXA},
+      columnWidths:colWidths,
+      rows: rows.map((row, ri) => new TableRow({
+        tableHeader: ri===0,
+        children: Array(colCount).fill(null).map((_,ci) => {
+          const text = row[ci] || '';
+          const isHeader = ri === 0;
+          const isFlagged = /\bGPC\b|EXPOSURE|FLAG|⚠️/.test(text);
+          return new TableCell({
+            borders,
+            width:{size:colWidths[ci],type:WidthType.DXA},
+            shading:{fill: isHeader ? NAVY : (ri%2===0?'F7F7F7':'FFFFFF'), type:ShadingType.CLEAR},
+            margins:{top:80,bottom:80,left:100,right:100},
+            children:[new Paragraph({children:[new TextRun({text, font:'Arial', size:18, bold:isHeader, color: isHeader?'FFFFFF': isFlagged?RED:BLACK})]})]
+          });
+        })
+      }))
+    }), blank(80)];
+  };
+
+  // Format plain text block — detects pipe tables, bold, bullets, subheaders
   const textToBullets = (text) => {
     if (!text) return [p('No information available.', {color:GRAY,italic:true})];
-    return text.split('\n').filter(l=>l.trim()).map(line => {
-      const clean = line.replace(/^[-*•]\s*/,'').replace(/^\d+\.\s*/,'').trim();
-      if (!clean) return blank(40);
-      const isBold = /\*\*([^*]+)\*\*/.test(clean);
+    const output = [];
+    const lines = text.split('\n');
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      const trimmed = line.trim();
+      if (!trimmed) { output.push(blank(40)); i++; continue; }
+
+      // Detect pipe table block — collect consecutive pipe lines
+      if (trimmed.includes('|')) {
+        const tableLines = [];
+        while (i < lines.length && lines[i].includes('|')) {
+          tableLines.push(lines[i].trim());
+          i++;
+        }
+        if (tableLines.length >= 2) {
+          output.push(...pipeToTable(tableLines));
+          continue;
+        } else {
+          // Single pipe line — treat as normal text
+          const clean = tableLines[0].replace(/\|/g,' | ');
+          output.push(p(clean,{after:80}));
+          continue;
+        }
+      }
+
+      // Subheader (bold line with no bullets, followed by content)
+      if (/^\*\*[^*]+\*\*:?$/.test(trimmed)) {
+        const text2 = trimmed.replace(/\*\*/g,'').replace(/:$/,'');
+        output.push(new Paragraph({spacing:{before:160,after:60},children:[new TextRun({text:text2,font:'Arial',size:22,bold:true,color:NAVY})]}));
+        i++; continue;
+      }
+
+      // Day headers in action plan (e.g. MONDAY, TUESDAY, **MONDAY**)
+      if (/^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY|\*\*(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY)\*\*)/.test(trimmed)) {
+        const dayText = trimmed.replace(/\*\*/g,'');
+        output.push(new Paragraph({spacing:{before:160,after:60},children:[new TextRun({text:dayText,font:'Arial',size:22,bold:true,color:NAVY})]}));
+        i++; continue;
+      }
+
+      // Bold inline text
+      const isBold = /\*\*([^*]+)\*\*/.test(trimmed);
       if (isBold) {
         const runs = [];
-        let remaining = clean;
-        const re = /\*\*([^*]+)\*\*/g;
-        let last = 0, m;
-        while ((m = re.exec(clean)) !== null) {
-          if (m.index > last) runs.push({text:clean.slice(last,m.index)});
-          runs.push({text:m[1],bold:true});
-          last = m.index + m[0].length;
+        const re2 = /\*\*([^*]+)\*\*/g;
+        let last2 = 0, m2;
+        while ((m2 = re2.exec(trimmed)) !== null) {
+          if (m2.index > last2) runs.push({text:trimmed.slice(last2,m2.index)});
+          runs.push({text:m2[1],bold:true});
+          last2 = m2.index + m2[0].length;
         }
-        if (last < clean.length) runs.push({text:clean.slice(last)});
-        return pRich(runs, {after:80});
+        if (last2 < trimmed.length) runs.push({text:trimmed.slice(last2)});
+        if (trimmed.match(/^[-*•]\s*\*\*/) || /^\d+\./.test(trimmed)) {
+          output.push(new Paragraph({spacing:{before:0,after:80},numbering:{reference:'bullets',level:0},children:runs.map(r=>new TextRun({text:r.text,font:'Arial',size:22,bold:r.bold??false,color:BLACK}))}));
+        } else {
+          output.push(pRich(runs,{after:80}));
+        }
+        i++; continue;
       }
-      if (line.trim().startsWith('-') || line.trim().startsWith('*') || /^\d+\./.test(line.trim())) {
-        return bullet(clean);
+
+      // Numbered or bulleted list item
+      if (trimmed.startsWith('-') || trimmed.startsWith('*') || /^\d+\./.test(trimmed)) {
+        const clean2 = trimmed.replace(/^[-*•]\s*/,'').replace(/^\d+\.\s*/,'').trim();
+        output.push(bullet(clean2));
+        i++; continue;
       }
-      return p(clean, {after:80});
-    });
+
+      // Plain paragraph
+      output.push(p(trimmed,{after:80}));
+      i++;
+    }
+    return output;
   };
 
   const deadline = opp.due_date ? new Date(opp.due_date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : 'TBD';
