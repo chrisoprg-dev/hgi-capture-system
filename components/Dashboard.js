@@ -12,6 +12,8 @@ function Dashboard({ setActive }) {
   useEffect(() => {
     const load = async () => {
       try { const r=await fetch('/api/intelligence'); if(r.ok){const d=await r.json();setIntel(d);} } catch(e){}
+      try { const sa=await fetch('/api/self-assess?latest=1'); if(sa.ok){const sd=await sa.json(); if(sd.status==='ok') setSelfAssess(sd);} } catch(e){}
+      try { const rg=await fetch('/api/agent-registry'); if(rg.ok){const rd=await rg.json(); setRegistry(rd);} } catch(e){}
       setLoading(false);
     };
     load();
