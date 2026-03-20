@@ -161,7 +161,7 @@ export default async function handler(req, res) {
       '\nSCOPE:\n' + scopeAnalysis.slice(0, 1200) +
       '\nFINANCIAL:\n' + financialAnalysis.slice(0, 1200) +
       '\nHGI KB:\n' + kbContext.slice(0, 1500) +
-      '\n\nProvide:\n1. AGENCY PROFILE — budget, leadership, procurement patterns\n2. COMPETITIVE LANDSCAPE — who will bid, their strengths/weaknesses relative to HGI, informed by the scope requirements\n3. HGI WIN STRATEGY — 3 differentiators mapped to evaluation criteria from scope analysis\n4. RED FLAGS — from scope, financial, and competitive angles\n5. 48-HOUR ACTION PLAN — exactly what to do, who to call' +
+      '\n\nProvide:\n1. AGENCY PROFILE — budget, leadership, procurement patterns\n2. COMPETITIVE LANDSCAPE — who will bid, their strengths/weaknesses relative to HGI, informed by the scope requirements\n3. HGI WIN STRATEGY — 3 differentiators mapped to evaluation criteria from scope analysis\n4. RED FLAGS — from scope, financial, and competitive angles\n5. 48-HOUR ACTION PLAN — exactly what to do. For each action, suggest the functional role best suited to own it (e.g. Business Development, Contracts/Compliance, Finance, Technical Lead, Business Intelligence). Do NOT use any specific person names.' +
       '\n6. RISKS & CHALLENGES — What are the specific downsides, obstacles, and gaps? Include: relationship gaps, geographic challenges, capability gaps, competitive disadvantages, compliance risks, timeline risks. Do NOT sugarcoat — the President needs honest assessment of what could go wrong.',
       'HGI senior capture intelligence analyst. Every recommendation must reference specific scope requirements or financial data from the analysis.', 3000
     );
