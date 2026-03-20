@@ -3,17 +3,17 @@ var INTAKE_URL = 'https://hgi-capture-system.vercel.app/api/intake';
 var GRANTS_API = 'https://api.grants.gov/v1/api/search2';
 var INTAKE_SECRET = process.env.INTAKE_SECRET;
 var KEYWORDS = [
-  'disaster recovery program management',
-  'CDBG-DR administration',
+  'disaster recovery',
+  'CDBG-DR',
   'FEMA public assistance',
-  'hazard mitigation grant program',
-  'housing recovery program administration',
-  'claims administration third party',
-  'workers compensation administration',
-  'grant management administration services',
-  'workforce development WIOA',
-  'public housing authority management',
-  'program administration professional services'
+  'hazard mitigation',
+  'housing recovery',
+  'claims administration',
+  'grant management',
+  'program administration',
+  'workforce development',
+  'housing authority',
+  'community development'
 ];
 async function searchGrants(kw, debug) {
   try {
