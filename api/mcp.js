@@ -174,8 +174,10 @@ const handleTool = async (name, input) => {
 
     case 'add_to_pipeline': {
       const { title, agency, value, deadline, vertical, state, source_url, description, opi_score } = input;
-      await sb('opportunities', { method: 'POST', body: JSON.stringify({ title, agency, estimated_value: value, due_date: deadline, vertical: vertical || 'disaster', state: state || 'LA', source_url, description, opi_score, stage: opi_score >= 75 ? 'pursuing' : 'identified', source: 'MCP_MANUAL', discovered_at: new Date().toISOString() }) });
-      return { success: true, message: 'Added "' + title + '" to pipeline' };
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60);
+      const id = 'mcp-manual-' + slug + '-' + Date.now();
+      await sb('opportunities', { method: 'POST', body: JSON.stringify({ id, title, agency, estimated_value: value, due_date: deadline, vertical: vertical || 'disaster', state: state || 'LA', source_url, description, opi_score, status: 'active', stage: opi_score >= 75 ? 'pursuing' : 'identified', source: 'MCP_MANUAL', discovered_at: new Date().toISOString(), last_updated: new Date().toISOString() }) });
+      return { success: true, id, message: 'Added "' + title + '" to pipeline with id: ' + id };
     }
 
     case 'get_system_status': {
