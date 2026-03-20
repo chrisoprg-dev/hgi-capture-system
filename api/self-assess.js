@@ -84,7 +84,7 @@ export default async function handler(req, res) {
 
     // DEBUG MODE — skip Claude call, test data gathering + Supabase write
     if (isDebug) {
-      var debugData = JSON.stringify({ debug: true, pipeline_active: activeOpps.length, outcomes: allOutcomes.length, hunts: recentHunts.length, qg: qualityGateRuns.length, kb: kbDocs.length, stale: staleHighOpi.length, scraper_health: scraperHealth, opi_calibration: opiAccuracy });
+      var debugData = JSON.stringify({ debug: true, pipeline_active: activeOpps.length, outcomes: allOutcomes.length, hunts: recentHunts.length, qg: qualityGateRuns.length, kb: kbDocs.length, kb_processed: kbDocs.filter(function(d){return d.status==='processed';}).length, stale: staleHighOpi.length, agents_discovered: Object.keys(agentHealth).length, agent_health: agentHealth, opi_calibration: opiAccuracy });
       await fetch(SB + '/rest/v1/hunt_runs', { method: 'POST', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ source: 'self_assess', status: 'debug', run_at: new Date().toISOString(), opportunities_found: activeOpps.length, notes: debugData }) });
       return res.status(200).json({ status: 'debug_ok', data_gathered: { pipeline: activeOpps.length, outcomes: allOutcomes.length, hunts: recentHunts.length, qg: qualityGateRuns.length, kb: kbDocs.length }, stored_to_hunt_runs: true });
     }
