@@ -55,12 +55,10 @@ async function buildBriefingDoc(opp) {
   const actions = getSection(briefing, 'REQUIRED ACTIONS');
   const submissionReqs = getSection(briefing, 'SUBMISSION REQUIREMENTS');
 
-  // Detect if a block of lines is a pipe-delimited table
-  const isPipeTable = (lines) => lines.length >= 2 && lines.filter(l => l.includes('|')).length >= lines.length * 0.6;
-
-  // Render pipe-delimited lines as a Word table
+  // Render pipe-delimited lines as a Word table — strips markdown separator rows (---, ===)
   const pipeToTable = (lines) => {
-    const rows = lines.map(l => l.split('|').map(c => c.trim()).filter((c,i,a) => !(i===0&&c==='') && !(i===a.length-1&&c==='') ));
+    const dataLines = lines.filter(l => !/^[\s|\-=]+$/.test(l.trim()));
+    const rows = dataLines.map(l => l.split('|').map(c => c.trim()).filter((c,i,a) => !(i===0&&c==='')));
     if (!rows.length || !rows[0].length) return [];
     const colCount = Math.max(...rows.map(r=>r.length));
     const colW = Math.floor(9360 / colCount);
