@@ -14,6 +14,9 @@ const CB_PASSWORD = process.env.CB_PASSWORD || 'Whatever1340!';
 const HGI_KEYWORDS = [
     // Disaster Recovery / FEMA / CDBG
     'grant management', 'grants management', 'grant administration',
+    'pre-award', 'pre award', 'grant services', 'grant writing', 'grant research',
+    'grant support', 'grant application', 'grant development', 'grant consulting',
+    'opportunity monitoring', 'grant identification', 'grant program management',
     'program management', 'project management services',
     'disaster recovery', 'disaster services',
     'FEMA', 'public assistance', 'CDBG', 'community development block grant',
