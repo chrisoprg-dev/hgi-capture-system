@@ -136,6 +136,25 @@ export default async function handler(req, res) {
   results.has_rfp_document = hasRfpDocument;
 
   // ══════════════════════════════════════════════════════════════════════════
+  // ORGANISM MEMORY RETRIEVAL — inject accumulated intelligence into every step
+  let memoryContext = '';
+  try {
+    var memR = await fetch('https://hgi-capture-system.vercel.app/api/memory-retrieve', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ opportunity_id: opportunity_id, agency: opp.agency || '', vertical: opp.vertical || '', step: 'orchestrator', context: (opp.title || '') + ' | ' + (opp.agency || '') + ' | ' + (opp.description || '').slice(0, 500) })
+    });
+    if (memR.ok) {
+      var memData = await memR.json();
+      memoryContext = memData.injection || '';
+      results.memory_loaded = true;
+      results.memory_candidates = memData.candidates_loaded || 0;
+      results.memory_selected = memData.memories_selected || 0;
+      results.memory_injection_length = memoryContext.length;
+    }
+  } catch(e) { results.memory_error = e.message; }
+  // Append organism memory to KB context so every step gets both
+  if (memoryContext) kbContext = kbContext + memoryContext;
+
   // STEP 1: DEEP SCOPE ANALYSIS — What is actually being asked for?
   // ══════════════════════════════════════════════════════════════════════════
   let scopeAnalysis = '';
