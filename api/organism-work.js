@@ -342,30 +342,22 @@ export default async function handler(req, res) {
     }).map(function(m) { return (m.observation||'').slice(0, charLimit); }).join('\n\n');
   }
 
-  // ═══ ALL PER-OPPORTUNITY AGENTS FIRE IN PARALLEL ═══
-  // Each agent now receives buildCtx(opp, mem) — full record + memory
-  var perOppPromises = [];
+  // ═══ PHASE 1: HAIKU AGENTS (all opps) + SYSTEM AGENTS — all parallel ═══
+  var haikuPromises = [];
   for (var i = 0; i < activeOpps.length; i++) {
     (function(opp) {
-      var memFull = oppMem(opp, 'full');
       var memCompact = oppMem(opp, 'compact');
-      var ctxFull = buildCtx(opp, memFull, 'full');
       var ctxCompact = buildCtx(opp, memCompact, 'compact');
-      // Sonnet critical agents — full context (15K proposal, 5K scope, 4K memory)
-      perOppPromises.push(safe(function(){ return agentIntelligence(opp, ctxFull); }));
-      perOppPromises.push(safe(function(){ return agentResearch(opp, ctxFull); }));
-      perOppPromises.push(safe(function(){ return agentWinnability(opp, ctxFull); }));
-      perOppPromises.push(safe(function(){ return agentQualityGate(opp, ctxFull); }));
-      perOppPromises.push(safe(function(){ return agentProposal(opp, ctxFull); }));
-      perOppPromises.push(safe(function(){ return agentOppBrief(opp, ctxFull); }));
-      // Haiku routine agents — compact context (5K proposal, 2.5K scope, 2.5K memory)
-      perOppPromises.push(safe(function(){ return agentCrm(opp, ctxCompact); }));
-      perOppPromises.push(safe(function(){ return agentFinancial(opp, ctxCompact); }));
-      perOppPromises.push(safe(function(){ return agentBrief(opp, ctxCompact); }));
+      var memFull = oppMem(opp, 'full');
+      var ctxFull = buildCtx(opp, memFull, 'full');
+      // Haiku routine agents — compact context, high rate limits
+      haikuPromises.push(safe(function(){ return agentCrm(opp, ctxCompact); }));
+      haikuPromises.push(safe(function(){ return agentFinancial(opp, ctxCompact); }));
+      haikuPromises.push(safe(function(){ return agentBrief(opp, ctxCompact); }));
+      // OppBrief uses Haiku despite full context — keep in parallel
+      haikuPromises.push(safe(function(){ return agentOppBrief(opp, ctxFull); }));
     })(activeOpps[i]);
   }
-
-  // ═══ ALL SYSTEM-WIDE AGENTS FIRE IN PARALLEL ═══
   var systemPromises = [
     safe(function(){ return agentDiscovery(memText); }),
     safe(function(){ return agentPipelineScanner(activeOpps, memText); }),
@@ -378,12 +370,32 @@ export default async function handler(req, res) {
     safe(function(){ return agentDesign(activeOpps, memText); }),
     safe(function(){ return agentDashboard(activeOpps, allMemories, memText); })
   ];
-
-  var allResults = await Promise.all(perOppPromises.concat(systemPromises));
-  for (var j = 0; j < allResults.length; j++) {
-    if (allResults[j] && allResults[j]._error) results.errors.push(allResults[j]);
-    else if (allResults[j]) results.work_completed.push(allResults[j]);
+  var phase1Results = await Promise.all(haikuPromises.concat(systemPromises));
+  for (var j = 0; j < phase1Results.length; j++) {
+    if (phase1Results[j] && phase1Results[j]._error) results.errors.push(phase1Results[j]);
+    else if (phase1Results[j]) results.work_completed.push(phase1Results[j]);
   }
+  results.phase1_count = results.work_completed.length;
+
+  // ═══ PHASE 2: SONNET AGENTS — sequential per opp (max 5 parallel at once) ═══
+  for (var k = 0; k < activeOpps.length; k++) {
+    var opp = activeOpps[k];
+    var memFull = oppMem(opp, 'full');
+    var ctxFull = buildCtx(opp, memFull, 'full');
+    // 5 Sonnet agents for this opp run in parallel
+    var sonnetBatch = await Promise.all([
+      safe(function(){ return agentIntelligence(opp, ctxFull); }),
+      safe(function(){ return agentResearch(opp, ctxFull); }),
+      safe(function(){ return agentWinnability(opp, ctxFull); }),
+      safe(function(){ return agentQualityGate(opp, ctxFull); }),
+      safe(function(){ return agentProposal(opp, ctxFull); })
+    ]);
+    for (var s = 0; s < sonnetBatch.length; s++) {
+      if (sonnetBatch[s] && sonnetBatch[s]._error) results.errors.push(sonnetBatch[s]);
+      else if (sonnetBatch[s]) results.work_completed.push(sonnetBatch[s]);
+    }
+  }
+  results.phase2_count = results.work_completed.length - results.phase1_count;
 
   // ═══ SELF-AWARENESS RUNS LAST — sees everything all agents produced ═══
   var selfWebCtx = ''; // cost gated — self-awareness synthesizes from agent output
