@@ -38,12 +38,14 @@
     "api/memory-store.js": { "maxDuration": 30 },
     "api/memory-retrieve.js": { "maxDuration": 30 },
     "api/organism-think.js": { "maxDuration": 300 },
-    "api/organism-decisions.js": { "maxDuration": 30 }
+    "api/organism-decisions.js": { "maxDuration": 30 },
+    "api/organism-work.js": { "maxDuration": 300 }
   },
   "crons": [
     { "path": "/api/hunt", "schedule": "*/6 * * * *" },
     { "path": "/api/process-kb", "schedule": "*/6 * * * *" },
     { "path": "/api/scrape-grants-gov", "schedule": "0 6,18 * * *" },
-    { "path": "/api/organism-think", "schedule": "0 13 * * *" }
+    { "path": "/api/organism-think", "schedule": "0 13 * * *" },
+    { "path": "/api/organism-work", "schedule": "0 12,0 * * *" }
   ]
 }
