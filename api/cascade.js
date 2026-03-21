@@ -136,7 +136,7 @@ var CASCADE_MAP = {
   // ═══ SCRAPER CASCADES ═══
   'batch.completed': [
     { agent: 'scraper_insights', action: 'Update source health metrics', type: 'signal' },
-    { agent: 'self_awareness', action: 'Analyze scraper yield trends over time. Detect degradation. Compare source ROI: GO-quality opportunities per source per month. Flag if any source health is declining.', type: 'react' }
+    { agent: 'self_awareness', action: 'Analyze scraper yield trends over time. Detect degradation. Compare source ROI: GO-quality opportunities per source per month. Flag if any source health is declining.', type: 'react', tier: 2 }
   ],
 
   // ═══ QUALITY GATE CASCADES ═══
