@@ -110,9 +110,9 @@ var CASCADE_MAP = {
   // ═══ DISASTER CASCADES ═══
   'disaster.declared': [
     { agent: 'discovery', action: 'Monitor LaPAC and Central Bidding for related procurements', type: 'signal' },
-    { agent: 'intelligence_engine', action: 'Research affected jurisdiction', type: 'signal' },
-    { agent: 'crm_relationship', action: 'Surface contacts in affected area', type: 'signal' },
-    { agent: 'content_engine', action: 'Prepare outreach letter template', type: 'signal' },
+    { agent: 'intelligence_engine', action: 'Research affected jurisdiction: existing contracts, incumbent contractors, audit findings, budget capacity, prior disaster history. Check competitive intelligence store for known competitors in this area. Produce strategic assessment.', type: 'react' },
+    { agent: 'crm_relationship', action: 'Search relationship graph by geography for contacts in affected area. Assess which are decision-makers for disaster response. Recommend outreach priority and approach for each contact.', type: 'react' },
+    { agent: 'content_engine', action: 'Draft personalized outreach letter for each affected jurisdiction. Reference specific HGI experience relevant to that jurisdiction. Use relationship context and competitive positioning from stores.', type: 'react' },
     { agent: 'executive_brief', action: 'Disaster alert to Lou/Larry', type: 'signal' }
   ],
 
