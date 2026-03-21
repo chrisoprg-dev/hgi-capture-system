@@ -147,9 +147,11 @@ async function agentProposal(opp, ctx) {
 
 async function agentBrief(opp, ctx) {
   if ((opp.stage||'') !== 'proposal' && (opp.stage||'') !== 'pursuing') return null;
+  var web = await webSearch((opp.agency||'') + ' news budget procurement updates Louisiana 2025 2026');
+  var webCtx = (web && web.length > 30) ? ('\nWEB AGENCY NEWS:\n' + web.slice(0,1000)) : '';
   var a = await think(
     'HGI team briefing agent. You have the full record. Brief is current state — what the team needs to know and do right now. Functional roles only, never personal names.',
-    ctx + '\n\nTeam brief: (1) Where we stand — proposal status, key gaps still open (2) What changed since last brief based on new intelligence in memory (3) Open items that must be resolved before submission (4) What each functional role must do this week — specific tasks (5) Overall win confidence and why.',
+    ctx + webCtx + '\n\nTeam brief: (1) Where we stand — proposal status, key gaps still open (2) What changed since last brief based on new intelligence in memory (3) Open items that must be resolved before submission (4) What each functional role must do this week — specific tasks (5) Overall win confidence and why.',
     700
   );
   if (!a || a.length < 80) return null;
