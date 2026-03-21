@@ -338,6 +338,7 @@ export default async function handler(req, res) {
         'FINANCIAL ANALYSIS:\n' + financialAnalysis.slice(0, 2000) + '\n\n' +
         'COMPETITIVE INTELLIGENCE:\n' + researchBrief.slice(0, 2000) + '\n\n' +
         'HGI KB:\n' + kbContext.slice(0, 1000) + '\n\n' +
+        (memoryContext ? memoryContext.slice(0, 3000) + '\n\n' : '') +
         'FINAL DECISION (use exactly as stated — do not re-derive): PWIN: ' + pwin + '% | RECOMMENDATION: ' + recommendation + '\n\n' +
         'KNOWN EVALUATION CRITERIA (extracted from opportunity description — use these exactly, do not invent different criteria):\n' + (opp.description || '').slice(0, 500) + '\n\n' +
         'FINANCIAL CONSOLIDATED ESTIMATE (from financial analysis — use these numbers, do not re-estimate):\n' + financialAnalysis.slice(0, 600) + '\n\n' +
