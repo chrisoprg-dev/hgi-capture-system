@@ -43,8 +43,8 @@ var CASCADE_MAP = {
 
   'opportunity.winnability_scored': [
     { agent: 'quality_gate', action: 'Run submission quality check', type: 'api_call', endpoint: '/api/quality-gate', method: 'GET', queryKey: 'opportunity_id', condition: function(p) { return p.data && (p.data.recommendation === 'GO' || p.data.recommendation === 'CONDITIONAL GO'); } },
-    { agent: 'recruiting_bench', action: 'Check staffing availability for required roles', type: 'signal', condition: function(p) { return p.data && (p.data.recommendation === 'GO' || p.data.recommendation === 'CONDITIONAL GO'); } },
-    { agent: 'crm_relationship', action: 'Surface agency contacts and relationship status', type: 'signal', condition: function(p) { return p.data && (p.data.recommendation === 'GO' || p.data.recommendation === 'CONDITIONAL GO'); } },
+    { agent: 'recruiting_bench', action: 'Check staffing availability against required roles from scope analysis. Identify gaps. Flag recurring qualification shortfalls. Recommend teaming vs hiring for each gap.', type: 'react', condition: function(p) { return p.data && (p.data.recommendation === 'GO' || p.data.recommendation === 'CONDITIONAL GO'); } },
+    { agent: 'crm_relationship', action: 'Search relationship graph for contacts at this agency. Assess relationship strength. Identify cross-agency connections from other contacts. Recommend outreach strategy.', type: 'react', condition: function(p) { return p.data && (p.data.recommendation === 'GO' || p.data.recommendation === 'CONDITIONAL GO'); } },
     { agent: 'brief_agent', action: 'Generate team briefing', type: 'signal', notes: 'Already chained in orchestrator for GO decisions' },
     { agent: 'proposal_agent', action: 'Generate proposal if RFP exists', type: 'signal', notes: 'Already chained in orchestrator for GO+RFP' },
     { agent: 'content_engine', action: 'Apply voice standards to generated content', type: 'signal' },
