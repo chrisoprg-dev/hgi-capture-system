@@ -50,6 +50,15 @@ async function logEvent(eventType, oppId, title, data) {
   } catch(e) {}
 }
 
+async function storeMemory(agent, oppId, tags, observation, memType) {
+  try {
+    await fetch('https://hgi-capture-system.vercel.app/api/memory-store', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent: agent, opportunity_id: oppId, entity_tags: tags, observation: observation, memory_type: memType || 'analysis' })
+    });
+  } catch(e) {}
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
