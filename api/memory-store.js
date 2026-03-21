@@ -1,9 +1,3 @@
-Create a new file: api/memory-store.js
-
-This is the organism's unified memory write endpoint. Any agent can write any observation — full text, no truncation, no schema constraint. This is the foundation of the complete mesh.
-
-The file contents should be:
-
 export const config = { maxDuration: 30 };
 
 var SB = process.env.SUPABASE_URL;
