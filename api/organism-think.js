@@ -167,11 +167,13 @@ export default async function handler(req, res) {
         method: 'POST',
         headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }),
         body: JSON.stringify({
+          id: 'om-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
           agent: 'organism_think',
           opportunity_id: dp.opportunity_id || null,
           entity_tags: 'decision_point,' + (dp.priority || 'medium') + ',' + (dp.type || 'INTELLIGENCE'),
           observation: observation,
-          memory_type: 'decision_point'
+          memory_type: 'decision_point',
+          created_at: new Date().toISOString()
         })
       });
       results.decision_points.push({
