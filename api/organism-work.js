@@ -172,7 +172,7 @@ async function agentProposal(opp, ctx) {
   var step2 = await think(
     'You are reviewing proposed improvements to a government proposal. Prioritize ruthlessly by evaluation point impact. Only the changes that move the score matter.',
     'PROPOSED IMPROVEMENTS:\n' + step1.slice(0,3000) + '\n\nSTEP 2 — PRIORITIZE:\nRank every proposed improvement by estimated point impact (highest first). For each:\n- Which eval criterion does it affect and how many points?\n- How much effort to implement (quick fix vs major rewrite)?\n- Confidence that the improvement actually scores higher with evaluators?\nThen: ALL ACTIONS Christopher should take on the proposal, in priority order by point impact, with the specific text changes ready to paste in. Do not limit to 3 — include every improvement that moves points.',
-    1000, true
+    1500, true
   );
   
   var combined = 'PROPOSAL IMPROVEMENT — ' + opp.title + ':\n\n=== ANALYSIS ===\n' + step1.slice(0,2000) + '\n\n=== PRIORITIZED ACTIONS ===\n' + (step2||'(evaluation step skipped)').slice(0,1500);
