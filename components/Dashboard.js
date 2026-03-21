@@ -6,6 +6,10 @@ function Dashboard({ setActive }) {
   const [exp, setExp] = useState({});
   const [selfAssess, setSelfAssess] = useState(null);
   const [registry, setRegistry] = useState(null);
+  const [decisions, setDecisions] = useState([]);
+  const [decExpanded, setDecExpanded] = useState({});
+  const [thinkRunning, setThinkRunning] = useState(false);
+  const [lastThink, setLastThink] = useState(null);
 
   const greeting = () => { const h=new Date().getHours(); return h<12?'Good morning':h<17?'Good afternoon':'Good evening'; };
 
