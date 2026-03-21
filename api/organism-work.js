@@ -347,7 +347,8 @@ export default async function handler(req, res) {
 
   var allResults = await Promise.all(perOppPromises.concat(systemPromises));
   for (var j = 0; j < allResults.length; j++) {
-    if (allResults[j]) results.work_completed.push(allResults[j]);
+    if (allResults[j] && allResults[j]._error) results.errors.push(allResults[j]);
+    else if (allResults[j]) results.work_completed.push(allResults[j]);
   }
 
   // ═══ SELF-AWARENESS RUNS LAST — sees everything all agents produced ═══
