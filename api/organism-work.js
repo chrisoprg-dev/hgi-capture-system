@@ -92,9 +92,11 @@ async function agentFinancial(opp, ctx) {
 }
 
 async function agentResearch(opp, ctx) {
+  var web = await webSearch((opp.agency||'') + ' ' + (opp.vertical||'disaster recovery') + ' evaluation criteria best practices winning proposal strategies government RFP 2024 2025');
+  var webCtx = (web && web.length > 30) ? ('\nWEB RESEARCH FINDINGS:\n' + web.slice(0,1500)) : '';
   var a = await think(
     'HGI strategic research and analysis agent. You have the full proposal draft, scope analysis, research brief, and financial model. Every recommendation must reference specific content from the proposal and tie to eval criteria point values.',
-    ctx + '\n\nProduce: (1) Competitive landscape update — are the competitors named in the research brief still the right ones given the full scope? (2) Win strategy mapped specifically to eval criteria weights (Tech30/Exp25/PP20/Staff15/Price10) — what the proposal does well and where it is weak (3) Intelligence gaps that would change our strategy if filled (4) Red flags the proposal does not address (5) Single highest-leverage action this week to improve our position.',
+    ctx + webCtx + '\n\nProduce: (1) Competitive landscape update — are the competitors named in the research brief still the right ones given the full scope? (2) Win strategy mapped specifically to eval criteria weights (Tech30/Exp25/PP20/Staff15/Price10) — what the proposal does well and where it is weak (3) Intelligence gaps that would change our strategy if filled (4) Red flags the proposal does not address (5) Single highest-leverage action this week to improve our position.',
     1000
   );
   if (!a || a.length < 100) return null;
