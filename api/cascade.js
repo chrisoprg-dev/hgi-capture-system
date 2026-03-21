@@ -130,7 +130,7 @@ var CASCADE_MAP = {
   ],
 
   'self_assess.recommendation_approved': [
-    { agent: 'self_awareness', action: 'Track approved recommendation and monitor for improvement', type: 'signal' }
+    { agent: 'self_awareness', action: 'Record what was approved. Set monitoring criteria. Define what improvement looks like and the timeframe to check. If improvement does not materialize, flag that the root cause may be elsewhere.', type: 'react' }
   ],
 
   // ═══ SCRAPER CASCADES ═══
