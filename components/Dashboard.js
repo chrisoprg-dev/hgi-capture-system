@@ -31,6 +31,19 @@ function Dashboard({ setActive }) {
     return ()=>clearInterval(iv);
   },[]);
 
+  const runThink = async () => {
+    setThinkRunning(true);
+    try {
+      const r = await fetch('/api/organism-think', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({trigger:'manual-dashboard'}) });
+      if (r.ok) {
+        const d = await r.json();
+        const dr = await fetch('/api/organism-decisions');
+        if (dr.ok) { const dd = await dr.json(); setDecisions(dd.decisions||[]); setLastThink(dd.last_think_run||null); }
+      }
+    } catch(e){}
+    setThinkRunning(false);
+  };
+
   const ub=(u)=>u==='critical'?RED:u==='high'?ORANGE:u==='medium'?GOLD:BORDER;
   const ubg=(u)=>u==='critical'?RED+'11':u==='high'?ORANGE+'11':u==='medium'?GOLD+'11':BG2;
   const stats=intel?.pipeline_stats||{};
