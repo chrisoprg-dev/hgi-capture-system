@@ -356,7 +356,7 @@ export default async function handler(req, res) {
   var selfResult = await safe(async function() {
     var a = await think(
       'HGI self-awareness engine. You see the full picture — every agent result, every memory, every opportunity. Identify patterns and the single highest-leverage improvement. Compare against industry best practices from web research.',
-      'WORK COMPLETED THIS RUN:\n' + JSON.stringify(results.work_completed.slice(0,20)).slice(0,2000) + '\nERRORS: ' + results.errors.length + '\nTOTAL MEMORIES: ' + allMemories.length + '\nMEMORY STATE:\n' + memText.slice(0,1500) + '\nAnalyze: (1) Patterns emerging across all opportunities and all agents (2) Which agents produced highest-value intelligence today (3) What data gaps are costing HGI the most right now (4) Single improvement with highest win rate impact (5) Contradictions or anomalies — anything that does not add up.',
+      'WORK COMPLETED THIS RUN:\n' + JSON.stringify(results.work_completed.slice(0,20)).slice(0,2000) + '\nERRORS: ' + results.errors.length + '\nTOTAL MEMORIES: ' + allMemories.length + '\nMEMORY STATE:\n' + memText.slice(0,1500) + selfWebCtx + '\nAnalyze: (1) Patterns emerging across all opportunities and all agents (2) Which agents produced highest-value intelligence today (3) What data gaps are costing HGI the most right now (4) Single improvement with highest win rate impact (5) Contradictions or anomalies — anything that does not add up.',
       1000
     );
     if (!a || a.length < 100) return null;
