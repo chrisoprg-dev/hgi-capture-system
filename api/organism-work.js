@@ -156,16 +156,28 @@ async function agentQualityGate(opp, ctx) {
 
 async function agentProposal(opp, ctx) {
   if ((opp.staffing_plan||'').length < 100) return null;
-  var web = await webSearch((opp.agency||'') + ' ' + (opp.vertical||'disaster recovery') + ' winning proposal techniques FEMA PA methodology technical approach best practices 2024 2025');
-  var webCtx = (web && web.length > 30) ? ('\nWEB PROPOSAL INTEL:\n' + web.slice(0,1500)) : '';
-  var a = await think(
-    'HGI proposal improvement agent. You have the actual draft. Give specific, surgical edits — reference the exact section and what to change. Not generic advice.',
-    ctx + webCtx + '\n\nImprovement analysis: (1) Weakest sections mapped to eval point values — which sections are thin and how many points are at risk? (2) Specific content to add that would score higher — name the section, the content, the eval criterion it addresses (3) Competitive positioning gaps — does the draft adequately differentiate from CDR Maguire, Tetra Tech, IEM specifically? (4) Any factual errors or inconsistencies with the RFP scope? (5) Single most impactful edit — one paragraph that would most improve our score.',
-    900, true
+  var vertical = opp.vertical || 'disaster recovery';
+  var web = await webSearch(opp.agency + ' ' + vertical + ' best practices methodology industry standards winning proposal techniques 2025 2026');
+  var webCtx = (web && web.length > 30) ? ('\nWEB — DOMAIN BEST PRACTICES & INDUSTRY STANDARDS:\n' + web.slice(0,2000)) : '';
+  
+  // STEP 1: Identify specific improvements with evaluator scoring logic
+  var step1 = await think(
+    'You are a senior capture manager and proposal writer who has won hundreds of government contracts. You have the actual proposal draft, the RFP requirements, competitive intelligence, and current industry best practices from web research. Your job is to identify the specific edits that move the most evaluation points. Think like the evaluator — what scores highest?',
+    ctx + webCtx + '\n\nSTEP 1 — IMPROVEMENT ANALYSIS:\n(1) Score each proposal section 1-10 against its eval criterion. Where are we losing points?\n(2) For the 3 weakest sections: what specific content, language, or evidence would raise the score? Write the actual improved paragraph, not a description of what to write.\n(3) Does the technical approach use the best available domain terminology and methodology from web research, or is it generic? What specific upgrades from industry best practices should be incorporated?\n(4) Competitive differentiation — does each section clearly show why HGI wins over the likely competitors? Where is differentiation weakest?\n(5) What is the single highest-point-value improvement — the one edit that moves the most evaluation points?',
+    1500, true
   );
-  if (!a || a.length < 100) return null;
-  await storeMemory('proposal_agent', opp.id, opp.agency+','+(opp.vertical||'')+',proposal_improvement', 'PROPOSAL — '+opp.title+':\n'+a, 'pattern');
-  return { agent:'proposal_agent', opp:opp.title, chars:a.length };
+  if (!step1 || step1.length < 100) return null;
+  
+  // STEP 2: Evaluate the improvements and prioritize
+  var step2 = await think(
+    'You are reviewing proposed improvements to a government proposal. Prioritize ruthlessly by evaluation point impact. Only the changes that move the score matter.',
+    'PROPOSED IMPROVEMENTS:\n' + step1.slice(0,3000) + '\n\nSTEP 2 — PRIORITIZE:\nRank every proposed improvement by estimated point impact (highest first). For each:\n- Which eval criterion does it affect and how many points?\n- How much effort to implement (quick fix vs major rewrite)?\n- Confidence that the improvement actually scores higher with evaluators?\nThen: TOP 3 ACTIONS Christopher should take on the proposal this week, in priority order, with the specific text changes ready to paste in.',
+    1000, true
+  );
+  
+  var combined = 'PROPOSAL IMPROVEMENT — ' + opp.title + ':\n\n=== ANALYSIS ===\n' + step1.slice(0,2000) + '\n\n=== PRIORITIZED ACTIONS ===\n' + (step2||'(evaluation step skipped)').slice(0,1500);
+  await storeMemory('proposal_agent', opp.id, opp.agency+','+(vertical)+',proposal_improvement', combined, 'pattern');
+  return { agent:'proposal_agent', opp:opp.title, chars:combined.length, steps:2 };
 }
 
 async function agentBrief(opp, ctx) {
