@@ -53,9 +53,9 @@ var CASCADE_MAP = {
 
   // ═══ PROPOSAL CASCADES ═══
   'proposal.section_drafted': [
-    { agent: 'content_engine', action: 'Check voice consistency', type: 'signal' },
+    { agent: 'content_engine', action: 'Check this section against HGI voice standards: active voice target, blocked phrases, preferred structures. Flag deviations and suggest fixes.', type: 'react' },
     { agent: 'design_visual', action: 'Apply visual formatting', type: 'signal' },
-    { agent: 'quality_gate', action: 'Check section compliance', type: 'signal' }
+    { agent: 'quality_gate', action: 'Check this section against RFP eval criteria. Identify missing requirements. Flag compliance gaps with point values at risk.', type: 'react' }
   ],
 
   'proposal.edited': [
