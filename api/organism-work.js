@@ -119,9 +119,11 @@ async function agentWinnability(opp, ctx) {
 
 async function agentQualityGate(opp, ctx) {
   if ((opp.staffing_plan||'').length < 100) return null;
+  var web = await webSearch((opp.agency||'') + ' RFP submission requirements compliance checklist common proposal deficiencies government procurement ' + (opp.vertical||''));
+  var webCtx = (web && web.length > 30) ? ('\nWEB COMPLIANCE DATA:\n' + web.slice(0,1200)) : '';
   var a = await think(
     'HGI submission quality gate. You have the actual proposal draft. Audit it line by line against the RFP requirements in the scope analysis. Be specific — quote what is missing.',
-    ctx + '\n\nCompliance audit: (1) Every RFP requirement in the scope — is it addressed in the proposal draft? List any gaps by name (2) Eval criteria sections — which are strong vs thin vs missing? Cite specific eval point values at risk (3) All required positions with rates — are all 10 present? (4) Past performance references — 3 required with contact info — present? (5) Required exhibits B-J — addressed? Final verdict: GO / NO-GO with specific deficiency list.',
+    ctx + webCtx + '\n\nCompliance audit: (1) Every RFP requirement in the scope — is it addressed in the proposal draft? List any gaps by name (2) Eval criteria sections — which are strong vs thin vs missing? Cite specific eval point values at risk (3) All required positions with rates — are all 10 present? (4) Past performance references — 3 required with contact info — present? (5) Required exhibits B-J — addressed? Final verdict: GO / NO-GO with specific deficiency list.',
     900
   );
   if (!a || a.length < 80) return null;
