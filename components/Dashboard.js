@@ -180,6 +180,54 @@ function Dashboard({ setActive }) {
         </div>
       )}
 
+      {decisions.length > 0 && (
+        <div style={{marginBottom:20}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+            <div style={{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:'0.1em'}}>🧠 ORGANISM DECISIONS ({decisions.length})</div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              {lastThink&&<span style={{color:TEXT_D,fontSize:10}}>Last: {new Date(lastThink).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>}
+              <Btn small onClick={runThink} style={{background:thinkRunning?TEXT_D+'22':GOLD+'22',color:thinkRunning?TEXT_D:GOLD,border:'1px solid '+(thinkRunning?BORDER:GOLD+'44'),fontSize:10}}>{thinkRunning?'⟳ Thinking...':'⟳ Think Now'}</Btn>
+            </div>
+          </div>
+          {decisions.map(function(dp,i){
+            const bc = dp.priority==='critical'?RED:dp.priority==='high'?ORANGE:dp.priority==='medium'?GOLD:BORDER;
+            const bgc = dp.priority==='critical'?RED+'11':dp.priority==='high'?ORANGE+'11':dp.priority==='medium'?GOLD+'0A':BG2;
+            const typeIcon = dp.type==='URGENT_ACTION'?'🚨':dp.type==='STRATEGIC'?'♟':dp.type==='GAP_FOUND'?'⚠':dp.type==='SYSTEM_IMPROVEMENT'?'⚙':'💡';
+            const open = decExpanded[i];
+            return (
+              <div key={dp.id||i} style={{background:bgc,border:'1px solid '+bc+'33',borderLeft:'4px solid '+bc,borderRadius:6,marginBottom:8,overflow:'hidden'}}>
+                <div style={{display:'flex',alignItems:'flex-start',gap:10,padding:'12px 14px',cursor:'pointer'}} onClick={()=>setDecExpanded(e=>({...e,[i]:!e[i]}))}>
+                  <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{typeIcon}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3,flexWrap:'wrap'}}>
+                      <span style={{fontWeight:700,color:TEXT,fontSize:13}}>{dp.title}</span>
+                      <Badge color={bc}>{(dp.priority||'medium').toUpperCase()}</Badge>
+                      <span style={{fontSize:10,color:TEXT_D,background:BG3,padding:'1px 6px',borderRadius:3}}>{(dp.type||'').replace(/_/g,' ')}</span>
+                    </div>
+                    <div style={{color:bc,fontSize:12,fontWeight:600}}>{dp.recommended_action}</div>
+                  </div>
+                  <span style={{color:TEXT_D,fontSize:10,flexShrink:0}}>{open?'▲':'▼'}</span>
+                </div>
+                {open&&(
+                  <div style={{borderTop:'1px solid '+bc+'22',background:BG3,padding:'12px 14px'}}>
+                    {dp.detail&&<div style={{marginBottom:8}}><div style={{color:TEXT_D,fontSize:10,fontWeight:700,letterSpacing:'0.08em',marginBottom:4}}>DETAIL</div><div style={{color:TEXT_D,fontSize:12,lineHeight:1.6}}>{dp.detail}</div></div>}
+                    {dp.expected_impact&&<div style={{padding:'7px 10px',background:GREEN+'11',border:'1px solid '+GREEN+'22',borderRadius:4,marginBottom:8}}><div style={{color:GREEN,fontSize:10,fontWeight:700,marginBottom:3}}>EXPECTED IMPACT</div><div style={{color:TEXT_D,fontSize:12}}>{dp.expected_impact}</div></div>}
+                    <div style={{color:TEXT_D,fontSize:10}}>Generated: {new Date(dp.created_at).toLocaleString()}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {decisions.length === 0 && !loading && (
+        <div style={{marginBottom:20,background:BG2,border:'1px solid '+BORDER,borderRadius:6,padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{color:TEXT_D,fontSize:12}}>🧠 No organism decisions yet. The engine runs daily at 8am CST.</div>
+          <Btn small onClick={runThink} style={{background:GOLD+'22',color:GOLD,border:'1px solid '+GOLD+'44',fontSize:10}}>{thinkRunning?'⟳ Thinking...':'Run Now'}</Btn>
+        </div>
+      )}
+
       {intel?.market_pulse&&(
         <Card style={{marginBottom:20,border:`1px solid ${GOLD}22`,background:BG3}}>
           <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
