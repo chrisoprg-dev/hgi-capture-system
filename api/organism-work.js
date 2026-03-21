@@ -24,7 +24,7 @@ async function think(system, prompt, maxT) {
     return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
   } catch(e) { return ''; }
 }
-async function safe(fn) { try { return await fn(); } catch(e) { return null; } }
+async function safe(fn, label) { try { return await fn(); } catch(e) { return { _error: true, agent: label || 'unknown', message: e.message || String(e) }; } }
 
 // Build full context for an opportunity — memory + ALL rich fields
 // This is the fix: agents now see the actual scope, research, proposal draft, financials
