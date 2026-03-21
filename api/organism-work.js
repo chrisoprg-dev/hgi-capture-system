@@ -264,8 +264,7 @@ async function agentKb(memText) {
 }
 
 async function agentScraper(activeOpps, memText) {
-  var web = await webSearch('Louisiana government procurement portal bid website new 2025 2026 centralauctionhouse LaPAC housing authority parish municipality RFP source');
-  var webCtx = (web && web.length > 30) ? ('\nWEB SOURCE INTEL:\n' + web.slice(0,1200)) : '';
+  var webCtx = ''; // cost gated — scraper insights uses internal pipeline data
   var a = await think('HGI scraper health monitor. Track source yield and ROI. Identify new procurement portals HGI should monitor.',
     'PIPELINE:\n' + activeOpps.map(function(o){ return (o.title||'').slice(0,50)+'|OPI:'+o.opi_score+'|Source:Central Bidding'; }).join('\n') + '\nMEMORY:\n' + memText.slice(0,800) + webCtx + '\nAnalyze: (1) Which sources produce GO-quality vs noise (2) Central Bidding pattern analysis (3) Highest-ROI new source given active verticals (4) Degradation signs (5) Keyword adjustments per source.',
     600);
