@@ -244,8 +244,7 @@ async function agentContent(memText) {
 
 async function agentBench(activeOpps, memText) {
   var oppCtx = activeOpps.map(function(o){ return o.title+'|'+(o.vertical||'')+'|Stage:'+(o.stage||'')+'|Due:'+(o.due_date||'TBD'); }).join('\n');
-  var web = await webSearch('Louisiana FEMA disaster recovery project manager grant specialist certified professional consultant available subcontractor teaming partner 2025 2026');
-  var webCtx = (web && web.length > 30) ? ('\nWEB RECRUITING DATA:\n' + web.slice(0,1200)) : '';
+  var webCtx = ''; // cost gated — uses memory + prior intel
   var a = await think('HGI recruiting and bench agent. Track staffing gaps before they block bids.',
     'ACTIVE PURSUITS:\n' + oppCtx + webCtx + '\nHGI STAFF: 67 FT + 43 contract. Named: Louis Resweber (PD), Berron (PA SME), April Gloston (HM), Klunk (Financial), Wiltz (Documentation).\nINTEL:\n' + memText.slice(0,1000) + '\nFor each pursuit: (1) Roles needed vs available (2) Best named staff fits (3) Where teaming needed (4) Recurring gaps across multiple bids (5) Recruiting action needed before next deadline.',
     800);
