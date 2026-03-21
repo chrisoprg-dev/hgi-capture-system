@@ -109,7 +109,7 @@ async function agentFinancial(opp, ctx) {
 
 async function agentResearch(opp, ctx) {
   var doWeb = await shouldWebSearch('research_analysis');
-  var web = doWeb ? await webSearch((opp.agency||'') + ' ' + (opp.vertical||'disaster recovery') + ' evaluation criteria best practices winning proposal strategies government RFP 2024 2025');
+  var web = doWeb ? await webSearch((opp.agency||'') + ' ' + (opp.vertical||'disaster recovery') + ' evaluation criteria best practices winning proposal strategies government RFP 2024 2025') : '';
   var webCtx = (web && web.length > 30) ? ('\nWEB RESEARCH FINDINGS:\n' + web.slice(0,1500)) : '';
   var a = await think(
     'HGI strategic research and analysis agent. You have the full proposal draft, scope analysis, research brief, and financial model. Every recommendation must reference specific content from the proposal and tie to eval criteria point values.',
