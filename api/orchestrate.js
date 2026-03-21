@@ -152,8 +152,7 @@ export default async function handler(req, res) {
       results.memory_injection_length = memoryContext.length;
     }
   } catch(e) { results.memory_error = e.message; }
-  // Append organism memory to KB context so every step gets both
-  if (memoryContext) kbContext = kbContext + memoryContext;
+  // Memory stays SEPARATE from KB — injected independently so slice limits don't cut it
 
   // STEP 1: DEEP SCOPE ANALYSIS — What is actually being asked for?
   // ══════════════════════════════════════════════════════════════════════════
