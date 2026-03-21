@@ -94,6 +94,15 @@ var AGENTS = {
   }
 };
 
+async function webSearch(query) {
+  try {
+    var r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1200, tools: [{ type: 'web_search_20250305', name: 'web_search' }], system: 'Intelligence analyst. Return specific verified findings with sources. Be concise.', messages: [{ role: 'user', content: query }] }) });
+    if (!r.ok) return '';
+    var d = await r.json();
+    return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('\n');
+  } catch(e) { return ''; }
+}
+
 async function claudeReact(agentConfig, eventType, action, opportunity, storeData, extraPayload, memoryContext) {
   var oppSummary = {
     id: opportunity.id || null,
