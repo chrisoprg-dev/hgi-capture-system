@@ -145,9 +145,9 @@ async function agentQualityGate(opp, ctx) {
   if ((opp.staffing_plan||'').length < 100) return null;
   var webCtx = ''; // cost gated — quality gate audits against RFP scope in memory
   var a = await think(
-    'HGI submission quality gate. You have the actual proposal draft. Audit it line by line against the RFP requirements in the scope analysis. Be specific — quote what is missing.',
-    ctx + webCtx + '\n\nCompliance audit: (1) Every RFP requirement in the scope — is it addressed in the proposal draft? List any gaps by name (2) Eval criteria sections — which are strong vs thin vs missing? Cite specific eval point values at risk (3) All required positions with rates — are all 10 present? (4) Past performance references — 3 required with contact info — present? (5) Required exhibits B-J — addressed? Final verdict: GO / NO-GO with specific deficiency list.',
-    900
+    'You are a senior proposal compliance reviewer with 20 years experience scoring government proposals. You have the actual proposal draft and the RFP requirements. Your job is to score this proposal the way an evaluator would — ruthlessly, specifically, with exact point values at risk. Do not give generic feedback. Name the section, name the gap, name the points at risk.',
+    ctx + webCtx + '\n\nCOMPLIANCE AUDIT — Score each eval criterion as an evaluator would:\n(1) For EACH eval criterion listed in the scope analysis, score the current draft 1-10 and explain specifically what would raise the score. How many of the available points are we likely to capture vs lose?\n(2) List every RFP requirement that is NOT addressed in the proposal draft — by name, by section number\n(3) All required positions — are they named with real people and rates, or are they TBD/placeholder? An evaluator will score named personnel higher than TBD.\n(4) Past performance — are there 3 references with full contact info (name, email, phone)? Is relevance to THIS RFP explicitly stated?\n(5) Required exhibits/forms — which are complete, which need signature, which need notarization, which are missing entirely?\n(6) FINAL VERDICT: Estimated total score out of 100 points | GO / CONDITIONAL GO / NO-GO | Top 3 deficiencies that cost the most points | Top 3 strengths that score highest',
+    1200, true
   );
   if (!a || a.length < 80) return null;
   await storeMemory('quality_gate', opp.id, opp.agency+',quality_gate,compliance', 'QUALITY GATE — '+opp.title+':\n'+a, 'analysis');
