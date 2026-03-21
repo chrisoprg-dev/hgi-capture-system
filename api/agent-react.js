@@ -266,6 +266,25 @@ export default async function handler(req, res) {
 
   var storeData = await loadStores(agentConfig, opportunityId);
 
+  // READ organism memory before reacting — every agent thinks with accumulated intelligence
+  var agentMemoryContext = '';
+  try {
+    var memR = await fetch('https://hgi-capture-system.vercel.app/api/memory-retrieve', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        opportunity_id: opportunityId || null,
+        agency: (opportunity && opportunity.agency) || null,
+        vertical: (opportunity && opportunity.vertical) || null,
+        step: agentName,
+        context: agentName + ' reacting to ' + eventType + ' | ' + ((opportunity && opportunity.title) || '') + ' | ' + ((opportunity && opportunity.agency) || '')
+      })
+    });
+    if (memR.ok) {
+      var memData = await memR.json();
+      agentMemoryContext = memData.injection || '';
+    }
+  } catch(e) {}
+
   var reaction;
   try {
     var extraData = body.data || null;
