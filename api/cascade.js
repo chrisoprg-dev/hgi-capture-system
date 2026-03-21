@@ -148,67 +148,94 @@ var CASCADE_MAP = {
 };
 
 
+async function fireReact(r, eventType, payload, priorInsights) {
+  var body = { agent: r.agent, event_type: eventType, action: r.action, opportunity_id: payload.opportunity_id || null, data: payload.data || null };
+  if (priorInsights && priorInsights.length > 0) body.prior_insights = priorInsights;
+  try {
+    var resp = await fetch(BASE + '/api/agent-react', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (resp.ok) {
+      var result = await resp.json();
+      return { agent: r.agent, action: r.action, status: 'completed', type: 'react', tier: r.tier || 1, analysis: (result.analysis || '').slice(0, 200), downstream: result.downstream_insights || '', writes: result.store_updates || [] };
+    }
+    return { agent: r.agent, action: r.action, status: 'failed_' + resp.status, type: 'react', tier: r.tier || 1 };
+  } catch(e) {
+    return { agent: r.agent, action: r.action, status: 'error', type: 'react', tier: r.tier || 1, error: e.message };
+  }
+}
+
 async function executeCascade(eventType, payload) {
   var reactions = CASCADE_MAP[eventType];
   if (!reactions || reactions.length === 0) return { event: eventType, cascades: 0, results: [] };
 
   var results = [];
+  var immediate = [];
+  var tier1 = [];
+  var tier2 = [];
 
+  // Sort reactions into buckets
   for (var i = 0; i < reactions.length; i++) {
     var r = reactions[i];
-
-    // Check condition if present
     if (r.condition && !r.condition(payload)) {
       results.push({ agent: r.agent, action: r.action, status: 'skipped_condition' });
       continue;
     }
-
-    try {
-      if (r.type === 'api_call' && r.endpoint) {
-        // Direct API call to trigger an agent
-        var url = BASE + r.endpoint;
-        if (r.method === 'GET' && r.queryKey && payload.opportunity_id) {
-          url += '?' + r.queryKey + '=' + encodeURIComponent(payload.opportunity_id);
-          fetch(url).catch(function() {});
-        } else if (r.method === 'POST') {
-          var body = {};
-          if (r.bodyKey && payload.opportunity_id) body[r.bodyKey] = payload.opportunity_id;
-          if (payload.data) body.data = payload.data;
-          fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(function() {});
-        }
-        results.push({ agent: r.agent, action: r.action, status: 'triggered', type: 'api_call' });
-
-      } else if (r.type === 'data_update' && r.table && r.field && payload.opportunity_id) {
-        // Direct Supabase update
-        var updateBody = {};
-        updateBody[r.field] = r.value;
-        updateBody.last_updated = new Date().toISOString();
-        await fetch(SB + '/rest/v1/' + r.table + '?id=eq.' + encodeURIComponent(payload.opportunity_id), {
-          method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(updateBody)
-        });
-        results.push({ agent: r.agent, action: r.action, status: 'updated', type: 'data_update' });
-
-      } else if (r.type === 'react') {
-        try {
-          fetch(BASE + '/api/agent-react', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agent: r.agent, event_type: eventType, action: r.action, opportunity_id: payload.opportunity_id || null, data: payload.data || null })
-          }).catch(function() {});
-          results.push({ agent: r.agent, action: r.action, status: 'reacting', type: 'react' });
-        } catch(e) {
-          results.push({ agent: r.agent, action: r.action, status: 'react_error', error: e.message });
-        }
-      } else {
-        // Signal — logged for the agent to read on its next run
-        results.push({ agent: r.agent, action: r.action, status: 'signaled', type: 'signal' });
-      }
-    } catch(e) {
-      results.push({ agent: r.agent, action: r.action, status: 'error', error: e.message });
+    if (r.type === 'react') {
+      if (r.tier === 2) { tier2.push(r); } else { tier1.push(r); }
+    } else {
+      immediate.push(r);
     }
   }
 
-  return { event: eventType, cascades: results.length, results: results };
+  // Phase 0: Execute immediate reactions (api_call, data_update, signal)
+  for (var j = 0; j < immediate.length; j++) {
+    var im = immediate[j];
+    try {
+      if (im.type === 'api_call' && im.endpoint) {
+        var url = BASE + im.endpoint;
+        if (im.method === 'GET' && im.queryKey && payload.opportunity_id) {
+          url += '?' + im.queryKey + '=' + encodeURIComponent(payload.opportunity_id);
+          fetch(url).catch(function() {});
+        } else if (im.method === 'POST') {
+          var body = {};
+          if (im.bodyKey && payload.opportunity_id) body[im.bodyKey] = payload.opportunity_id;
+          if (payload.data) body.data = payload.data;
+          fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(function() {});
+        }
+        results.push({ agent: im.agent, action: im.action, status: 'triggered', type: 'api_call' });
+      } else if (im.type === 'data_update' && im.table && im.field && payload.opportunity_id) {
+        var ub = {}; ub[im.field] = im.value; ub.last_updated = new Date().toISOString();
+        await fetch(SB + '/rest/v1/' + im.table + '?id=eq.' + encodeURIComponent(payload.opportunity_id), { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(ub) });
+        results.push({ agent: im.agent, action: im.action, status: 'updated', type: 'data_update' });
+      } else {
+        results.push({ agent: im.agent, action: im.action, status: 'signaled', type: 'signal' });
+      }
+    } catch(e) { results.push({ agent: im.agent, action: im.action, status: 'error', error: e.message }); }
+  }
+
+  // Phase 1: Fire all tier 1 react agents in parallel, AWAIT all
+  var tier1Results = [];
+  if (tier1.length > 0) {
+    var tier1Promises = tier1.map(function(r) { return fireReact(r, eventType, payload, null); });
+    tier1Results = await Promise.all(tier1Promises);
+    for (var k = 0; k < tier1Results.length; k++) { results.push(tier1Results[k]); }
+  }
+
+  // Collect downstream insights from tier 1 for tier 2
+  var priorInsights = [];
+  for (var m = 0; m < tier1Results.length; m++) {
+    if (tier1Results[m].downstream && tier1Results[m].status === 'completed') {
+      priorInsights.push({ agent: tier1Results[m].agent, insight: tier1Results[m].downstream });
+    }
+  }
+
+  // Phase 2: Fire all tier 2 react agents with prior insights, AWAIT all
+  if (tier2.length > 0) {
+    var tier2Promises = tier2.map(function(r) { return fireReact(r, eventType, payload, priorInsights); });
+    var tier2Results = await Promise.all(tier2Promises);
+    for (var n = 0; n < tier2Results.length; n++) { results.push(tier2Results[n]); }
+  }
+
+  return { event: eventType, cascades: results.length, tier1_count: tier1.length, tier2_count: tier2.length, prior_insights_passed: priorInsights.length, results: results };
 }
 
 
