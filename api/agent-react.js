@@ -126,6 +126,11 @@ async function claudeReact(agentConfig, eventType, action, opportunity, storeDat
     prompt += '\n';
   }
 
+  if (memoryContext) {
+    prompt += memoryContext.slice(0, 3500);
+    prompt += '\n\n';
+  }
+
   if (storeData.outcomes && storeData.outcomes.length > 0) {
     prompt += 'OUTCOME HISTORY (' + storeData.outcomes.length + ' records):\n' + JSON.stringify(storeData.outcomes.slice(0, 10).map(function(o) { return { title: o.title, agency: o.agency, vertical: o.vertical, opi: o.opi_score, outcome: o.outcome, notes: o.outcome_notes }; }), null, 2) + '\n\n';
   }
