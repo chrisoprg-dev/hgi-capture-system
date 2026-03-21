@@ -77,15 +77,15 @@ var CASCADE_MAP = {
 
   // ═══ OUTCOME CASCADES — the learning loop ═══
   'opportunity.outcome_recorded': [
-    { agent: 'scanner_opi', action: 'Recalibrate OPI model with new win/loss data', type: 'signal' },
-    { agent: 'financial_pricing', action: 'Update pricing benchmarks from actual contract value', type: 'signal' },
-    { agent: 'intelligence_engine', action: 'Store competitor data permanently', type: 'signal' },
-    { agent: 'crm_relationship', action: 'Update relationship strength (hot if won, analyze if lost)', type: 'signal' },
-    { agent: 'recruiting_bench', action: 'Flag personnel on winning proposals as proven performers', type: 'signal' },
-    { agent: 'proposal_agent', action: 'Tag successful proposal patterns by vertical/agency', type: 'signal' },
-    { agent: 'content_engine', action: 'Reinforce language patterns from winning proposals', type: 'signal' },
-    { agent: 'design_visual', action: 'Tag effective visual formats', type: 'signal' },
-    { agent: 'self_awareness', action: 'Update win/loss trends and OPI accuracy tracking', type: 'signal' },
+    { agent: 'scanner_opi', action: 'Compare predicted OPI vs actual outcome. What factors were over/underweighted? Recommend specific model adjustments with expected impact.', type: 'react' },
+    { agent: 'financial_pricing', action: 'Compare estimated contract value vs actual award. Analyze pricing accuracy. Store benchmark data. Recommend estimation model changes.', type: 'react' },
+    { agent: 'intelligence_engine', action: 'Extract and permanently store all competitor data from this outcome: who bid, at what price, who won, why. Strategic implications for future bids against these competitors.', type: 'react' },
+    { agent: 'crm_relationship', action: 'Assess what this outcome means for the agency relationship. Update contact strength. Identify cross-agency connections. Recommend outreach timing.', type: 'react' },
+    { agent: 'recruiting_bench', action: 'Identify personnel involved in this bid. If won, flag as proven performers. Track recurring staffing gaps across outcomes.', type: 'react' },
+    { agent: 'proposal_agent', action: 'Analyze what made this proposal win or lose. Identify section-level patterns. Encode lessons for future proposals in this vertical/agency type.', type: 'react' },
+    { agent: 'content_engine', action: 'Analyze language patterns in this outcome. If won, identify voice characteristics to reinforce. If lost, identify patterns to adjust. Update blocked phrases and preferred structures.', type: 'react' },
+    { agent: 'design_visual', action: 'Record which visual format and template was used. Tag as effective if won.', type: 'signal' },
+    { agent: 'self_awareness', action: 'Comprehensive outcome analysis across all stores. Connect dots: OPI accuracy trend, pricing accuracy trend, competitive patterns, relationship impact, proposal quality correlation. Identify the single highest-leverage improvement recommendation.', type: 'react' },
     { agent: 'executive_brief', action: 'Include outcome in next weekly digest', type: 'signal' }
   ],
 
