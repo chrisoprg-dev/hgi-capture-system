@@ -59,11 +59,11 @@ var CASCADE_MAP = {
   ],
 
   'proposal.edited': [
-    { agent: 'knowledge_base', action: 'Update KB chunks with corrected content', type: 'signal' },
-    { agent: 'content_engine', action: 'Record editing pattern (blocked phrases, voice adjustments)', type: 'signal' },
-    { agent: 'proposal_agent', action: 'Track edit distance by section type', type: 'signal' },
+    { agent: 'knowledge_base', action: 'Understand what changed semantically. Find source KB chunks. Decide whether to replace, supplement, or flag for review. The correction must propagate to future proposals.', type: 'react' },
+    { agent: 'content_engine', action: 'Analyze the semantic editing pattern — not just text diff. Identify structural changes, blocked phrases, preferred voice. Update writing standards for this section type and vertical.', type: 'react' },
+    { agent: 'proposal_agent', action: 'Calculate edit distance for this section type. Analyze whether the organism is improving over time. Identify which section types still need the most work.', type: 'react' },
     { agent: 'design_visual', action: 'Update layout if structure changed', type: 'signal' },
-    { agent: 'self_awareness', action: 'Aggregate correction patterns for improvement recommendations', type: 'signal' }
+    { agent: 'self_awareness', action: 'Aggregate correction patterns across all proposals. Identify recurring edits that indicate a systemic issue. Recommend the single most impactful change to reduce future edit distance.', type: 'react' }
   ],
 
   'proposal.exported': [
