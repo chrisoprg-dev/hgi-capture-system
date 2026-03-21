@@ -105,9 +105,11 @@ async function agentResearch(opp, ctx) {
 }
 
 async function agentWinnability(opp, ctx) {
+  var web = await webSearch((opp.agency||'') + ' ' + (opp.vertical||'disaster recovery') + ' contract award protest incumbent performance issues Louisiana 2024 2025 2026');
+  var webCtx = (web && web.length > 30) ? ('\nWEB WINNABILITY DATA:\n' + web.slice(0,1200)) : '';
   var a = await think(
     'HGI bid decision engine. You have the full proposal draft and competitive intelligence. Re-evaluate GO/PWIN based on what is actually in the record, not assumptions.',
-    ctx + '\n\nRe-evaluate: (1) Does the GO decision hold given everything in the record? (2) Current PWIN — be specific about what drives it up or down (3) What new risks emerge from reading the actual proposal draft and scope? (4) What would flip this to NO-BID? (5) Final: PWIN X% | GO / CONDITIONAL GO / NO-BID and why.',
+    ctx + webCtx + '\n\nRe-evaluate: (1) Does the GO decision hold given everything in the record? (2) Current PWIN — be specific about what drives it up or down (3) What new risks emerge from reading the actual proposal draft and scope? (4) What would flip this to NO-BID? (5) Final: PWIN X% | GO / CONDITIONAL GO / NO-BID and why.',
     600
   );
   if (!a || a.length < 80) return null;
