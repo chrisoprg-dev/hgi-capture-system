@@ -98,7 +98,9 @@ const handleTool = async (name, input) => {
       const { instruction, filename } = input;
       const file = await getFile(filename);
       if (!file) {
-        await pushFile(filename, instruction, null, 'MCP: Create ' + filename);
+        let ep; try { const c = instruction.trim(); ep = JSON.parse(c.slice(c.indexOf('{'), c.lastIndexOf('}') + 1)); } catch(e) { ep = null; }
+        const nc = (ep && ep.replace_entire_file && ep.content) ? ep.content : instruction;
+        await pushFile(filename, nc, null, 'MCP: Create ' + filename);
         return { success: true, created: true, message: 'Created ' + filename + '. Deploying in ~60 seconds.' };
       }
       try {
