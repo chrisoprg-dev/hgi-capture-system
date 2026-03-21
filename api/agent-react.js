@@ -104,6 +104,10 @@ async function webSearch(query) {
 }
 
 async function claudeReact(agentConfig, eventType, action, opportunity, storeData, extraPayload, memoryContext) {
+  var webQuery = (opportunity.agency || '') + ' ' + (opportunity.vertical || 'disaster recovery') + ' ' + eventType.replace(/\./g,' ') + ' Louisiana government contract 2025 2026';
+  var webData = await webSearch(webQuery);
+  var webCtx = (webData && webData.length > 30) ? ('\nLIVE WEB INTELLIGENCE:\n' + webData.slice(0,1500) + '\n\n') : '';
+
   var oppSummary = {
     id: opportunity.id || null,
     title: opportunity.title || null,
