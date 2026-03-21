@@ -92,6 +92,11 @@ export default async function handler(req, res) {
   const unanalyzed = oppProfiles.filter(function(o) { return o.gaps.length > 0; });
   const fullyDone = oppProfiles.filter(function(o) { return o.analysis_complete; });
 
+  // Build an explicit ID lookup table so Claude can use real IDs in action_payload
+  const oppIdTable = oppProfiles.map(function(o) {
+    return 'ID: ' + o.id + ' | ' + o.title + ' | ' + o.agency;
+  }).join('\n');
+
   const alreadyHave = existingDecisions.length > 0
     ? 'ALREADY PENDING (do NOT duplicate these — only add NEW decisions not already covered):\n' + existingDecisions.map(function(m) {
         var t = (m.observation || '').match(/TITLE:\s*([^\n]+)/);
