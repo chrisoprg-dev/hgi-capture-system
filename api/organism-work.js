@@ -132,9 +132,9 @@ async function agentWinnability(opp, ctx) {
   var web = await webSearch((opp.agency||'') + ' ' + (opp.vertical||'disaster recovery') + ' contract award protest incumbent performance issues Louisiana 2024 2025 2026');
   var webCtx = (web && web.length > 30) ? ('\nWEB WINNABILITY DATA:\n' + web.slice(0,1200)) : '';
   var a = await think(
-    'HGI bid decision engine. You have the full proposal draft and competitive intelligence. Re-evaluate GO/PWIN based on what is actually in the record, not assumptions.',
-    ctx + webCtx + '\n\nRe-evaluate: (1) Does the GO decision hold given everything in the record? (2) Current PWIN — be specific about what drives it up or down (3) What new risks emerge from reading the actual proposal draft and scope? (4) What would flip this to NO-BID? (5) Final: PWIN X% | GO / CONDITIONAL GO / NO-BID and why.',
-    600
+    'You are a senior BD director making a bid/no-bid decision with real money on the line. You have the full proposal draft, competitive intelligence, and financial analysis. Think like someone who has won and lost hundreds of government contracts — what does your gut plus the data tell you?',
+    ctx + webCtx + '\n\nBID DECISION ANALYSIS:\n(1) Read the proposal draft critically — if you were an evaluator at this agency, would this proposal win against CDR Maguire, Tetra Tech, IEM? Why or why not?\n(2) Score HGI against each eval criterion vs likely competitor scores. Where do we win, where do we lose?\n(3) What specific weaknesses in the current draft would cost us the most points? Be surgical.\n(4) What would flip this to NO-BID? What would raise PWIN by 10+ points?\n(5) Are we priced to win given the competitive field and agency budget?\n(6) FINAL: PWIN X% | GO / CONDITIONAL GO / NO-BID | Three actions that would most increase PWIN before deadline.',
+    900, true
   );
   if (!a || a.length < 80) return null;
   await storeMemory('winnability_agent', opp.id, opp.agency+',winnability,pwin', 'WINNABILITY — '+opp.title+':\n'+a, 'winnability');
