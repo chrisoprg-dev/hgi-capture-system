@@ -63,7 +63,7 @@ var CASCADE_MAP = {
     { agent: 'content_engine', action: 'Analyze the semantic editing pattern — not just text diff. Identify structural changes, blocked phrases, preferred voice. Update writing standards for this section type and vertical.', type: 'react' },
     { agent: 'proposal_agent', action: 'Calculate edit distance for this section type. Analyze whether the organism is improving over time. Identify which section types still need the most work.', type: 'react' },
     { agent: 'design_visual', action: 'Update layout if structure changed', type: 'signal' },
-    { agent: 'self_awareness', action: 'Aggregate correction patterns across all proposals. Identify recurring edits that indicate a systemic issue. Recommend the single most impactful change to reduce future edit distance.', type: 'react' }
+    { agent: 'self_awareness', action: 'Aggregate correction patterns across all proposals. Identify recurring edits that indicate a systemic issue. Recommend the single most impactful change to reduce future edit distance.', type: 'react', tier: 2 }
   ],
 
   'proposal.exported': [
