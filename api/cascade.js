@@ -97,7 +97,7 @@ var CASCADE_MAP = {
 
   'opportunity.lost': [
     { agent: 'intelligence_engine', action: 'Research who won, at what price, and why. Store competitor win data permanently. Identify what HGI lacked and what would change the outcome next time.', type: 'react' },
-    { agent: 'self_awareness', action: 'Analyze loss across all dimensions: proposal quality, pricing competitiveness, relationship gaps, staffing gaps, competitive positioning. Identify whether this is a one-time miss or a structural pattern. Recommend the single highest-leverage fix.', type: 'react' }
+    { agent: 'self_awareness', action: 'Analyze loss across all dimensions: proposal quality, pricing competitiveness, relationship gaps, staffing gaps, competitive positioning. Identify whether this is a one-time miss or a structural pattern. Recommend the single highest-leverage fix.', type: 'react', tier: 2 }
   ],
 
   // ═══ STAGE CHANGE CASCADES ═══
