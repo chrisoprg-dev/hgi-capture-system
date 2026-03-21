@@ -347,17 +347,21 @@ export default async function handler(req, res) {
   var perOppPromises = [];
   for (var i = 0; i < activeOpps.length; i++) {
     (function(opp) {
-      var mem = oppMem(opp);
-      var ctx = buildCtx(opp, mem);
-      perOppPromises.push(safe(function(){ return agentIntelligence(opp, ctx); }));
-      perOppPromises.push(safe(function(){ return agentCrm(opp, ctx); }));
-      perOppPromises.push(safe(function(){ return agentFinancial(opp, ctx); }));
-      perOppPromises.push(safe(function(){ return agentResearch(opp, ctx); }));
-      perOppPromises.push(safe(function(){ return agentWinnability(opp, ctx); }));
-      perOppPromises.push(safe(function(){ return agentQualityGate(opp, ctx); }));
-      perOppPromises.push(safe(function(){ return agentProposal(opp, ctx); }));
-      perOppPromises.push(safe(function(){ return agentBrief(opp, ctx); }));
-      perOppPromises.push(safe(function(){ return agentOppBrief(opp, ctx); }));
+      var memFull = oppMem(opp, 'full');
+      var memCompact = oppMem(opp, 'compact');
+      var ctxFull = buildCtx(opp, memFull, 'full');
+      var ctxCompact = buildCtx(opp, memCompact, 'compact');
+      // Sonnet critical agents — full context (15K proposal, 5K scope, 4K memory)
+      perOppPromises.push(safe(function(){ return agentIntelligence(opp, ctxFull); }));
+      perOppPromises.push(safe(function(){ return agentResearch(opp, ctxFull); }));
+      perOppPromises.push(safe(function(){ return agentWinnability(opp, ctxFull); }));
+      perOppPromises.push(safe(function(){ return agentQualityGate(opp, ctxFull); }));
+      perOppPromises.push(safe(function(){ return agentProposal(opp, ctxFull); }));
+      perOppPromises.push(safe(function(){ return agentOppBrief(opp, ctxFull); }));
+      // Haiku routine agents — compact context (5K proposal, 2.5K scope, 2.5K memory)
+      perOppPromises.push(safe(function(){ return agentCrm(opp, ctxCompact); }));
+      perOppPromises.push(safe(function(){ return agentFinancial(opp, ctxCompact); }));
+      perOppPromises.push(safe(function(){ return agentBrief(opp, ctxCompact); }));
     })(activeOpps[i]);
   }
 
