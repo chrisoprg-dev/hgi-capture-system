@@ -142,7 +142,7 @@ var CASCADE_MAP = {
   // ═══ QUALITY GATE CASCADES ═══
   'quality_gate.completed': [
     { agent: 'proposal_agent', action: 'Read the deficiency list. Determine how to fix each deficiency. Identify which are critical vs minor. Recommend specific rewrites or flag for Christopher.', type: 'react' },
-    { agent: 'self_awareness', action: 'Analyze quality gate pass/fail patterns across all proposals. Identify most common failure types. Recommend systemic fix to reduce failures.', type: 'react' },
+    { agent: 'self_awareness', action: 'Analyze quality gate pass/fail patterns across all proposals. Identify most common failure types. Recommend systemic fix to reduce failures.', type: 'react', tier: 2 },
     { agent: 'pipeline_scanner', action: 'Block submission if FAIL status', type: 'signal' }
   ]
 };
