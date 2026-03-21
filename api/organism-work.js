@@ -72,7 +72,7 @@ async function agentIntelligence(opp, ctx) {
   var a = await think(
     'HGI competitive intelligence analyst. HGI has NEVER had a direct federal contract — all work through state/local agencies. Cite specific dollar amounts, firm names, dates. Flag anything that contradicts what the proposal or research already assumes.',
     ctx + webCtx + '\n\nExtract and update: (1) Named competitors likely to bid — specific firms and why they are threats (2) Recent comparable contract award amounts with sources (3) Incumbent contractor if any (4) Agency procurement patterns and decision-maker info (5) Red flags or competitive advantages not yet captured in the proposal draft above.',
-    1000
+    1000, true
   );
   if (!a || a.length < 80) return null;
   await storeMemory('intelligence_engine', opp.id, opp.agency+','+(opp.vertical||'')+',competitive_intel', 'INTEL ENGINE — '+opp.agency+':\n'+a, 'competitive_intel');
