@@ -155,7 +155,7 @@ async function fireReact(r, eventType, payload, priorInsights) {
     var resp = await fetch(BASE + '/api/agent-react', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (resp.ok) {
       var result = await resp.json();
-      return { agent: r.agent, action: r.action, status: 'completed', type: 'react', tier: r.tier || 1, analysis: (result.analysis || '').slice(0, 200), downstream: result.downstream_insights || '', writes: result.store_updates || [] };
+      return { agent: r.agent, action: r.action, status: 'completed', type: 'react', tier: r.tier || 1, analysis: result.analysis || '', downstream: result.downstream_insights || '', writes: result.store_updates || [] };
     }
     return { agent: r.agent, action: r.action, status: 'failed_' + resp.status, type: 'react', tier: r.tier || 1 };
   } catch(e) {
