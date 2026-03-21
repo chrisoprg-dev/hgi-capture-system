@@ -3,371 +3,331 @@ var SB = process.env.SUPABASE_URL;
 var SK = process.env.SUPABASE_SERVICE_KEY;
 var H = { 'apikey': SK, 'Authorization': 'Bearer ' + SK, 'Content-Type': 'application/json' };
 var D = String.fromCharCode(36);
+var HGI = { name:'HGI Global, Inc.', legal:'Hammerman & Gainer LLC', founded:'~1929', years:'96', address:'2400 Veterans Memorial Blvd, Suite 510, Kenner, LA 70062', phone:'504-982-5030', uei:'DL4SJEVKZ6H4', ownership:'100% Minority-Owned', staff:'67 FT + 43 Contract Professionals', offices:'Kenner (HQ), Shreveport, Alexandria, New Orleans', insurance:D+'5M Fidelity Bond, '+D+'5M E&O, '+D+'2M GL' };
+var GOLD='#C9A84C',NAVY='#1B3A5C',WHITE='#FFFFFF',LIGHT='#F8F6F0';
+function esc(s){return(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-// CONFIRMED HGI DATA ONLY — never fabricate
-var HGI = {
-  name: 'HGI Global, Inc.',
-  legal: 'Hammerman & Gainer LLC',
-  founded: '~1929',
-  years: '96',
-  address: '2400 Veterans Memorial Blvd, Suite 510, Kenner, LA 70062',
-  phone: '504-982-5030',
-  uei: 'DL4SJEVKZ6H4',
-  ownership: '100% Minority-Owned',
-  staff: '67 FT + 43 Contract Professionals',
-  offices: 'Kenner (HQ), Shreveport, Alexandria, New Orleans',
-  insurance: D+'5M Fidelity Bond, '+D+'5M E&O, '+D+'2M GL'
-};
-
-var RATES = [
-  ['Principal',220],['Program Director',210],['Subject Matter Expert',200],
-  ['Sr Grant Manager',180],['Grant Manager',175],['Sr Project Manager',180],
-  ['Project Manager',155],['Grant Writer',145],['Architect/Engineer',135],
-  ['Cost Estimator',125],['Appeals Specialist',145],['Sr Damage Assessor',115],
-  ['Damage Assessor',105],['Administrative Support',65]
-];
-
-var PP = [
-  {name:'Road Home Program',client:'Louisiana Recovery Authority',value:D+'67M direct / '+D+'13B+ program',period:'2006-2015',outcome:'Zero misappropriation. 130,000+ families served. Largest disaster recovery program in U.S. history.'},
-  {name:'Restore Louisiana',client:'Louisiana OCD',value:D+'42.3M',period:'2017-2021',outcome:'CDBG-DR program administration. HUD compliance. Homeowner assistance and infrastructure.'},
-  {name:'Rebuild New Jersey',client:'State of New Jersey',value:D+'67.7M',period:'Post-Sandy',outcome:'Multi-state disaster recovery capability demonstrated.'},
-  {name:'HAP',client:'State of Louisiana',value:D+'950M',period:'Post-Katrina',outcome:'Homeowner Assistance Program. Massive scale program delivery.'},
-  {name:'Terrebonne Parish Schools',client:'TPSB',value:D+'2.96M',period:'2022-2025 (Completed)',outcome:'Post-Hurricane Ida construction management. FEMA PA coordination. 100% reimbursement.'},
-  {name:'BP GCCF',client:'BP / Gulf Coast Claims',value:'1M+ Claims',period:'2010-2013',outcome:'Rapid mobilization. Complex federal oversight. Kenneth Feinberg program.'},
-  {name:'St. John Sheriff',client:'St. John the Baptist Parish',value:D+'788K',period:'Post-disaster',outcome:'Parish-level disaster recovery coordination.'}
-];
-
-var GOLD = '#C9A84C';
-var NAVY = '#1B3A5C';
-var WHITE = '#FFFFFF';
-var LIGHT = '#F8F6F0';
-
-function esc(s) { return (s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-function buildOrgChart(staffingPlan, scopeAnalysis) {
-  // Extract positions from the proposal/scope — look for common RFP role patterns
-  var positions = [];
-  var text = (staffingPlan || '') + '\n' + (scopeAnalysis || '');
-  var rateMap = {};
-  for (var i = 0; i < RATES.length; i++) rateMap[RATES[i][0].toLowerCase()] = RATES[i][1];
-  
-  // Try to find position/rate table in staffing plan
-  var lines = text.split('\n');
-  for (var j = 0; j < lines.length; j++) {
-    var line = lines[j];
-    // Match patterns like "Program Director | $210" or "**Program Director** | $205/hr"
-    var m = line.match(/(Program Director|Senior PM|Senior Project Manager|Project Manager|PA SME|Public Assistance SME|Subject Matter Expert|HM Specialist|Hazard Mitigation|Grant Financial|Financial Specialist|Documentation Manager|Admin|Administrative Support|Construction Manager|Resident Inspector|Grant Writer|Cost Estimator|Damage Assessor)/i);
-    if (m) {
-      var title = m[1];
-      var rateMatch = line.match(/\$([\d,.]+)/);
-      var rate = rateMatch ? parseInt(rateMatch[1].replace(/,/g,'')) : null;
-      // Avoid duplicates
-      var dup = false;
-      for (var k = 0; k < positions.length; k++) {
-        if (positions[k].title.toLowerCase() === title.toLowerCase()) { dup = true; break; }
-      }
-      if (!dup) positions.push({ title: title, rate: rate });
-    }
-  }
-  
-  // If no positions found, use defaults from rate card
-  if (positions.length < 3) {
-    positions = [
-      {title:'Program Director',rate:210},{title:'Sr Project Manager',rate:180},
-      {title:'Project Manager',rate:155},{title:'Subject Matter Expert',rate:200},
-      {title:'Grant Writer',rate:145},{title:'Administrative Support',rate:65}
-    ];
-  }
-  
-  // Build tiered org chart: first position = top, next 2-3 = middle, rest = bottom
-  var top = positions[0];
-  var mid = positions.slice(1, Math.min(4, positions.length));
-  var bot = positions.slice(4);
-  
-  var html = '<div class="org">';
-  html += '<div class="org-level"><div class="org-box exec"><div class="org-title">' + esc(top.title) + '</div><div class="org-rate">' + (top.rate ? D+top.rate+'/hr' : 'TBD') + '</div></div></div>';
-  html += '<div class="org-connector"></div>';
-  if (mid.length) {
-    html += '<div class="org-level">';
-    for (var m2 = 0; m2 < mid.length; m2++) {
-      html += '<div class="org-box"><div class="org-title">' + esc(mid[m2].title) + '</div><div class="org-rate">' + (mid[m2].rate ? D+mid[m2].rate+'/hr' : 'TBD') + '</div></div>';
-    }
-    html += '</div>';
-  }
-  if (bot.length) {
-    html += '<div class="org-connector"></div>';
-    html += '<div class="org-level">';
-    for (var b = 0; b < bot.length; b++) {
-      html += '<div class="org-box"><div class="org-title">' + esc(bot[b].title) + '</div><div class="org-rate">' + (bot[b].rate ? D+bot[b].rate+'/hr' : 'TBD') + '</div></div>';
-    }
-    html += '</div>';
-  }
-  html += '</div>';
+function renderSection(title, content, sectionNum) {
+  var html = '<div class="section">';
+  html += '<div class="sec-header"><span class="sec-num">'+sectionNum+'</span><h2 class="sec-title">'+esc(title)+'</h2></div>';
+  html += '<div class="sec-body">' + renderContent(content, title) + '</div></div>';
   return html;
 }
 
-function buildPPTiles(agency, vertical) {
-  // Select most relevant past performance based on vertical
-  var selected = PP;
-  if (vertical && vertical.includes('disaster')) {
-    selected = PP.filter(function(p) { return ['Road Home','Restore Louisiana','Rebuild New Jersey','Terrebonne Parish','HAP','St. John Sheriff'].indexOf(p.name.split(' ')[0]+' '+p.name.split(' ')[1]) !== -1 || p.name === 'Road Home Program'; });
-  }
-  selected = selected.slice(0, 6);
-  var html = '<div class="pp-grid">';
-  for (var i = 0; i < selected.length; i++) {
-    var p = selected[i];
-    html += '<div class="pp-card"><div class="pp-name">' + esc(p.name) + '</div>';
-    html += '<div class="pp-client">' + esc(p.client) + ' | ' + esc(p.period) + '</div>';
-    html += '<div class="pp-value">' + esc(p.value) + '</div>';
-    html += '<div class="pp-outcome">' + esc(p.outcome) + '</div></div>';
-  }
-  html += '</div>';
-  return html;
-}
-
-function buildRateTable(staffingPlan) {
-  // Try to extract RFP-specific rates from staffing plan, fall back to standard
-  var rows = '';
-  for (var i = 0; i < RATES.length; i++) {
-    rows += '<tr><td>' + esc(RATES[i][0]) + '</td><td class="rate">' + D + RATES[i][1] + '/hr</td></tr>';
-  }
-  return '<table><thead><tr><th>Position</th><th>Fully Burdened Rate</th></tr></thead><tbody>' + rows + '</tbody></table>';
-}
-
-function buildProcessFlow(vertical) {
-  var steps;
-  if (vertical && vertical.includes('disaster')) {
-    steps = ['Activation & Deployment','Damage Assessment','PW Development & Optimization','FEMA Submission & Negotiation','Obligation & Funding','Implementation Oversight','Compliance & Audit','Closeout'];
-  } else if (vertical && vertical.includes('grant')) {
-    steps = ['Needs Assessment','Grant Research & Identification','Application Development','Award Management','Compliance Monitoring','Reporting','Closeout'];
-  } else {
-    steps = ['Assessment','Planning','Execution','Monitoring','Compliance','Reporting','Closeout'];
-  }
-  var html = '<div class="process">';
-  for (var i = 0; i < steps.length; i++) {
-    html += '<div class="step"><div class="step-num">' + (i+1) + '</div><div class="step-label">' + esc(steps[i]) + '</div></div>';
-    if (i < steps.length - 1) html += '<div class="arrow">\u2192</div>';
-  }
-  html += '</div>';
-  return html;
-}
-
-function buildComplianceMatrix(scopeAnalysis) {
-  if (!scopeAnalysis || scopeAnalysis.length < 100) return '';
-  // Extract eval criteria if present
-  var html = '<div class="compliance"><h3 class="h3">Evaluation Criteria Alignment</h3><table class="eval-table"><thead><tr><th>Criterion</th><th>Weight</th><th>HGI Response</th><th>Strength</th></tr></thead><tbody>';
-  // Look for eval criteria pattern
-  var techMatch = scopeAnalysis.match(/Technical[^\d]*(\d+)/i);
-  var expMatch = scopeAnalysis.match(/Experience[^\d]*(\d+)/i);
-  var ppMatch = scopeAnalysis.match(/Past Performance[^\d]*(\d+)/i);
-  var staffMatch = scopeAnalysis.match(/Staff[^\d]*(\d+)/i);
-  var priceMatch = scopeAnalysis.match(/Price[^\d]*(\d+)/i);
-  
-  if (techMatch) html += '<tr><td>Technical Approach</td><td>' + techMatch[1] + ' pts</td><td>FEMA PA methodology, CDBG-DR expertise, compliance framework</td><td class="strong">\u2605\u2605\u2605\u2605</td></tr>';
-  if (expMatch) html += '<tr><td>Experience</td><td>' + expMatch[1] + ' pts</td><td>' + HGI.years + ' years, Road Home ' + D + '13B+, multi-state operations</td><td class="strong">\u2605\u2605\u2605\u2605\u2605</td></tr>';
-  if (ppMatch) html += '<tr><td>Past Performance</td><td>' + ppMatch[1] + ' pts</td><td>7 confirmed references, zero misappropriation record</td><td class="strong">\u2605\u2605\u2605\u2605\u2605</td></tr>';
-  if (staffMatch) html += '<tr><td>Staffing</td><td>' + staffMatch[1] + ' pts</td><td>' + HGI.staff + ' across 4 Louisiana offices</td><td class="strong">\u2605\u2605\u2605</td></tr>';
-  if (priceMatch) html += '<tr><td>Price</td><td>' + priceMatch[1] + ' pts</td><td>Competitive fully-burdened rates, firm 3 years</td><td class="strong">\u2605\u2605\u2605</td></tr>';
-  html += '</tbody></table></div>';
-  return (techMatch || expMatch) ? html : '';
-}
-
-function md(text) {
+function renderContent(text, sectionTitle) {
   if (!text) return '';
-  return text
-    .replace(/^### (.+)$/gm, '<h4 class="h4">$1</h4>')
-    .replace(/^## (.+)$/gm, '<h3 class="h3">$1</h3>')
-    .replace(/^# (.+)$/gm, '<h2 class="h2">$1</h2>')
-    .replace(/^---$/gm, '<hr/>')
-    .replace(/\|[^\n]+\|/gm, function(row) {
-      var cells = row.split('|').filter(function(c){return c.trim();});
-      return '<tr>' + cells.map(function(c){return '<td>'+c.trim()+'</td>';}).join('') + '</tr>';
-    })
-    .replace(/^\- \*\*(.+?)\*\*(.*)$/gm, '<div class="bl"><strong>$1</strong>$2</div>')
-    .replace(/^\- (.+)$/gm, '<div class="bl">$1</div>')
-    .replace(/^\* (.+)$/gm, '<div class="bl">$1</div>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br/>');
+  var lower = (sectionTitle||'').toLowerCase();
+  // Detect tables and render them professionally
+  var lines = text.split('\n');
+  var html = '';
+  var inTable = false;
+  var tableRows = [];
+  var isFirstRow = true;
+  
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    // Table detection
+    if (line.trim().indexOf('|') === 0 || (line.indexOf('|') > -1 && line.trim().split('|').length >= 3)) {
+      if (line.replace(/[|\-\s]/g,'').length < 2) continue; // separator row
+      var cells = line.split('|').filter(function(c){return c.trim();});
+      if (!inTable) { inTable = true; tableRows = []; isFirstRow = true; }
+      tableRows.push({ cells: cells, isHeader: isFirstRow });
+      isFirstRow = false;
+      continue;
+    }
+    if (inTable) {
+      html += buildTable(tableRows, lower);
+      inTable = false; tableRows = []; isFirstRow = true;
+    }
+    // Headers
+    if (line.match(/^###\s+/)) { html += '<h4 class="h4">' + renderInline(line.replace(/^###\s+/,'')) + '</h4>'; continue; }
+    if (line.match(/^##\s+/)) { html += '<h3 class="h3">' + renderInline(line.replace(/^##\s+/,'')) + '</h3>'; continue; }
+    if (line.match(/^#\s+/)) continue; // skip top-level headers, we use sec-header
+    if (line.match(/^---$/)) { html += '<hr class="divider"/>'; continue; }
+    // Bullet points
+    if (line.match(/^\s*[-*]\s+\*\*/)) {
+      var bm = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*(.*)/);
+      if (bm) { html += '<div class="bullet"><strong>'+renderInline(bm[1])+'</strong>'+renderInline(bm[2])+'</div>'; continue; }
+    }
+    if (line.match(/^\s*[-*]\s+/)) {
+      html += '<div class="bullet">'+renderInline(line.replace(/^\s*[-*]\s+/,''))+'</div>'; continue;
+    }
+    // Regular paragraphs
+    if (line.trim().length > 0) {
+      html += '<p>'+renderInline(line)+'</p>';
+    }
+  }
+  if (inTable) html += buildTable(tableRows, lower);
+  
+  // Inject visual elements based on section type
+  if (lower.includes('personnel') || lower.includes('staffing') || lower.includes('organizational')) {
+    html += buildOrgChart(text);
+  }
+  if (lower.includes('past performance')) {
+    html += buildPPVisual(text);
+  }
+  if (lower.includes('technical approach')) {
+    html = buildProcessFlow() + html;
+  }
+  
+  return html;
+}
+
+function renderInline(t) {
+  return (t||'').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>');
+}
+
+function buildTable(rows, context) {
+  if (!rows.length) return '';
+  var isCompliance = context.includes('compliance');
+  var isPricing = context.includes('pricing') || context.includes('exhibit');
+  var cls = isCompliance ? 'tbl compliance-tbl' : isPricing ? 'tbl pricing-tbl' : 'tbl';
+  var html = '<table class="'+cls+'">';
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var tag = r.isHeader ? 'th' : 'td';
+    html += '<tr>';
+    for (var j = 0; j < r.cells.length; j++) {
+      var cell = r.cells[j].trim();
+      var cellClass = '';
+      // Status indicators for compliance
+      if (cell === 'Compliant') cellClass = ' class="status-pass"';
+      if (cell === 'Partial') cellClass = ' class="status-warn"';
+      if (cell === 'Gap') cellClass = ' class="status-fail"';
+      // Rate formatting
+      if (cell.match(/^\$\d/) && !r.isHeader) cellClass = ' class="rate-cell"';
+      html += '<'+tag+cellClass+'>' + renderInline(cell) + '</'+tag+'>';
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  return html;
+}
+
+function buildOrgChart(text) {
+  var positions = [];
+  var lines = text.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var m = lines[i].match(/(Program Director|Senior PM|Senior Project Manager|Project Manager|PA SME|Public Assistance SME|Subject Matter Expert|HM Specialist|Hazard Mitigation|Grant Financial|Financial Specialist|Documentation Manager|Administrative Support|Construction Manager|Resident Inspector|Grant Writer|Cost Estimator|Damage Assessor|Project Inspector)/i);
+    if (m) {
+      var rm = lines[i].match(/\$(\d+)/); var rate = rm ? parseInt(rm[1]) : null;
+      var dup = false; for (var k=0;k<positions.length;k++) if (positions[k].t.toLowerCase()===m[1].toLowerCase()) dup=true;
+      if (!dup && positions.length < 12) positions.push({t:m[1],r:rate});
+    }
+  }
+  if (positions.length < 2) return '';
+  var top = positions[0], mid = positions.slice(1,Math.min(4,positions.length)), bot = positions.slice(4);
+  var html = '<div class="org-visual"><div class="org-label">PROPOSED ORGANIZATIONAL STRUCTURE</div>';
+  html += '<div class="org-chart"><div class="org-row"><div class="org-node top"><div class="org-n-title">'+esc(top.t)+'</div>'+(top.r?'<div class="org-n-rate">'+D+top.r+'/hr</div>':'')+'</div></div>';
+  html += '<div class="org-line"></div>';
+  if (mid.length) { html += '<div class="org-row">'; for(var a=0;a<mid.length;a++) html += '<div class="org-node"><div class="org-n-title">'+esc(mid[a].t)+'</div>'+(mid[a].r?'<div class="org-n-rate">'+D+mid[a].r+'/hr</div>':'')+'</div>'; html += '</div>'; }
+  if (bot.length) { html += '<div class="org-line"></div><div class="org-row">'; for(var b=0;b<bot.length;b++) html += '<div class="org-node sm"><div class="org-n-title">'+esc(bot[b].t)+'</div>'+(bot[b].r?'<div class="org-n-rate">'+D+bot[b].r+'/hr</div>':'')+'</div>'; html += '</div>'; }
+  html += '</div></div>';
+  return html;
+}
+
+function buildPPVisual(text) {
+  var programs = [];
+  var sections = text.split(/\d+\.\d+\s+/);
+  for (var i = 1; i < sections.length && programs.length < 6; i++) {
+    var s = sections[i];
+    var nm = s.match(/^(.+?)\n/);
+    var vm = s.match(/Contract Value[:\s]*([^\n]+)/i);
+    var pm = s.match(/Period[:\s]*([^\n]+)/i);
+    var cm = s.match(/Client[:\s]*([^\n]+)/i);
+    if (nm) programs.push({ name:nm[1].trim(), value:vm?vm[1].trim():'', period:pm?pm[1].trim():'', client:cm?cm[1].trim():'' });
+  }
+  if (!programs.length) return '';
+  var html = '<div class="pp-visual">';
+  for (var j = 0; j < programs.length; j++) {
+    var p = programs[j];
+    html += '<div class="pp-tile"><div class="pp-tile-name">'+esc(p.name)+'</div>';
+    if (p.client) html += '<div class="pp-tile-client">'+esc(p.client)+'</div>';
+    if (p.value) html += '<div class="pp-tile-value">'+esc(p.value)+'</div>';
+    if (p.period) html += '<div class="pp-tile-period">'+esc(p.period)+'</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function buildProcessFlow() {
+  var steps = ['Activation','Damage Assessment','PW Development','FEMA Submission','Obligation','Implementation','Compliance','Closeout'];
+  var html = '<div class="flow-visual"><div class="flow-label">HGI DISASTER RECOVERY METHODOLOGY</div><div class="flow-steps">';
+  for (var i = 0; i < steps.length; i++) {
+    html += '<div class="flow-step"><div class="flow-num">'+(i+1)+'</div><div class="flow-name">'+steps[i]+'</div></div>';
+    if (i < steps.length-1) html += '<div class="flow-arrow">\u25B6</div>';
+  }
+  html += '</div></div>';
+  return html;
+}
+
+function buildStatsBar() {
+  return '<div class="stats">'
+    +'<div class="stat"><div class="stat-n">'+HGI.years+'</div><div class="stat-l">Years</div></div>'
+    +'<div class="stat"><div class="stat-n">'+D+'13B+</div><div class="stat-l">Programs Managed</div></div>'
+    +'<div class="stat"><div class="stat-n">0</div><div class="stat-l">Misappropriations</div></div>'
+    +'<div class="stat"><div class="stat-n">110+</div><div class="stat-l">Professionals</div></div>'
+    +'<div class="stat"><div class="stat-n">4</div><div class="stat-l">LA Offices</div></div>'
+    +'</div>';
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin','*');
   var id = req.query.id;
-  if (!id) return res.status(400).send('Add ?id=OPPORTUNITY_ID to the URL');
-
-  var oppR = await fetch(SB + '/rest/v1/opportunities?id=eq.' + encodeURIComponent(id) + '&limit=1', { headers: H });
+  if (!id) return res.status(400).send('?id=OPPORTUNITY_ID required');
+  var oppR = await fetch(SB+'/rest/v1/opportunities?id=eq.'+encodeURIComponent(id)+'&limit=1',{headers:H});
   var opps = await oppR.json();
-  if (!opps || !opps.length) return res.status(404).send('Opportunity not found');
+  if (!opps||!opps.length) return res.status(404).send('Not found');
   var o = opps[0];
-
-  // Load organism memory for this opportunity
-  var memR = await fetch(SB + '/rest/v1/organism_memory?opportunity_id=eq.' + encodeURIComponent(id) + '&order=created_at.desc&limit=10&select=agent,observation', { headers: H });
-  var mems = [];
-  try { mems = await memR.json(); } catch(e) {}
-
-  var dueDate = o.due_date ? new Date(o.due_date).toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}) : 'TBD';
+  var proposal = o.staffing_plan || '';
+  if (proposal.length < 100) return res.status(400).send('No proposal content for this opportunity. Run orchestrator first.');
+  var dueDate = o.due_date ? new Date(o.due_date).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : 'TBD';
   var vertical = o.vertical || 'professional services';
-  var verticalTitle = vertical.includes('disaster') ? 'Disaster Recovery Program Management Services' : vertical.includes('grant') ? 'Grant Management & Administration Services' : 'Professional Services';
+  var vertTitle = vertical.includes('disaster')?'Disaster Recovery Program Management':'Grant Management & Administration';
+  
+  // Parse proposal into sections
+  var sections = [];
+  var parts = proposal.split(/^## (\d+)\.\s*/m);
+  // parts[0] = header, then alternating: number, content
+  for (var i = 1; i < parts.length; i += 2) {
+    var num = parts[i];
+    var body = (parts[i+1]||'');
+    var titleMatch = body.match(/^(.+?)\n/);
+    var title = titleMatch ? titleMatch[1].trim() : 'Section '+num;
+    var content = titleMatch ? body.slice(titleMatch[0].length) : body;
+    sections.push({ num: num, title: title, content: content });
+  }
 
   var css = '@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap");'
-    + '*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }'
-    + 'body { font-family: "Outfit", sans-serif; color: #222; line-height: 1.65; background: '+WHITE+'; font-weight: 400; }'
-    + '@media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } .page-break { page-break-before: always; } }'
-    + '.cover { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: linear-gradient(160deg, '+NAVY+' 0%, #0D1F33 50%, #0A1628 100%); color: white; text-align: center; position: relative; overflow: hidden; page-break-after: always; }'
-    + '.cover::before { content: ""; position: absolute; top: -30%; right: -20%; width: 70%; height: 160%; background: radial-gradient(ellipse, rgba(201,168,76,0.08) 0%, transparent 65%); pointer-events: none; }'
-    + '.cover::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, transparent, '+GOLD+', transparent); }'
-    + '.cover-badge { display: inline-block; padding: 6px 24px; border: 1px solid rgba(201,168,76,0.4); border-radius: 2px; font-size: 11px; letter-spacing: 5px; text-transform: uppercase; color: '+GOLD+'; margin-bottom: 36px; font-weight: 500; }'
-    + '.cover-title { font-family: "Cormorant Garamond", serif; font-size: 44px; font-weight: 700; line-height: 1.15; max-width: 750px; margin-bottom: 16px; letter-spacing: -0.5px; }'
-    + '.cover-sub { font-size: 18px; font-weight: 300; color: rgba(255,255,255,0.55); max-width: 600px; margin-bottom: 48px; letter-spacing: 0.3px; }'
-    + '.cover-divider { width: 60px; height: 2px; background: '+GOLD+'; margin: 0 auto 40px; }'
-    + '.cover-meta { font-size: 13px; color: rgba(255,255,255,0.4); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; }'
-    + '.cover-agency { font-family: "Cormorant Garamond", serif; font-size: 28px; font-weight: 700; margin-bottom: 48px; }'
-    + '.cover-hgi { font-family: "Cormorant Garamond", serif; font-size: 38px; font-weight: 800; color: '+GOLD+'; margin-bottom: 4px; }'
-    + '.cover-legal { font-size: 14px; color: rgba(255,255,255,0.5); font-weight: 300; margin-bottom: 6px; }'
-    + '.cover-date { font-size: 15px; font-weight: 500; margin-top: 32px; }'
-    + '.content { max-width: 920px; margin: 0 auto; padding: 60px 48px; }'
-    + 'h2.sec { font-family: "Cormorant Garamond", serif; font-size: 26px; color: '+NAVY+'; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 2px solid '+GOLD+'; letter-spacing: -0.3px; }'
-    + 'h3.h3 { font-size: 17px; font-weight: 600; color: '+NAVY+'; margin: 28px 0 10px; }'
-    + 'h4.h4 { font-size: 14px; font-weight: 600; color: #555; margin: 16px 0 6px; }'
-    + 'p { margin-bottom: 14px; font-size: 14.5px; line-height: 1.75; color: #333; }'
-    + '.bl { padding: 5px 0 5px 14px; border-left: 2px solid '+GOLD+'; margin-bottom: 7px; font-size: 13.5px; color: #444; }'
-    + 'hr { border: none; border-top: 1px solid #e5e5e5; margin: 20px 0; }'
-    + '.stats { display: flex; gap: 0; margin: 36px 0; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }'
-    + '.stat { flex: 1; padding: 22px 12px; text-align: center; background: '+NAVY+'; color: white; }'
-    + '.stat:nth-child(even) { background: #234B6E; }'
-    + '.stat-num { font-family: "Cormorant Garamond", serif; font-size: 30px; font-weight: 800; color: '+GOLD+'; }'
-    + '.stat-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-top: 3px; font-weight: 500; }'
-    + '.process { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 28px 0; padding: 20px; background: '+LIGHT+'; border-radius: 6px; border: 1px solid #e8e4dc; }'
-    + '.step { text-align: center; min-width: 80px; }'
-    + '.step-num { width: 32px; height: 32px; border-radius: 50%; background: '+NAVY+'; color: '+GOLD+'; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 5px; }'
-    + '.step-label { font-size: 10px; font-weight: 600; color: '+NAVY+'; letter-spacing: 0.3px; line-height: 1.3; }'
-    + '.arrow { color: '+GOLD+'; font-size: 18px; font-weight: 700; margin-top: -8px; }'
-    + '.pp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }'
-    + '.pp-card { background: '+LIGHT+'; border-radius: 6px; padding: 16px; border-left: 3px solid '+GOLD+'; }'
-    + '.pp-name { font-weight: 700; color: '+NAVY+'; font-size: 14px; margin-bottom: 2px; }'
-    + '.pp-client { font-size: 11px; color: #999; margin-bottom: 6px; }'
-    + '.pp-value { font-family: "Cormorant Garamond", serif; font-size: 22px; font-weight: 800; color: '+GOLD+'; margin-bottom: 3px; }'
-    + '.pp-outcome { font-size: 12px; color: #555; line-height: 1.5; }'
-    + 'table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }'
-    + 'th { background: '+NAVY+'; color: white; padding: 9px 12px; text-align: left; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }'
-    + 'td { padding: 8px 12px; border-bottom: 1px solid #eee; }'
-    + 'td.rate { font-weight: 700; color: '+NAVY+'; font-size: 15px; }'
-    + 'tr:nth-child(even) td { background: '+LIGHT+'; }'
-    + '.eval-table td.strong { color: '+GOLD+'; font-size: 16px; letter-spacing: 2px; }'
-    + '.org { margin: 28px 0; text-align: center; }'
-    + '.org-level { display: flex; justify-content: center; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }'
-    + '.org-box { background: '+NAVY+'; color: white; border-radius: 5px; padding: 9px 14px; min-width: 130px; }'
-    + '.org-box.exec { background: linear-gradient(135deg, '+GOLD+', #B8933F); color: '+NAVY+'; }'
-    + '.org-title { font-weight: 700; font-size: 12px; }'
-    + '.org-rate { font-size: 10px; opacity: 0.7; }'
-    + '.org-connector { width: 2px; height: 12px; background: '+GOLD+'; margin: 0 auto; }'
-    + '.callout { background: linear-gradient(135deg, '+NAVY+', #1D3D5E); color: white; border-radius: 6px; padding: 24px 28px; margin: 32px 0; border-left: 4px solid '+GOLD+'; }'
-    + '.callout-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: '+GOLD+'; margin-bottom: 6px; font-weight: 600; }'
-    + '.callout-text { font-size: 16px; font-weight: 300; line-height: 1.6; } .callout-text strong { color: '+GOLD+'; }'
-    + '.hdr { padding: 14px 48px; border-bottom: 2px solid '+GOLD+'; display: flex; justify-content: space-between; align-items: center; }'
-    + '.hdr-logo { font-family: "Cormorant Garamond", serif; font-size: 16px; font-weight: 800; color: '+GOLD+'; }'
-    + '.hdr-title { font-size: 11px; color: #aaa; font-weight: 400; }'
-    + '.ftr { padding: 10px 48px; border-top: 1px solid #eee; text-align: center; font-size: 10px; color: #bbb; margin-top: 40px; }'
-    + '.print-bar { position: fixed; top: 0; left: 0; right: 0; background: '+NAVY+'; padding: 10px 20px; display: flex; gap: 10px; z-index: 999; }'
-    + '.print-bar button { padding: 8px 20px; background: '+GOLD+'; color: '+NAVY+'; border: none; border-radius: 4px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }'
-    + '.print-bar button:hover { background: #B8933F; }'
-    + '.print-bar .info { color: rgba(255,255,255,0.6); font-size: 12px; line-height: 36px; margin-left: auto; }'
-    + '@media print { .print-bar { display: none !important; } body { padding-top: 0 !important; } }'
-    + 'body { padding-top: 52px; }';
+    +'*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:"Outfit",sans-serif;color:#222;line-height:1.65;background:'+WHITE+';font-weight:400}'
+    +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:0!important}.no-print{display:none!important}.page-break{page-break-before:always}}'
+    +'.cover{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;background:linear-gradient(160deg,'+NAVY+' 0%,#0D1F33 50%,#0A1628 100%);color:white;text-align:center;position:relative;overflow:hidden;page-break-after:always}'
+    +'.cover::before{content:"";position:absolute;top:-30%;right:-20%;width:70%;height:160%;background:radial-gradient(ellipse,rgba(201,168,76,0.08) 0%,transparent 65%);pointer-events:none}'
+    +'.cover::after{content:"";position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,transparent,'+GOLD+',transparent)}'
+    +'.cover-badge{display:inline-block;padding:6px 24px;border:1px solid rgba(201,168,76,0.4);border-radius:2px;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:'+GOLD+';margin-bottom:36px;font-weight:500}'
+    +'.cover-title{font-family:"Cormorant Garamond",serif;font-size:44px;font-weight:700;line-height:1.15;max-width:750px;margin-bottom:16px}'
+    +'.cover-sub{font-size:18px;font-weight:300;color:rgba(255,255,255,0.55);max-width:600px;margin-bottom:48px}'
+    +'.cover-div{width:60px;height:2px;background:'+GOLD+';margin:0 auto 40px}'
+    +'.cover-meta{font-size:13px;color:rgba(255,255,255,0.4);letter-spacing:3px;text-transform:uppercase;margin-bottom:6px}'
+    +'.cover-agency{font-family:"Cormorant Garamond",serif;font-size:28px;font-weight:700;margin-bottom:48px}'
+    +'.cover-hgi{font-family:"Cormorant Garamond",serif;font-size:38px;font-weight:800;color:'+GOLD+';margin-bottom:4px}'
+    +'.cover-legal{font-size:14px;color:rgba(255,255,255,0.5);font-weight:300;margin-bottom:6px}'
+    +'.cover-date{font-size:15px;font-weight:500;margin-top:32px}'
+    +'.wrap{max-width:920px;margin:0 auto;padding:48px}'
+    +'.section{margin-bottom:40px;page-break-inside:avoid}'
+    +'.sec-header{display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid '+GOLD+'}'
+    +'.sec-num{font-family:"Cormorant Garamond",serif;font-size:36px;font-weight:800;color:'+GOLD+';line-height:1}'
+    +'.sec-title{font-family:"Cormorant Garamond",serif;font-size:24px;color:'+NAVY+';font-weight:700;letter-spacing:-0.3px}'
+    +'.sec-body{padding-left:4px}'
+    +'h3.h3{font-size:16px;font-weight:600;color:'+NAVY+';margin:24px 0 8px}'
+    +'h4.h4{font-size:14px;font-weight:600;color:#444;margin:16px 0 6px}'
+    +'p{margin-bottom:12px;font-size:14px;line-height:1.75;color:#333}'
+    +'.bullet{padding:4px 0 4px 14px;border-left:2px solid '+GOLD+';margin-bottom:6px;font-size:13.5px;color:#444}'
+    +'.divider{border:none;border-top:1px solid #e5e5e5;margin:16px 0}'
+    +'table.tbl{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}'
+    +'.tbl th{background:'+NAVY+';color:white;padding:8px 10px;text-align:left;font-size:11px;letter-spacing:0.8px;text-transform:uppercase;font-weight:600}'
+    +'.tbl td{padding:7px 10px;border-bottom:1px solid #eee}'
+    +'.tbl tr:nth-child(even) td{background:'+LIGHT+'}'
+    +'td.status-pass{color:#1a7a1a;font-weight:600}td.status-pass::before{content:"\u2713 "}'
+    +'td.status-warn{color:#c67700;font-weight:600}td.status-warn::before{content:"\u26A0 "}'
+    +'td.status-fail{color:#c62828;font-weight:600}td.status-fail::before{content:"\u2717 "}'
+    +'td.rate-cell{font-weight:700;color:'+NAVY+';font-size:15px}'
+    +'.pricing-tbl td:first-child{font-weight:600;color:'+NAVY+'}'
+    +'.stats{display:flex;gap:0;margin:28px 0;border-radius:6px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08)}'
+    +'.stat{flex:1;padding:18px 10px;text-align:center;background:'+NAVY+';color:white}'
+    +'.stat:nth-child(even){background:#234B6E}'
+    +'.stat-n{font-family:"Cormorant Garamond",serif;font-size:28px;font-weight:800;color:'+GOLD+'}'
+    +'.stat-l{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-top:2px;font-weight:500}'
+    +'.org-visual{background:'+LIGHT+';border:1px solid #e8e4dc;border-radius:6px;padding:24px;margin:20px 0;text-align:center}'
+    +'.org-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:'+NAVY+';font-weight:700;margin-bottom:16px}'
+    +'.org-row{display:flex;justify-content:center;gap:10px;margin-bottom:4px;flex-wrap:wrap}'
+    +'.org-node{background:'+NAVY+';color:white;border-radius:5px;padding:8px 12px;min-width:120px}'
+    +'.org-node.top{background:linear-gradient(135deg,'+GOLD+',#B8933F);color:'+NAVY+'}'
+    +'.org-node.sm{font-size:11px;min-width:100px;padding:6px 10px}'
+    +'.org-n-title{font-weight:700;font-size:11px}.org-n-rate{font-size:10px;opacity:0.7}'
+    +'.org-line{width:2px;height:10px;background:'+GOLD+';margin:0 auto}'
+    +'.flow-visual{background:linear-gradient(135deg,'+NAVY+',#1D3D5E);border-radius:6px;padding:24px;margin:20px 0;text-align:center}'
+    +'.flow-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:'+GOLD+';font-weight:600;margin-bottom:14px}'
+    +'.flow-steps{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px}'
+    +'.flow-step{text-align:center;min-width:70px}'
+    +'.flow-num{width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,0.2);border:1px solid '+GOLD+';color:'+GOLD+';font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;margin:0 auto 4px}'
+    +'.flow-name{font-size:9px;font-weight:600;color:rgba(255,255,255,0.8);letter-spacing:0.3px;line-height:1.2}'
+    +'.flow-arrow{color:'+GOLD+';font-size:10px;margin-top:-6px}'
+    +'.pp-visual{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:16px 0}'
+    +'.pp-tile{background:'+LIGHT+';border-radius:5px;padding:14px;border-left:3px solid '+GOLD+'}'
+    +'.pp-tile-name{font-weight:700;color:'+NAVY+';font-size:13px;margin-bottom:2px}'
+    +'.pp-tile-client{font-size:10px;color:#999;margin-bottom:4px}'
+    +'.pp-tile-value{font-family:"Cormorant Garamond",serif;font-size:20px;font-weight:800;color:'+GOLD+';margin-bottom:2px}'
+    +'.pp-tile-period{font-size:10px;color:#777}'
+    +'.callout{background:linear-gradient(135deg,'+NAVY+',#1D3D5E);color:white;border-radius:6px;padding:22px 26px;margin:24px 0;border-left:4px solid '+GOLD+'}'
+    +'.callout-l{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:'+GOLD+';margin-bottom:5px;font-weight:600}'
+    +'.callout-t{font-size:15px;font-weight:300;line-height:1.6}.callout-t strong{color:'+GOLD+'}'
+    +'.hdr{padding:12px 48px;border-bottom:2px solid '+GOLD+';display:flex;justify-content:space-between;align-items:center}'
+    +'.hdr-logo{font-family:"Cormorant Garamond",serif;font-size:16px;font-weight:800;color:'+GOLD+'}'
+    +'.hdr-t{font-size:11px;color:#aaa;font-weight:400}'
+    +'.ftr{padding:8px 48px;border-top:1px solid #eee;text-align:center;font-size:9px;color:#bbb;margin-top:32px}'
+    +'.corp-tbl td:first-child{font-weight:600;color:'+NAVY+';width:160px}'
+    +'.toolbar{position:fixed;top:0;left:0;right:0;background:'+NAVY+';padding:8px 16px;display:flex;gap:8px;z-index:999}'
+    +'.toolbar button{padding:7px 18px;background:'+GOLD+';color:'+NAVY+';border:none;border-radius:3px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit}'
+    +'.toolbar button:hover{background:#B8933F}'
+    +'.toolbar .inf{color:rgba(255,255,255,0.5);font-size:11px;line-height:34px;margin-left:auto}'
+    +'@media print{.toolbar{display:none!important}body{padding-top:0!important}}'
+    +'body{padding-top:48px}';
 
-  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>HGI Proposal — ' + esc(o.agency||'') + '</title><style>' + css + '</style></head><body>';
-
-  // PRINT BAR
-  html += '<div class="print-bar no-print"><button onclick="window.print()">Print / Save PDF</button><button onclick="document.querySelectorAll(\'.page-break\').forEach(function(e){e.style.display=\'none\'});alert(\'Page breaks removed for continuous view\')">Continuous View</button><div class="info">HGI Proposal Graphics Engine v1 | ' + esc(o.title||'') + '</div></div>';
-
-  // COVER
+  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>HGI Proposal \u2014 '+esc(o.agency||'')+'</title><style>'+css+'</style></head><body>';
+  
+  // TOOLBAR
+  html += '<div class="toolbar no-print"><button onclick="window.print()">Print / Save PDF</button><button onclick="document.querySelectorAll(\'.page-break\').forEach(function(e){e.style.display=\'none\'});this.textContent=\'Done\'">Continuous View</button><div class="inf">HGI Proposal Graphics Engine | '+esc(o.title||'').slice(0,50)+'</div></div>';
+  
+  // COVER PAGE
   html += '<div class="cover"><div class="cover-badge">Proposal</div>';
-  html += '<div class="cover-title">' + esc(verticalTitle) + '</div>';
-  html += '<div class="cover-sub">' + esc(o.title||'') + '</div>';
-  html += '<div class="cover-divider"></div>';
+  html += '<div class="cover-title">'+esc(vertTitle)+'</div>';
+  html += '<div class="cover-sub">'+esc(o.title||'')+'</div>';
+  html += '<div class="cover-div"></div>';
   html += '<div class="cover-meta">Submitted To</div>';
-  html += '<div class="cover-agency">' + esc(o.agency||'') + '</div>';
+  html += '<div class="cover-agency">'+esc(o.agency||'')+'</div>';
   html += '<div class="cover-meta">Submitted By</div>';
-  html += '<div class="cover-hgi">' + HGI.name + '</div>';
-  html += '<div class="cover-legal">' + HGI.legal + ' \u2014 ' + HGI.ownership + ' \u2014 Est. ' + HGI.founded + '</div>';
-  html += '<div class="cover-date">Due: ' + esc(dueDate) + '</div>';
-  html += '</div>';
-
+  html += '<div class="cover-hgi">'+HGI.name+'</div>';
+  html += '<div class="cover-legal">'+HGI.legal+' \u2014 '+HGI.ownership+' \u2014 Est. '+HGI.founded+'</div>';
+  html += '<div class="cover-date">Due: '+esc(dueDate)+'</div></div>';
+  
   // HEADER
-  html += '<div class="hdr"><div class="hdr-logo">HGI Global</div><div class="hdr-title">' + esc(o.agency||'') + ' \u2014 ' + esc(verticalTitle) + '</div></div>';
-
-  html += '<div class="content">';
-
-  // STATS BAR
-  html += '<div class="stats">';
-  html += '<div class="stat"><div class="stat-num">' + HGI.years + '</div><div class="stat-label">Years in Business</div></div>';
-  html += '<div class="stat"><div class="stat-num">'+D+'13B+</div><div class="stat-label">Federal Programs Managed</div></div>';
-  html += '<div class="stat"><div class="stat-num">0</div><div class="stat-label">Misappropriations</div></div>';
-  html += '<div class="stat"><div class="stat-num">110+</div><div class="stat-label">Professionals</div></div>';
-  html += '<div class="stat"><div class="stat-num">4</div><div class="stat-label">Louisiana Offices</div></div>';
-  html += '</div>';
-
-  // VALUE CALLOUT
-  html += '<div class="callout"><div class="callout-label">Key Differentiator</div>';
-  html += '<div class="callout-text">HGI\'s approach to federal program management has delivered <strong>zero misappropriation across '+D+'13 billion+</strong> in administered funds \u2014 an unmatched compliance record spanning nearly a century of fiduciary service to Louisiana and beyond.</div></div>';
-
-  // EVAL CRITERIA ALIGNMENT (dynamic from scope)
-  var evalMatrix = buildComplianceMatrix(o.scope_analysis || '');
-  if (evalMatrix) {
-    html += '<h2 class="sec">Evaluation Criteria Alignment</h2>' + evalMatrix;
+  html += '<div class="hdr"><div class="hdr-logo">HGI Global</div><div class="hdr-t">'+esc(o.agency||'')+' \u2014 '+esc(vertTitle)+'</div></div>';
+  
+  html += '<div class="wrap">';
+  
+  // STATS BAR + VALUE CALLOUT
+  html += buildStatsBar();
+  html += '<div class="callout"><div class="callout-l">Key Differentiator</div>';
+  html += '<div class="callout-t">HGI has delivered <strong>zero misappropriation across '+D+'13 billion+</strong> in federal program funds \u2014 an unmatched compliance record spanning nearly a century of fiduciary service.</div></div>';
+  
+  // RENDER EACH PROPOSAL SECTION WITH EMBEDDED VISUALS
+  for (var s = 0; s < sections.length; s++) {
+    if (s > 0 && s % 2 === 0) html += '<div class="page-break"></div>';
+    html += renderSection(sections[s].title, sections[s].content, sections[s].num);
   }
-
-  // PROCESS FLOW
-  html += '<h2 class="sec">Methodology</h2>' + buildProcessFlow(vertical);
-
-  // ORG CHART
-  html += '<h2 class="sec">Proposed Team Structure</h2>' + buildOrgChart(o.staffing_plan, o.scope_analysis);
-
-  // PAST PERFORMANCE
+  
+  // CORPORATE PROFILE (always at end)
   html += '<div class="page-break"></div>';
-  html += '<h2 class="sec">Past Performance</h2>' + buildPPTiles(o.agency, vertical);
-
-  // RATE TABLE
-  html += '<h2 class="sec">Pricing \u2014 Fully Burdened Rates</h2>';
-  html += '<p>All rates include labor, benefits, overhead, G&A, and profit. Rates remain firm for the base contract period.</p>';
-  html += buildRateTable(o.staffing_plan);
-
-  // TECHNICAL APPROACH (from staffing_plan which holds the proposal)
-  if (o.staffing_plan && o.staffing_plan.length > 500) {
-    html += '<div class="page-break"></div>';
-    html += '<h2 class="sec">Technical Approach</h2>';
-    // Extract just the technical approach section
-    var techSection = o.staffing_plan.match(/(?:TECHNICAL APPROACH|4\.\s*TECHNICAL)[\s\S]*?(?=##\s*\d+\.|##\s*[A-Z]|$)/i);
-    if (techSection) {
-      html += '<div>' + md(techSection[0].slice(0, 4000)) + '</div>';
-    } else {
-      html += '<div>' + md(o.staffing_plan.slice(0, 3000)) + '</div>';
-    }
-  }
-
-  // COMPANY PROFILE
-  html += '<div class="page-break"></div>';
-  html += '<h2 class="sec">Corporate Profile</h2>';
-  html += '<table><tbody>';
-  html += '<tr><td><strong>Legal Name</strong></td><td>' + HGI.legal + '</td></tr>';
-  html += '<tr><td><strong>DBA</strong></td><td>' + HGI.name + '</td></tr>';
-  html += '<tr><td><strong>Established</strong></td><td>' + HGI.founded + ' (' + HGI.years + ' years)</td></tr>';
-  html += '<tr><td><strong>Ownership</strong></td><td>' + HGI.ownership + '</td></tr>';
-  html += '<tr><td><strong>Headquarters</strong></td><td>' + HGI.address + '</td></tr>';
-  html += '<tr><td><strong>Offices</strong></td><td>' + HGI.offices + '</td></tr>';
-  html += '<tr><td><strong>Staff</strong></td><td>' + HGI.staff + '</td></tr>';
-  html += '<tr><td><strong>SAM UEI</strong></td><td>' + HGI.uei + '</td></tr>';
-  html += '<tr><td><strong>Insurance</strong></td><td>' + HGI.insurance + '</td></tr>';
-  html += '</tbody></table>';
-
-  html += '</div>';
-
-  // FOOTER
-  html += '<div class="ftr">CONFIDENTIAL \u2014 ' + HGI.name + ' | ' + HGI.legal + ' | ' + HGI.address + ' | ' + HGI.phone + '</div>';
-
+  html += '<div class="section"><div class="sec-header"><span class="sec-num">\u2605</span><h2 class="sec-title">Corporate Profile</h2></div>';
+  html += '<table class="tbl corp-tbl"><tbody>';
+  html += '<tr><td>Legal Name</td><td>'+HGI.legal+'</td></tr>';
+  html += '<tr><td>DBA</td><td>'+HGI.name+'</td></tr>';
+  html += '<tr><td>Established</td><td>'+HGI.founded+' ('+HGI.years+' years)</td></tr>';
+  html += '<tr><td>Ownership</td><td>'+HGI.ownership+'</td></tr>';
+  html += '<tr><td>Headquarters</td><td>'+HGI.address+'</td></tr>';
+  html += '<tr><td>Offices</td><td>'+HGI.offices+'</td></tr>';
+  html += '<tr><td>Staff</td><td>'+HGI.staff+'</td></tr>';
+  html += '<tr><td>SAM UEI</td><td>'+HGI.uei+'</td></tr>';
+  html += '<tr><td>Insurance</td><td>'+HGI.insurance+'</td></tr>';
+  html += '</tbody></table></div>';
+  
+  html += '</div>'; // wrap
+  html += '<div class="ftr">CONFIDENTIAL \u2014 '+HGI.name+' | '+HGI.legal+' | '+HGI.address+' | '+HGI.phone+'</div>';
   html += '</body></html>';
-
-  res.setHeader('Content-Type', 'text/html');
+  
+  res.setHeader('Content-Type','text/html');
   return res.status(200).send(html);
 }
