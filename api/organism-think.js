@@ -127,6 +127,7 @@ export default async function handler(req, res) {
     '3. OWNER_ACTION must say exactly who does what and by when\n' +
     '4. Do NOT duplicate anything in the ALREADY PENDING list above\n' +
     '5. Produce only 4-6 decisions — quality over quantity\n\n' +
+    'REAL OPPORTUNITY IDs — USE THESE EXACTLY in action_payload, do not guess or shorten:\n' + oppIdTable + '\n\n' +
     'Return ONLY valid JSON array:\n' +
     '[{\n  "priority": "critical|high|medium|low",\n  "type": "APPROVE_ACTION|OWNER_ACTION|APPROVE_BUILD",\n  "title": "max 10 words, specific",\n  "detail": "2 sentences, cite specific evidence (opp name, deadline, dollar amount)",\n  "recommended_action": "exact action — who does what, what system call, by when",\n  "expected_impact": "specific outcome if acted on",\n  "executable": true or false,\n  "action_endpoint": "/api/orchestrate or null",\n  "action_payload": {"opportunity_id": "uuid"} or null,\n  "opportunity_id": "uuid or null"\n}]';
 
