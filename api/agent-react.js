@@ -283,6 +283,25 @@ export default async function handler(req, res) {
     writeResults = await writeStores(reaction.store_updates, agentName, opportunityId);
   }
 
+  // DUAL-WRITE: Store full analysis in organism_memory — no truncation, no schema constraint
+  if (reaction.analysis && reaction.analysis.length > 30) {
+    try {
+      var memTags = agentName + ',' + eventType;
+      if (opportunity && opportunity.agency) memTags += ',' + opportunity.agency;
+      if (opportunity && opportunity.vertical) memTags += ',' + opportunity.vertical;
+      await fetch('https://hgi-capture-system.vercel.app/api/memory-store', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent: 'react_' + agentName,
+          opportunity_id: opportunityId || null,
+          entity_tags: memTags,
+          observation: agentName + ' reacting to ' + eventType + ': ' + reaction.analysis + (reaction.downstream_insights ? ' DOWNSTREAM: ' + reaction.downstream_insights : ''),
+          memory_type: 'agent_reaction'
+        })
+      });
+    } catch(e) {}
+  }
+
   try {
     await fetch(SB + '/rest/v1/hunt_runs', {
       method: 'POST',
