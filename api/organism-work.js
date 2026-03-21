@@ -133,9 +133,11 @@ async function agentQualityGate(opp, ctx) {
 
 async function agentProposal(opp, ctx) {
   if ((opp.staffing_plan||'').length < 100) return null;
+  var web = await webSearch((opp.agency||'') + ' ' + (opp.vertical||'disaster recovery') + ' winning proposal techniques FEMA PA methodology technical approach best practices 2024 2025');
+  var webCtx = (web && web.length > 30) ? ('\nWEB PROPOSAL INTEL:\n' + web.slice(0,1500)) : '';
   var a = await think(
     'HGI proposal improvement agent. You have the actual draft. Give specific, surgical edits — reference the exact section and what to change. Not generic advice.',
-    ctx + '\n\nImprovement analysis: (1) Weakest sections mapped to eval point values — which sections are thin and how many points are at risk? (2) Specific content to add that would score higher — name the section, the content, the eval criterion it addresses (3) Competitive positioning gaps — does the draft adequately differentiate from CDR Maguire, Tetra Tech, IEM specifically? (4) Any factual errors or inconsistencies with the RFP scope? (5) Single most impactful edit — one paragraph that would most improve our score.',
+    ctx + webCtx + '\n\nImprovement analysis: (1) Weakest sections mapped to eval point values — which sections are thin and how many points are at risk? (2) Specific content to add that would score higher — name the section, the content, the eval criterion it addresses (3) Competitive positioning gaps — does the draft adequately differentiate from CDR Maguire, Tetra Tech, IEM specifically? (4) Any factual errors or inconsistencies with the RFP scope? (5) Single most impactful edit — one paragraph that would most improve our score.',
     900
   );
   if (!a || a.length < 100) return null;
