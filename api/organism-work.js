@@ -279,7 +279,7 @@ async function agentDashboard(activeOpps, allMemories, memText) {
   var web = await webSearch('Louisiana FEMA disaster declaration 2026 new RFP government contracts professional services news today this week');
   var webCtx = (web && web.length > 30) ? ('\nWEB CURRENT NEWS:\n' + web.slice(0,1200)) : '';
   var a = await think('HGI dashboard agent. Morning briefing for Christopher. What needs his attention vs what is running fine. Include any breaking news that affects active pursuits.',
-    'SYSTEM: ' + activeOpps.length + ' active opps | ' + allMemories.length + ' memories in brain\nPIPELINE:\n' + activeOpps.map(function(o){ return o.title+'|OPI:'+o.opi_score+'|Stage:'+(o.stage||'?')+'|Due:'+(o.due_date||'?'); }).join('\n') + '\nMEMORY:\n' + memText.slice(0,1500) + '\nSynthesize: (1) Organism health — how well is every agent contributing? (2) Which opportunities need Christopher today vs running autonomously (3) Most important single thing Christopher should know right now (4) Highest-impact improvement this week.',
+    'SYSTEM: ' + activeOpps.length + ' active opps | ' + allMemories.length + ' memories in brain\nPIPELINE:\n' + activeOpps.map(function(o){ return o.title+'|OPI:'+o.opi_score+'|Stage:'+(o.stage||'?')+'|Due:'+(o.due_date||'?'); }).join('\n') + webCtx + '\nMEMORY:\n' + memText.slice(0,1500) + '\nSynthesize: (1) Organism health — how well is every agent contributing? (2) Which opportunities need Christopher today vs running autonomously (3) Most important single thing Christopher should know right now (4) Highest-impact improvement this week.',
     600);
   if (!a || a.length < 80) return null;
   await storeMemory('dashboard_agent', null, 'dashboard,morning_brief', 'DASHBOARD:\n'+a, 'analysis');
