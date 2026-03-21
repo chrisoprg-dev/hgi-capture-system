@@ -31,6 +31,34 @@ function Dashboard({ setActive }) {
     return ()=>clearInterval(iv);
   },[]);
 
+  const [executing, setExecuting] = useState(null);
+
+  const dismissDecision = async function(dpId) {
+    try {
+      await fetch('/api/organism-decisions', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: dpId}) });
+      setDecisions(function(prev) { return prev.filter(function(d) { return d.id !== dpId; }); });
+    } catch(err) {}
+  };
+
+  const executeDecision = async function(dp) {
+    if (!dp.action_endpoint || executing) return;
+    setExecuting(dp.id);
+    try {
+      const r = await fetch(dp.action_endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dp.action_payload || {}) });
+      const d = await r.json();
+      if (d.error || d.skipped) {
+        alert('Execution error: ' + (d.error || d.reason || 'unknown error') + '\n\nDecision was NOT dismissed.');
+        setExecuting(null);
+        return;
+      }
+      alert('Done: ' + dp.title + '\nCompleted: ' + (d.steps_completed || []).join(', '));
+      await dismissDecision(dp.id);
+    } catch(err) {
+      alert('Failed: ' + err.message);
+    }
+    setExecuting(null);
+  };
+
   const runThink = async () => {
     setThinkRunning(true);
     try {
