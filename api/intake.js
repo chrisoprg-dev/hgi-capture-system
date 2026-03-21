@@ -456,6 +456,16 @@ NAICS: 541611, 541690, 561110, 561990, 524291, 923120, 921190.
 Wins through: relationships, recompetes, crisis-triggered programs, replicable recurring models.`;
   }
 
+  // ORGANISM MEMORY: Inject accumulated intelligence into initial scoring
+  var memoryInjection = '';
+  try {
+    var memR = await fetch('https://hgi-capture-system.vercel.app/api/memory-retrieve', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agency: agency || '', vertical: verticalHint, step: 'intake_scoring', context: (title || '') + ' | ' + (agency || '') + ' | ' + (description || '').slice(0, 300) })
+    });
+    if (memR.ok) { var memData = await memR.json(); memoryInjection = memData.injection || ''; }
+  } catch(e) {}
+
   const analysisPrompt = `Analyze this procurement opportunity for HGI. Return JSON only.
 
 OPPORTUNITY DATA:
