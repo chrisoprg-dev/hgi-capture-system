@@ -167,6 +167,7 @@ export default async function handler(req, res) {
       '\nRFP TEXT: ' + (opp.rfp_text || '').slice(0, 3000) +
       (sourceContent ? '\nSOURCE PAGE:\n' + sourceContent.slice(0, 4000) : '') +
       '\nHGI KB:\n' + kbContext.slice(0, 2000) +
+      (memoryContext ? '\n' + memoryContext.slice(0, 4000) : '') +
       '\n\nProvide:\n' +
       '0. SUB-VERTICAL CLASSIFICATION — Classify the SPECIFIC type of work within the vertical. For example: if tagged "tpa" — is this workers comp TPA (HGI core), health insurance TPA (NOT HGI), insurance brokerage (NOT HGI), property casualty claims (HGI core), or student accident insurance (NOT HGI)? If tagged "disaster" — is this FEMA PA administration (HGI core), physical construction/repair (NOT HGI), debris removal (NOT HGI), or grant management (HGI core)? If tagged "infrastructure" — is this program/construction management (HGI adjacent), or physical construction (NOT HGI)? Be precise. This classification determines whether HGI should even be looking at this opportunity.\n' +
       '1. SCOPE SUMMARY — What is actually being asked for, plain English, 3-5 sentences.\n' +
