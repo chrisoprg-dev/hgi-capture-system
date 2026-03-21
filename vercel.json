@@ -21,6 +21,7 @@
     "api/loss-analysis.js": { "maxDuration": 60 },
     "api/disaster-monitor.js": { "maxDuration": 60 },
     "api/events.js": { "maxDuration": 30 },
+    "api/cascade.js": { "maxDuration": 300 },
     "api/batch.js": { "maxDuration": 30 },
     "api/hunt-analytics.js": { "maxDuration": 30 },
     "api/scrape-grants-gov.js": { "maxDuration": 60 },
