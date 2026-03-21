@@ -223,30 +223,7 @@ function Dashboard({ setActive }) {
             const typeIcon = dp.type==='APPROVE_ACTION'?'⚡':dp.type==='OWNER_ACTION'?'👤':dp.type==='APPROVE_BUILD'?'⚙':'💡';
             const typeLabel = dp.type==='APPROVE_ACTION'?'SYSTEM CAN EXECUTE':dp.type==='OWNER_ACTION'?'YOUR ACTION':dp.type==='APPROVE_BUILD'?'BUILD REQUEST':'DECISION';
             const open = decExpanded[i];
-            const dismiss = async function(e) {
-              e.stopPropagation();
-              try {
-                await fetch('/api/organism-decisions', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: dp.id}) });
-                setDecisions(function(prev) { return prev.filter(function(d) { return d.id !== dp.id; }); });
-              } catch(err) {}
-            };
-            const execute = async function(e) {
-              e.stopPropagation();
-              if (!dp.action_endpoint) return;
-              try {
-                const r = await fetch(dp.action_endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dp.action_payload || {}) });
-                const d = await r.json();
-                // Check for error in response body — orchestrate returns 200 even on not-found
-                if (d.error || d.skipped) {
-                  alert('Execution error: ' + (d.error || d.reason || 'unknown error') + '\n\nThe decision was NOT dismissed. Fix the issue and try again.');
-                  return;
-                }
-                alert('Executed: ' + dp.title + '\nSteps completed: ' + (d.steps_completed || []).join(', '));
-                // Only dismiss after confirmed successful execution
-                await fetch('/api/organism-decisions', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: dp.id}) });
-                setDecisions(function(prev) { return prev.filter(function(d) { return d.id !== dp.id; }); });
-              } catch(err) { alert('Execution failed: ' + err.message); }
-            };
+            const isExec = executing === dp.id;
             return (
               <div key={dp.id||i} style={{background:bgc,border:'1px solid '+bc+'33',borderLeft:'4px solid '+bc,borderRadius:6,marginBottom:8,overflow:'hidden'}}>
                 <div style={{display:'flex',alignItems:'flex-start',gap:10,padding:'12px 14px',cursor:'pointer'}} onClick={()=>setDecExpanded(e=>({...e,[i]:!e[i]}))}>
