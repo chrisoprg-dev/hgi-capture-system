@@ -335,10 +335,11 @@ export default async function handler(req, res) {
     return '[' + (m.agent||'') + '|' + (m.memory_type||'') + '|' + (m.created_at||'').slice(0,10) + ']:\n' + (m.observation||'').slice(0,300);
   }).join('\n\n---\n\n');
 
-  function oppMem(opp) {
+  function oppMem(opp, tier) {
+    var charLimit = (tier === 'full') ? 600 : 250;
     return allMemories.filter(function(m) {
       return (m.opportunity_id === opp.id) || (m.entity_tags||'').includes(opp.agency||'');
-    }).map(function(m) { return (m.observation||'').slice(0,250); }).join('\n\n');
+    }).map(function(m) { return (m.observation||'').slice(0, charLimit); }).join('\n\n');
   }
 
   // ═══ ALL PER-OPPORTUNITY AGENTS FIRE IN PARALLEL ═══
