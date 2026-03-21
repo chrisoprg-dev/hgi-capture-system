@@ -189,8 +189,8 @@ export default async function handler(req, res) {
       '\nAGENCY: ' + opp.agency +
       '\nSTATE: ' + (opp.state || 'LA') + ' (IMPORTANT: This agency is in this state. Do NOT confuse with same-named entities in other states.)' +
       '\nVERTICAL: ' + (opp.vertical || 'general') +
-      '\nDESCRIPTION: ' + (opp.description || '').slice(0, 1500) +
-      '\nRFP TEXT: ' + (opp.rfp_text || '').slice(0, 3000) +
+      '\nDESCRIPTION: ' + (opp.description || '').slice(0, 500) +
+      '\nRFP TEXT: ' + (opp.rfp_text || '').slice(0, 10000) +
       (sourceContent ? '\nSOURCE PAGE:\n' + sourceContent.slice(0, 4000) : '') +
       '\nHGI KB:\n' + kbContext.slice(0, 2000) +
       (memoryContext ? '\n' + memoryContext.slice(0, 4000) : '') +
