@@ -154,7 +154,7 @@ async function agentProposal(opp, ctx) {
   var a = await think(
     'HGI proposal improvement agent. You have the actual draft. Give specific, surgical edits — reference the exact section and what to change. Not generic advice.',
     ctx + webCtx + '\n\nImprovement analysis: (1) Weakest sections mapped to eval point values — which sections are thin and how many points are at risk? (2) Specific content to add that would score higher — name the section, the content, the eval criterion it addresses (3) Competitive positioning gaps — does the draft adequately differentiate from CDR Maguire, Tetra Tech, IEM specifically? (4) Any factual errors or inconsistencies with the RFP scope? (5) Single most impactful edit — one paragraph that would most improve our score.',
-    900
+    900, true
   );
   if (!a || a.length < 100) return null;
   await storeMemory('proposal_agent', opp.id, opp.agency+','+(opp.vertical||'')+',proposal_improvement', 'PROPOSAL — '+opp.title+':\n'+a, 'pattern');
