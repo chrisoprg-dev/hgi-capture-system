@@ -428,7 +428,7 @@ export default async function handler(req, res) {
   if ((recommendation === 'GO' || recommendation === 'CONDITIONAL GO') && revisedOpi >= 75 && hasRfpDocument) {
     try {
       // Parse the RFP to extract evaluation criteria, required sections, and key personnel
-      var rfpContext = (opp.rfp_text || '').slice(0, 6000);
+      var rfpContext = (opp.rfp_text || '').slice(0, 12000);
       
       var proposalPackage = await claudeCall(
         'Generate a COMPLETE proposal package for HGI based on the RFP, scope analysis, financial analysis, and research.\n\n' +
