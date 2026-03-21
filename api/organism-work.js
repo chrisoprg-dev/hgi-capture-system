@@ -223,8 +223,7 @@ async function agentPipelineScanner(activeOpps, memText) {
 
 async function agentOpiCalibration(activeOpps, memText) {
   var oppList = activeOpps.map(function(o) { return o.title+'|'+o.agency+'|OPI:'+o.opi_score+'|'+o.vertical+'|Proposal:'+(o.staffing_plan||'').length+'chars|Research:'+(o.research_brief||'').length+'chars'; }).join('\n');
-  var web = await webSearch('Louisiana government contract win rate factors professional services proposal scoring trends 2024 2025 competitive landscape');
-  var webCtx = (web && web.length > 30) ? ('\nWEB MARKET DATA:\n' + web.slice(0,1200)) : '';
+  var webCtx = ''; // cost gated — uses memory + prior intel
   var a = await think('HGI OPI calibration engine. Refine scoring accuracy based on accumulated intelligence and actual proposal state.',
     'OPPS:\n' + oppList + webCtx + '\nINTEL:\n' + memText.slice(0,1800) + '\nFor each: (1) Does OPI reflect full picture including proposal completeness? (2) Specific adjustment recommended and by how much? (3) Factors consistently over/underweighted? (4) What single addition to the scoring model would most improve accuracy?',
     800);
