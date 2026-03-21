@@ -29,7 +29,9 @@
     "api/self-assess.js": { "maxDuration": 120 },
     "api/agent-registry.js": { "maxDuration": 30 },
     "api/agent-react.js": { "maxDuration": 120 },
-    "api/setup-stores.js": { "maxDuration": 30 }
+    "api/setup-stores.js": { "maxDuration": 30 },
+    "api/test-organism.js": { "maxDuration": 60 },
+    "api/seed-stores.js": { "maxDuration": 30 }
   },
   "crons": [{ "path": "/api/hunt", "schedule": "*/6 * * * *" }, { "path": "/api/process-kb", "schedule": "*/6 * * * *" }, { "path": "/api/scrape-grants-gov", "schedule": "0 6,18 * * *" }]
 }
