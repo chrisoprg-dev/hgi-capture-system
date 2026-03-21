@@ -192,8 +192,28 @@ function Dashboard({ setActive }) {
           {decisions.map(function(dp,i){
             const bc = dp.priority==='critical'?RED:dp.priority==='high'?ORANGE:dp.priority==='medium'?GOLD:BORDER;
             const bgc = dp.priority==='critical'?RED+'11':dp.priority==='high'?ORANGE+'11':dp.priority==='medium'?GOLD+'0A':BG2;
-            const typeIcon = dp.type==='URGENT_ACTION'?'🚨':dp.type==='STRATEGIC'?'♟':dp.type==='GAP_FOUND'?'⚠':dp.type==='SYSTEM_IMPROVEMENT'?'⚙':'💡';
+            const typeIcon = dp.type==='APPROVE_ACTION'?'⚡':dp.type==='OWNER_ACTION'?'👤':dp.type==='APPROVE_BUILD'?'⚙':'💡';
+            const typeLabel = dp.type==='APPROVE_ACTION'?'SYSTEM CAN EXECUTE':dp.type==='OWNER_ACTION'?'YOUR ACTION':dp.type==='APPROVE_BUILD'?'BUILD REQUEST':'DECISION';
             const open = decExpanded[i];
+            const dismiss = async function(e) {
+              e.stopPropagation();
+              try {
+                await fetch('/api/organism-decisions', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: dp.id}) });
+                setDecisions(function(prev) { return prev.filter(function(d) { return d.id !== dp.id; }); });
+              } catch(err) {}
+            };
+            const execute = async function(e) {
+              e.stopPropagation();
+              if (!dp.action_endpoint) return;
+              try {
+                const r = await fetch(dp.action_endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dp.action_payload || {}) });
+                const d = await r.json();
+                alert('Executed: ' + dp.title + '\nResult: ' + JSON.stringify(d).slice(0, 200));
+                // Dismiss after successful execution
+                await fetch('/api/organism-decisions', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: dp.id}) });
+                setDecisions(function(prev) { return prev.filter(function(d) { return d.id !== dp.id; }); });
+              } catch(err) { alert('Execution failed: ' + err.message); }
+            };
             return (
               <div key={dp.id||i} style={{background:bgc,border:'1px solid '+bc+'33',borderLeft:'4px solid '+bc,borderRadius:6,marginBottom:8,overflow:'hidden'}}>
                 <div style={{display:'flex',alignItems:'flex-start',gap:10,padding:'12px 14px',cursor:'pointer'}} onClick={()=>setDecExpanded(e=>({...e,[i]:!e[i]}))}>
@@ -202,17 +222,23 @@ function Dashboard({ setActive }) {
                     <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3,flexWrap:'wrap'}}>
                       <span style={{fontWeight:700,color:TEXT,fontSize:13}}>{dp.title}</span>
                       <Badge color={bc}>{(dp.priority||'medium').toUpperCase()}</Badge>
-                      <span style={{fontSize:10,color:TEXT_D,background:BG3,padding:'1px 6px',borderRadius:3}}>{(dp.type||'').replace(/_/g,' ')}</span>
+                      <span style={{fontSize:10,color:dp.type==='APPROVE_ACTION'?GREEN:dp.type==='OWNER_ACTION'?BLUE:TEXT_D,background:BG3,padding:'1px 6px',borderRadius:3,fontWeight:600}}>{typeLabel}</span>
                     </div>
-                    <div style={{color:bc,fontSize:12,fontWeight:600}}>{dp.recommended_action}</div>
+                    <div style={{color:TEXT_D,fontSize:12,lineHeight:1.5}}>{dp.recommended_action}</div>
                   </div>
-                  <span style={{color:TEXT_D,fontSize:10,flexShrink:0}}>{open?'▲':'▼'}</span>
+                  <span style={{color:TEXT_D,fontSize:10,flexShrink:0,marginLeft:4}}>{open?'▲':'▼'}</span>
                 </div>
                 {open&&(
                   <div style={{borderTop:'1px solid '+bc+'22',background:BG3,padding:'12px 14px'}}>
-                    {dp.detail&&<div style={{marginBottom:8}}><div style={{color:TEXT_D,fontSize:10,fontWeight:700,letterSpacing:'0.08em',marginBottom:4}}>DETAIL</div><div style={{color:TEXT_D,fontSize:12,lineHeight:1.6}}>{dp.detail}</div></div>}
-                    {dp.expected_impact&&<div style={{padding:'7px 10px',background:GREEN+'11',border:'1px solid '+GREEN+'22',borderRadius:4,marginBottom:8}}><div style={{color:GREEN,fontSize:10,fontWeight:700,marginBottom:3}}>EXPECTED IMPACT</div><div style={{color:TEXT_D,fontSize:12}}>{dp.expected_impact}</div></div>}
-                    <div style={{color:TEXT_D,fontSize:10}}>Generated: {new Date(dp.created_at).toLocaleString()}</div>
+                    {dp.detail&&<div style={{marginBottom:10,color:TEXT_D,fontSize:12,lineHeight:1.6}}>{dp.detail}</div>}
+                    {dp.expected_impact&&<div style={{padding:'7px 10px',background:GREEN+'11',border:'1px solid '+GREEN+'22',borderRadius:4,marginBottom:10}}><span style={{color:GREEN,fontSize:10,fontWeight:700}}>IMPACT: </span><span style={{color:TEXT_D,fontSize:12}}>{dp.expected_impact}</span></div>}
+                    <div style={{display:'flex',gap:8,alignItems:'center',marginTop:8}}>
+                      {dp.executable&&dp.action_endpoint&&(
+                        <button onClick={execute} style={{padding:'6px 14px',borderRadius:4,fontSize:12,fontWeight:700,background:GREEN+'22',color:GREEN,border:'1px solid '+GREEN+'44',cursor:'pointer',fontFamily:'inherit'}}>⚡ Execute Now</button>
+                      )}
+                      <button onClick={dismiss} style={{padding:'6px 14px',borderRadius:4,fontSize:12,fontWeight:700,background:BG2,color:TEXT_D,border:'1px solid '+BORDER,cursor:'pointer',fontFamily:'inherit'}}>✓ Dismiss</button>
+                      <span style={{color:TEXT_D,fontSize:10,marginLeft:'auto'}}>{new Date(dp.created_at).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                    </div>
                   </div>
                 )}
               </div>
