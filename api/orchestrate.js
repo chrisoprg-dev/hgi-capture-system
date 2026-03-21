@@ -458,9 +458,17 @@ export default async function handler(req, res) {
         'You are HGI senior proposal manager. Generate a COMPLETE submission-ready proposal package. CONFIRMED PAST PERFORMANCE ONLY: Road Home Program $67M direct/$13B+ program zero misappropriation, HAP $950M, Restore Louisiana $42.3M CDBG-DR, TPSD $2.96M construction mgmt 2022-2025 (completed), St. John Sheriff $788K, Rebuild NJ $67.7M, BP GCCF $1.65M 1M+ claims Kenneth Feinberg, City of New Orleans WC TPA $283K/month (active), SWBNO billing appeals $200K/month (active). Do NOT list PBGC, Orleans Parish School Board, LIGA, or TPCIGA without explicit confirmation. Do NOT fabricate past performance. PRICING: Build all rates specific to this RFP — do not copy a rate card. STAFFING: Build staffing plan from this RFP required positions — do not use generic templates. Every section must directly address the RFP evaluation criteria.', 4000
       );
 
-      await patchOpp(opportunity_id, { staffing_plan: proposalPackage });
-      await logEvent('proposal.package_generated', opportunity_id, opp.title, { sections: 8, auto: true });
-      results.steps_completed.push('proposal_package');
+      var existingDraft = (opp.staffing_plan || '');
+      var hasRealDraft = existingDraft.includes('[WORKING DRAFT') || existingDraft.length > 10000;
+      if (hasRealDraft) {
+        results.steps_completed.push('proposal_package_skipped_real_draft_exists');
+        results.proposal_note = 'Real working draft detected in staffing_plan (' + existingDraft.length + ' chars). Orchestrator will NOT overwrite. Proposal improvements stored in organism memory instead.';
+        await storeMemory('orchestrator_proposal', opportunity_id, (opp.agency||'')+','+(opp.vertical||'')+',proposal_improvements', 'PROPOSAL IMPROVEMENTS (not overwriting real draft): ' + proposalPackage.slice(0, 3000), 'recommendation');
+      } else {
+        await patchOpp(opportunity_id, { staffing_plan: proposalPackage });
+        await logEvent('proposal.package_generated', opportunity_id, opp.title, { sections: 8, auto: true });
+        results.steps_completed.push('proposal_package');
+      }
     } catch(e) { results.proposal_error = e.message; }
   }
 
