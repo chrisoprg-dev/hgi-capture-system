@@ -64,22 +64,29 @@ export default async function handler(req, res) {
         })
       });
 
-      // Fire event
-      var eventType = outcome === 'won' ? 'opportunity.won' : 'opportunity.lost';
-      try {
-        await fetch('https://hgi-capture-system.vercel.app/api/events', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event_type: eventType,
-            opportunity_id: opportunity_id,
-            opportunity_title: opp.title,
-            agency: opp.agency,
-            source_module: 'outcome',
-            data: outcomeNotes
-          })
-        });
-      } catch(e) {}
+      // Fire BOTH the specific event AND the master outcome_recorded cascade
+      // outcome_recorded fires all 10 learning agents (OPI, financial, intelligence, CRM, bench, proposal, content, design, self_awareness, executive)
+      var eventType = outcome === 'won' ? 'opportunity.won' : outcome === 'lost' ? 'opportunity.lost' : 'opportunity.stage_changed';
+      var fireEvent = async function(evtType) {
+        try {
+          await fetch('https://hgi-capture-system.vercel.app/api/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event_type: evtType,
+              opportunity_id: opportunity_id,
+              opportunity_title: opp.title,
+              agency: opp.agency,
+              source_module: 'outcome',
+              data: outcomeNotes
+            })
+          });
+        } catch(e) {}
+      };
+      // Fire specific won/lost event
+      await fireEvent(eventType);
+      // Fire the master learning cascade — ALL 10 agents recalibrate
+      await fireEvent('opportunity.outcome_recorded');
 
       // Log to hunt_runs
       await fetch(SB + '/rest/v1/hunt_runs', {
