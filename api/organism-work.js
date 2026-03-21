@@ -369,8 +369,7 @@ export default async function handler(req, res) {
   }
 
   // ═══ SELF-AWARENESS RUNS LAST — sees everything all agents produced ═══
-  var selfWeb = await safe(function(){ return webSearch('AI procurement intelligence system best practices government capture management automation competitive analysis improvement 2025 2026'); });
-  var selfWebCtx = (selfWeb && selfWeb.length > 30) ? ('\nWEB SYSTEM INTEL:\n' + selfWeb.slice(0,1200)) : '';
+  var selfWebCtx = ''; // cost gated — self-awareness synthesizes from agent output
   var selfResult = await safe(async function() {
     var a = await think(
       'HGI self-awareness engine. You see the full picture — every agent result, every memory, every opportunity. Identify patterns and the single highest-leverage improvement. Compare against industry best practices from web research.',
