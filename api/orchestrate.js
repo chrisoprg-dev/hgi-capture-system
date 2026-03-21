@@ -348,6 +348,8 @@ export default async function handler(req, res) {
     results.steps_completed.push('winnability');
     results.pwin = pwin;
     results.recommendation = recommendation;
+    // Write winnability decision to organism memory
+    await storeMemory('orchestrator_winnability', opportunity_id, (opp.agency||'')+','+(opp.vertical||'')+',winnability,'+recommendation, 'WINNABILITY DECISION for '+opp.title+' ('+opp.agency+'): OPI '+revisedOpi+', PWIN '+pwin+'%, '+recommendation+'. '+(winnability||'').slice(0,400), 'winnability');
   } catch(e) { results.winnability_error = e.message; }
 
   // ══════════════════════════════════════════════════════════════════════════
