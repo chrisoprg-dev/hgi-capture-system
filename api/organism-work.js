@@ -8,6 +8,13 @@ async function sbGet(path) { try { const r = await fetch(SB + path, { headers: H
 async function storeMemory(agent, oppId, tags, observation, memType) {
   try { await fetch(SB + '/rest/v1/organism_memory', { method: 'POST', headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ id: makeId(), agent: agent, opportunity_id: oppId || null, entity_tags: tags, observation: observation, memory_type: memType || 'analysis', created_at: new Date().toISOString() }) }); } catch(e) {}
 }
+async function gatedWebSearch(query, agentName) {
+  if (agentName) {
+    var gate = await shouldWebSearch(agentName);
+    if (!gate) return '';
+  }
+  return await webSearch(query);
+}
 async function webSearch(query) {
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, tools: [{ type: 'web_search_20250305', name: 'web_search' }], system: 'Intelligence analyst. Return specific verified findings with sources. Be concise.', messages: [{ role: 'user', content: query }] }) });
