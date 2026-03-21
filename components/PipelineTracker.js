@@ -498,23 +498,58 @@ function PipelineTracker({ goToWorkflow }) {
                             style={{width:'100%',background:BG,border:'1px solid '+BORDER,borderRadius:4,padding:'6px 8px',color:TEXT,fontFamily:'inherit',fontSize:11}}
                           />
                         </div>
-                        <div>
-                          <div style={{color:TEXT_D,fontSize:10,fontWeight:700,marginBottom:4}}>OUTCOME</div>
-                          <select
-                            defaultValue={item.outcome || ''}
-                            onChange={async function(e) {
-                              var val = e.target.value;
-                              await fetch('/api/opportunities', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: item.id, outcome: val}) });
-                              item.outcome = val;
-                            }}
-                            style={{width:'100%',background:BG,border:'1px solid '+BORDER,borderRadius:4,padding:'6px 8px',color:TEXT,fontFamily:'inherit',fontSize:11}}
-                          >
-                            <option value="">— Pending —</option>
-                            <option value="won">Won</option>
-                            <option value="lost">Lost</option>
-                            <option value="no_award">No Award Issued</option>
-                            <option value="withdrawn">We Withdrew</option>
-                          </select>
+                        <div style={{gridColumn:'1/-1'}}>
+                          <div style={{color:TEXT_D,fontSize:10,fontWeight:700,marginBottom:6}}>RECORD OUTCOME — fires all 10 learning agents</div>
+                          <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                            {[['won','WON ✓',GREEN],['lost','LOST ✗',RED],['no_bid','NO BID',TEXT_D],['cancelled','CANCELLED',ORANGE]].map(function(opt) {
+                              var isSelected = item.outcome === opt[0];
+                              return React.createElement('button', {
+                                key: opt[0],
+                                onClick: async function() {
+                                  var winnerName = '';
+                                  var winnerAmt = '';
+                                  var ourAmt = '';
+                                  var notes = item.outcome_notes || '';
+                                  if (opt[0] === 'lost') {
+                                    winnerName = window.prompt('Who won? (competitor name, or leave blank if unknown)') || '';
+                                    winnerAmt = window.prompt('Their price? (leave blank if unknown)') || '';
+                                    ourAmt = window.prompt('Our bid amount? (leave blank if unknown)') || '';
+                                    notes = window.prompt('Debrief notes — what happened, why we lost?') || notes;
+                                  }
+                                  try {
+                                    var r = await fetch('/api/outcome', {
+                                      method: 'POST',
+                                      headers: {'Content-Type':'application/json'},
+                                      body: JSON.stringify({
+                                        opportunity_id: item.id,
+                                        outcome: opt[0],
+                                        winner_name: winnerName,
+                                        winner_amount: winnerAmt,
+                                        hgi_bid_amount: ourAmt,
+                                        notes: notes
+                                      })
+                                    });
+                                    var d = await r.json();
+                                    if (d.success) {
+                                      item.outcome = opt[0];
+                                      item.outcome_notes = notes;
+                                      alert('Outcome recorded. All 10 learning agents are recalibrating now.');
+                                    } else {
+                                      alert('Error: ' + (d.error || 'unknown'));
+                                    }
+                                  } catch(err) { alert('Failed: ' + err.message); }
+                                },
+                                style: {
+                                  padding:'7px 16px', borderRadius:4, fontSize:12, fontWeight:700,
+                                  background: isSelected ? opt[2]+'33' : BG,
+                                  color: isSelected ? opt[2] : TEXT_D,
+                                  border: '2px solid ' + (isSelected ? opt[2] : BORDER),
+                                  cursor:'pointer', fontFamily:'inherit'
+                                }
+                              }, (isSelected ? '▶ ' : '') + opt[1]);
+                            })}
+                          </div>
+                          {item.outcome && React.createElement('div', {style:{marginTop:6,fontSize:11,color:TEXT_D}}, 'Recorded: ' + item.outcome.toUpperCase() + (item.outcome_notes ? ' — ' + String(item.outcome_notes).slice(0,80) : ''))}
                         </div>
                         <div>
                           <div style={{color:TEXT_D,fontSize:10,fontWeight:700,marginBottom:4}}>RFP DOCUMENT URL</div>
