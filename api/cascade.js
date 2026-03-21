@@ -188,6 +188,17 @@ async function executeCascade(eventType, payload) {
         });
         results.push({ agent: r.agent, action: r.action, status: 'updated', type: 'data_update' });
 
+      } else if (r.type === 'react') {
+        try {
+          fetch(BASE + '/api/agent-react', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agent: r.agent, event_type: eventType, action: r.action, opportunity_id: payload.opportunity_id || null, data: payload.data || null })
+          }).catch(function() {});
+          results.push({ agent: r.agent, action: r.action, status: 'reacting', type: 'react' });
+        } catch(e) {
+          results.push({ agent: r.agent, action: r.action, status: 'react_error', error: e.message });
+        }
       } else {
         // Signal — logged for the agent to read on its next run
         results.push({ agent: r.agent, action: r.action, status: 'signaled', type: 'signal' });
