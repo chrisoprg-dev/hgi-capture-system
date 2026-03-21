@@ -393,6 +393,7 @@ export default async function handler(req, res) {
         'FINANCIAL ANALYSIS:\n' + financialAnalysis.slice(0, 1500) + '\n\n' +
         'RESEARCH:\n' + researchBrief.slice(0, 1000) + '\n\n' +
         'HGI KB:\n' + kbContext.slice(0, 2000) + '\n\n' +
+        (memoryContext ? memoryContext.slice(0, 4000) + '\n\n' : '') +
         'Generate ALL of the following sections:\n\n' +
         '## 1. COMPLIANCE MATRIX\n' +
         'Map every RFP requirement to where it is addressed in the proposal. Format: Requirement | Section | Status (Compliant/Partial/Gap)\n\n' +
