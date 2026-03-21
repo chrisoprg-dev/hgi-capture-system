@@ -96,18 +96,11 @@ const handleTool = async (name, input) => {
 
     case 'modify_system': {
       const { instruction, filename } = input;
-      let parsed;
-      try {
-        const clean = instruction.replace(/|/gi, '').trim();
-        parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1));
-      } catch(ep) { parsed = null; }
       const file = await getFile(filename);
       if (!file) {
-        var nc = (parsed && parsed.replace_entire_file && parsed.content) ? parsed.content : (parsed && parsed.replace) ? parsed.replace : instruction;
-        await pushFile(filename, nc, null, 'MCP: Create ' + filename);
+        await pushFile(filename, instruction, null, 'MCP: Create ' + filename);
         return { success: true, created: true, message: 'Created ' + filename + '. Deploying in ~60 seconds.' };
       }
-      if (!parsed) {
       try {
         const clean = instruction.replace(/```json|```/gi, '').trim();
         parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1));
