@@ -274,8 +274,7 @@ async function agentScraper(activeOpps, memText) {
 }
 
 async function agentExecBrief(activeOpps, memText) {
-  var web = await webSearch('Louisiana disaster recovery funding news FEMA CDBG-DR appropriations 2025 2026 housing authority grant program professional services');
-  var webCtx = (web && web.length > 30) ? ('\nWEB MARKET NEWS:\n' + web.slice(0,1200)) : '';
+  var webCtx = ''; // cost gated — exec brief synthesizes from memory
   var a = await think('HGI executive briefing agent for Lou Resweber (CEO) and Larry Oney (Chairman). Concise, no noise. They need decisions, not status.',
     'PIPELINE:\n' + activeOpps.map(function(o){ return o.title+'|'+o.agency+'|OPI:'+o.opi_score+'|Due:'+(o.due_date||'TBD')+'|Stage:'+(o.stage||'?'); }).join('\n') + webCtx + '\nINTEL:\n' + memText.slice(0,1800) + '\nDigest: (1) Pipeline summary and financial stakes (2) Decisions needed from Lou or Larry this week (3) Opportunities needing executive-level relationships (4) Where are we most likely to win and why (5) What needs their visibility that Christopher has not surfaced.',
     700);
