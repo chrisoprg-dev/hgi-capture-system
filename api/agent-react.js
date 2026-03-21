@@ -1,5 +1,3 @@
-Create this new file exactly as written. This is the organism's Claude-powered reaction engine — when a cascade event fires and an agent needs to THINK, it routes here.
-
 export const config = { maxDuration: 120 };
 
 var SB = process.env.SUPABASE_URL;
