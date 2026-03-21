@@ -175,7 +175,7 @@ async function agentProposal(opp, ctx) {
     1500, true
   );
   
-  var combined = 'PROPOSAL IMPROVEMENT — ' + opp.title + ':\n\n=== ANALYSIS ===\n' + step1.slice(0,2000) + '\n\n=== PRIORITIZED ACTIONS ===\n' + (step2||'(evaluation step skipped)').slice(0,1500);
+  var combined = 'PROPOSAL IMPROVEMENT — ' + opp.title + ':\n\n=== ANALYSIS ===\n' + step1.slice(0,4000) + '\n\n=== PRIORITIZED ACTIONS ===\n' + (step2||'(evaluation step skipped)').slice(0,3000);
   await storeMemory('proposal_agent', opp.id, opp.agency+','+(vertical)+',proposal_improvement', combined, 'pattern');
   return { agent:'proposal_agent', opp:opp.title, chars:combined.length, steps:2 };
 }
