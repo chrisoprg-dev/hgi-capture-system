@@ -208,8 +208,13 @@ function Dashboard({ setActive }) {
               try {
                 const r = await fetch(dp.action_endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dp.action_payload || {}) });
                 const d = await r.json();
-                alert('Executed: ' + dp.title + '\nResult: ' + JSON.stringify(d).slice(0, 200));
-                // Dismiss after successful execution
+                // Check for error in response body — orchestrate returns 200 even on not-found
+                if (d.error || d.skipped) {
+                  alert('Execution error: ' + (d.error || d.reason || 'unknown error') + '\n\nThe decision was NOT dismissed. Fix the issue and try again.');
+                  return;
+                }
+                alert('Executed: ' + dp.title + '\nSteps completed: ' + (d.steps_completed || []).join(', '));
+                // Only dismiss after confirmed successful execution
                 await fetch('/api/organism-decisions', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: dp.id}) });
                 setDecisions(function(prev) { return prev.filter(function(d) { return d.id !== dp.id; }); });
               } catch(err) { alert('Execution failed: ' + err.message); }
