@@ -1,9 +1,3 @@
-Create a new file: api/memory-retrieve.js
-
-This is the organism's memory retrieval engine. Before every Claude call in the system, this endpoint is called to ask: "What does the organism know that is relevant to this context?" It uses the same Claude reranker pattern as knowledge-query.js — load candidates, have Claude select the most relevant, return as prompt injection text.
-
-The file contents should be:
-
 export const config = { maxDuration: 30 };
 
 var SB = process.env.SUPABASE_URL;
