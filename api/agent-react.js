@@ -268,7 +268,12 @@ export default async function handler(req, res) {
 
   var reaction;
   try {
-    reaction = await claudeReact(agentConfig, eventType, action, opportunity, storeData, body.data || null);
+    var extraData = body.data || null;
+    if (body.prior_insights && Array.isArray(body.prior_insights)) {
+      if (!extraData) extraData = {};
+      extraData._prior_insights = body.prior_insights;
+    }
+    reaction = await claudeReact(agentConfig, eventType, action, opportunity, storeData, extraData);
   } catch(e) {
     return res.status(500).json({ error: 'Reaction failed', agent: agentName, event: eventType, details: e.message });
   }
