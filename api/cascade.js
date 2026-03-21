@@ -24,7 +24,7 @@ var CASCADE_MAP = {
 
   'opportunity.tier1_discovered': [
     { agent: 'orchestrator', action: 'Run full analysis', type: 'api_call', endpoint: '/api/orchestrate', method: 'POST', bodyKey: 'opportunity_id' },
-    { agent: 'crm_relationship', action: 'Check agency relationships', type: 'signal' },
+    { agent: 'crm_relationship', action: 'Search relationship graph for any contacts at this agency or connected agencies. Assess relationship strength. Flag if no contacts exist. Recommend immediate outreach if warm contacts found.', type: 'react' },
     { agent: 'dashboard', action: 'Refresh pipeline stats', type: 'signal' }
   ],
 
