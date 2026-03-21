@@ -214,6 +214,11 @@ export default async function handler(req, res) {
     }
 
     results.steps_completed.push('financial_analysis');
+    // Write financial findings to organism memory
+    var finSummary = (financialAnalysis.match(/CONSOLIDATED ESTIMATE[\s\S]{0,500}/i) || [''])[0];
+    if (finSummary.length > 50) {
+      await storeMemory('orchestrator_financial', opportunity_id, (opp.agency||'')+','+(opp.vertical||'')+',financial,pricing,estimate', 'FINANCIAL FINDINGS for '+opp.title+' ('+opp.agency+'): '+finSummary, 'pricing_benchmark');
+    }
   } catch(e) { results.financial_error = e.message; }
 
   // ══════════════════════════════════════════════════════════════════════════
