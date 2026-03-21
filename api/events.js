@@ -147,6 +147,7 @@ export default async function handler(req, res) {
         subscriber({ event_type, opportunity_id, opportunity_title, agency, data, source_module }).catch(e => console.warn('Subscriber error:', e.message));
       }
 
+      try { fetch(BASE + '/api/cascade', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({event_type:event_type, opportunity_id:opportunity_id||null, opportunity_title:opportunity_title||null, agency:agency||null, data:data||null, source_module:source_module||null}) }).catch(function(){}); } catch(ce) {}
       return res.status(200).json({ success: true, event_type });
     } catch(e) {
       return res.status(500).json({ error: e.message });
