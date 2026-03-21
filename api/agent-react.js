@@ -117,7 +117,7 @@ async function claudeReact(agentConfig, eventType, action, opportunity, storeDat
 
   if (extraPayload) prompt += 'EVENT PAYLOAD:\n' + JSON.stringify(extraPayload, null, 2) + '\n\n';
 
-  var priorInsights = opportunity._prior_insights || null;
+  var priorInsights = extraPayload && extraPayload._prior_insights ? extraPayload._prior_insights : null;
   if (priorInsights && Array.isArray(priorInsights) && priorInsights.length > 0) {
     prompt += 'TIER 1 AGENT INSIGHTS (these agents already analyzed this event and wrote to the stores — use their findings, do not repeat their work, build on it):\n';
     for (var pi = 0; pi < priorInsights.length; pi++) {
