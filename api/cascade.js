@@ -91,13 +91,13 @@ var CASCADE_MAP = {
 
   'opportunity.won': [
     { agent: 'crm_relationship', action: 'Upgrade agency relationship to hot', type: 'data_update', table: 'opportunities', field: 'stage', value: 'won' },
-    { agent: 'knowledge_base', action: 'Tag proposal content as winning material', type: 'signal' },
+    { agent: 'knowledge_base', action: 'Identify which KB chunks were used in this winning proposal. Elevate their relevance scores. Tag winning content patterns by vertical.', type: 'react' },
     { agent: 'executive_brief', action: 'Win alert to Lou/Larry', type: 'signal' }
   ],
 
   'opportunity.lost': [
-    { agent: 'intelligence_engine', action: 'Research winner for competitive intel', type: 'signal' },
-    { agent: 'self_awareness', action: 'Analyze what went wrong — proposal quality, pricing, relationships', type: 'signal' }
+    { agent: 'intelligence_engine', action: 'Research who won, at what price, and why. Store competitor win data permanently. Identify what HGI lacked and what would change the outcome next time.', type: 'react' },
+    { agent: 'self_awareness', action: 'Analyze loss across all dimensions: proposal quality, pricing competitiveness, relationship gaps, staffing gaps, competitive positioning. Identify whether this is a one-time miss or a structural pattern. Recommend the single highest-leverage fix.', type: 'react' }
   ],
 
   // ═══ STAGE CHANGE CASCADES ═══
