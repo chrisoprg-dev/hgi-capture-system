@@ -105,7 +105,7 @@ const handleTool = async (name, input) => {
       }
       try {
         const clean = instruction.replace(/```json|```/gi, '').trim();
-        parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1));
+        var parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1));
       } catch(e) {
         return { error: 'instruction must be JSON: {"find": "...", "replace": "..."} or {"replace_entire_file": true, "content": "..."}' };
       }
