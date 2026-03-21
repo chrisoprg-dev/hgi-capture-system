@@ -11,8 +11,25 @@ async function claudeCall(prompt, system, maxTokens) {
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens || 2000, system: system || 'You are HGI senior capture strategist.', messages: [{ role: 'user', content: prompt }] })
   });
+  if (!r.ok) throw new Error('Claude API returned ' + r.status);
   const d = await r.json();
-  return d.content?.filter(b => b.type === 'text').map(b => b.text).join('') || '';
+  var result = d.content?.filter(b => b.type === 'text').map(b => b.text).join('') || '';
+  if (!result || result.length < 20) throw new Error('Claude returned empty or too-short response');
+  return result;
+}
+
+// SAFEGUARD: Never overwrite non-empty fields with empty values
+async function safePatchOpp(id, data) {
+  var cleanData = {};
+  var keys = Object.keys(data);
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    var v = data[k];
+    if (v === '' || v === null || v === undefined) continue;
+    cleanData[k] = v;
+  }
+  if (Object.keys(cleanData).length === 0) return;
+  await patchOpp(id, cleanData);
 }
 
 async function webResearch(agency, title, state, description, opportunity_id) {
