@@ -118,9 +118,9 @@ var CASCADE_MAP = {
 
   // ═══ KB CASCADES ═══
   'kb.document_processed': [
-    { agent: 'self_awareness', action: 'Update KB coverage assessment', type: 'signal' },
+    { agent: 'self_awareness', action: 'Assess what this new document covers, what gaps it fills, what gaps remain across all 8 verticals. Report KB coverage status.', type: 'react' },
     { agent: 'proposal_agent', action: 'New content available for proposals', type: 'signal' },
-    { agent: 'content_engine', action: 'Analyze new document for voice patterns', type: 'signal' }
+    { agent: 'content_engine', action: 'Read the new document. Extract voice characteristics: active/passive ratio, sentence length, terminology patterns. Compare to existing HGI voice standards. Flag deviations and extract useful patterns.', type: 'react' }
   ],
 
   // ═══ SELF-AWARENESS CASCADES ═══
