@@ -160,9 +160,11 @@ async function agentBrief(opp, ctx) {
 }
 
 async function agentOppBrief(opp, ctx) {
+  var web = await webSearch((opp.agency||'') + ' procurement history leadership budget ' + (opp.vertical||'') + ' Louisiana recent news 2025 2026');
+  var webCtx = (web && web.length > 30) ? ('\nWEB AGENCY INTEL:\n' + web.slice(0,1500)) : '';
   var a = await think(
     'HGI opportunity brief agent. You have the complete record including proposal draft. Produce the deepest possible single-opportunity view. Surface what matters most first.',
-    ctx + '\n\nComplete brief: (1) Everything the organism knows about this agency — budget, procurement patterns, relationships (2) Full competitive field with specific threat levels — who will beat us and how (3) HGI strengths and weaknesses mapped to each eval criterion with point values (4) Financial picture — are we priced to win? (5) Relationship map — who do we know, who do we not (6) Critical path to submission — every remaining milestone with owner.',
+    ctx + webCtx + '\n\nComplete brief: (1) Everything the organism knows about this agency — budget, procurement patterns, relationships (2) Full competitive field with specific threat levels — who will beat us and how (3) HGI strengths and weaknesses mapped to each eval criterion with point values (4) Financial picture — are we priced to win? (5) Relationship map — who do we know, who do we not (6) Critical path to submission — every remaining milestone with owner.',
     1200
   );
   if (!a || a.length < 100) return null;
