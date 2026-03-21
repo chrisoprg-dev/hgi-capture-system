@@ -253,6 +253,15 @@ export default async function handler(req, res) {
     await patchOpp(opportunity_id, { research_brief: researchBrief, hgi_fit: researchBrief.slice(0, 2000) });
     await logEvent('opportunity.researched', opportunity_id, opp.title, { step: 'research' });
     results.steps_completed.push('research');
+    // Write research findings to organism memory — competitive landscape is highest value
+    var compSection = (researchBrief.match(/COMPETITIVE LANDSCAPE[\s\S]{0,800}/i) || [''])[0];
+    var agencySection = (researchBrief.match(/AGENCY PROFILE[\s\S]{0,500}/i) || [''])[0];
+    if (compSection.length > 50) {
+      await storeMemory('orchestrator_research', opportunity_id, (opp.agency||'')+','+(opp.vertical||'')+','+(opp.state||'LA')+',competitive_landscape', 'COMPETITIVE INTEL for '+opp.title+' ('+opp.agency+'): '+compSection, 'competitive_intel');
+    }
+    if (agencySection.length > 50) {
+      await storeMemory('orchestrator_research', opportunity_id, (opp.agency||'')+','+(opp.vertical||'')+','+(opp.state||'LA')+',agency_profile', 'AGENCY INTEL for '+opp.agency+': '+agencySection, 'agency_intel');
+    }
   } catch(e) { results.research_error = e.message; }
 
   // ══════════════════════════════════════════════════════════════════════════
