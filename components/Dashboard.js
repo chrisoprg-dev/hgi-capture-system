@@ -244,9 +244,9 @@ function Dashboard({ setActive }) {
                     {dp.expected_impact&&<div style={{padding:'7px 10px',background:GREEN+'11',border:'1px solid '+GREEN+'22',borderRadius:4,marginBottom:10}}><span style={{color:GREEN,fontSize:10,fontWeight:700}}>IMPACT: </span><span style={{color:TEXT_D,fontSize:12}}>{dp.expected_impact}</span></div>}
                     <div style={{display:'flex',gap:8,alignItems:'center',marginTop:8}}>
                       {dp.executable&&dp.action_endpoint&&(
-                        <button onClick={execute} style={{padding:'6px 14px',borderRadius:4,fontSize:12,fontWeight:700,background:GREEN+'22',color:GREEN,border:'1px solid '+GREEN+'44',cursor:'pointer',fontFamily:'inherit'}}>⚡ Execute Now</button>
+                        <button onClick={function(e){e.stopPropagation();executeDecision(dp);}} disabled={!!executing} style={{padding:'6px 14px',borderRadius:4,fontSize:12,fontWeight:700,background:isExec?GOLD+'22':GREEN+'22',color:isExec?GOLD:GREEN,border:'1px solid '+(isExec?GOLD+'44':GREEN+'44'),cursor:executing?'not-allowed':'pointer',fontFamily:'inherit'}}>{isExec?'⟳ Running...':'⚡ Execute Now'}</button>
                       )}
-                      <button onClick={dismiss} style={{padding:'6px 14px',borderRadius:4,fontSize:12,fontWeight:700,background:BG2,color:TEXT_D,border:'1px solid '+BORDER,cursor:'pointer',fontFamily:'inherit'}}>✓ Dismiss</button>
+                      <button onClick={function(e){e.stopPropagation();dismissDecision(dp.id);}} style={{padding:'6px 14px',borderRadius:4,fontSize:12,fontWeight:700,background:BG2,color:TEXT_D,border:'1px solid '+BORDER,cursor:'pointer',fontFamily:'inherit'}}>✓ Dismiss</button>
                       <span style={{color:TEXT_D,fontSize:10,marginLeft:'auto'}}>{new Date(dp.created_at).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
                     </div>
                   </div>
