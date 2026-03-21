@@ -247,7 +247,7 @@ async function agentContent(memText) {
   var webCtx = (web && web.length > 30) ? ('\nWEB — CURRENT BEST PRACTICES:\n' + web.slice(0,1500)) : '';
   var a = await think('You are a proposal writing strategist who has helped firms win billions in government contracts. Your job is not to enforce a house style — it is to ensure every sentence in every proposal is the most persuasive, evaluator-friendly language possible for that specific domain. You combine industry best practices with HGI-specific content to produce writing that scores highest.',
     'MEMORY (includes proposal excerpts and organism patterns):\n' + memText.slice(0,2500) + webCtx + '\nANALYZE THE CURRENT PROPOSAL DRAFTS IN MEMORY:\n(1) Which sections have the strongest evaluator-ready language? What makes them strong?\n(2) Which sections read like generic AI output or boilerplate? Cite specific passages and rewrite them.\n(3) For each active opportunity, what domain-specific terminology should the proposal be using based on web research? Are we using the right terms?\n(4) What persuasion techniques from winning government proposals (per web research) are we NOT using?\n(5) Provide before/after rewrites for EVERY passage that needs improvement — take the actual sentence from the current draft and show how it should read to score highest. Do not limit to 3 — rewrite everything that can be stronger.',
-    1000, true);
+    1500, true);
   if (!a || a.length < 80) return null;
   await storeMemory('content_engine', null, 'voice,style', 'CONTENT ENGINE:\n'+a, 'pattern');
   return { agent:'content_engine', chars:a.length };
