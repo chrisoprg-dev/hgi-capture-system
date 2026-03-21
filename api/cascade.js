@@ -77,16 +77,27 @@ var CASCADE_MAP = {
 
   // ═══ OUTCOME CASCADES — the learning loop ═══
   'opportunity.outcome_recorded': [
-    { agent: 'scanner_opi', action: 'Compare predicted OPI vs actual outcome. What factors were over/underweighted? Recommend specific model adjustments with expected impact.', type: 'react' },
-    { agent: 'financial_pricing', action: 'Compare estimated contract value vs actual award. Analyze pricing accuracy. Store benchmark data. Recommend estimation model changes.', type: 'react' },
-    { agent: 'intelligence_engine', action: 'Extract and permanently store all competitor data from this outcome: who bid, at what price, who won, why. Strategic implications for future bids against these competitors.', type: 'react' },
-    { agent: 'crm_relationship', action: 'Assess what this outcome means for the agency relationship. Update contact strength. Identify cross-agency connections. Recommend outreach timing.', type: 'react' },
-    { agent: 'recruiting_bench', action: 'Identify personnel involved in this bid. If won, flag as proven performers. Track recurring staffing gaps across outcomes.', type: 'react' },
-    { agent: 'proposal_agent', action: 'Analyze what made this proposal win or lose. Identify section-level patterns. Encode lessons for future proposals in this vertical/agency type.', type: 'react', tier: 2 },
-    { agent: 'content_engine', action: 'Analyze language patterns in this outcome. If won, identify voice characteristics to reinforce. If lost, identify patterns to adjust. Update blocked phrases and preferred structures.', type: 'react', tier: 2 },
-    { agent: 'design_visual', action: 'Record which visual format and template was used. Tag as effective if won.', type: 'signal' },
-    { agent: 'self_awareness', action: 'Comprehensive outcome analysis across all stores. Connect dots: OPI accuracy trend, pricing accuracy trend, competitive patterns, relationship impact, proposal quality correlation. Identify the single highest-leverage improvement recommendation.', type: 'react', tier: 2 },
-    { agent: 'executive_brief', action: 'Include outcome in next weekly digest', type: 'signal' }
+    // TIER 1 — fire in parallel, each reads stores, writes findings back
+    { agent: 'scanner_opi', action: 'Compare predicted OPI vs actual outcome. What factors were over/underweighted? Recommend specific model adjustments with expected impact. Update scoring weights in system_performance_log.', type: 'react' },
+    { agent: 'financial_pricing', action: 'Compare estimated contract value vs actual award. Analyze pricing accuracy by method (staffing math vs comparable vs % federal). Store benchmark. What should the estimate have been and why?', type: 'react' },
+    { agent: 'intelligence_engine', action: 'Extract and permanently store all competitor data: who bid, at what price, who won, why. What does this reveal about their strategy, pricing floor, strengths? Store in competitive_intelligence for every future bid against them.', type: 'react' },
+    { agent: 'crm_relationship', action: 'What does this outcome mean for the agency relationship? Update contact strength to hot (won) or analyze gaps (lost). Which contacts helped or were missing? Recommend next outreach timing and approach.', type: 'react' },
+    { agent: 'recruiting_bench', action: 'Who was on this bid? If won, flag as proven performers for this vertical. What staffing gaps hurt us if lost? Track recurring gaps across all outcomes — flag when same gap appears twice.', type: 'react' },
+    { agent: 'research_analysis', action: 'How accurate was the competitive analysis? Did the identified competitors actually bid? Were the red flags real? What intelligence gaps caused surprises? Update research methodology for this agency/vertical type.', type: 'react' },
+    { agent: 'winnability', action: 'How accurate was the GO/PWIN decision? What factors were overweighted or underweighted? If PWIN was 75% and we lost, what changed? Recommend specific PWIN model adjustments for this vertical.', type: 'react' },
+    { agent: 'quality_gate', action: 'Review what the winning proposal likely had that ours lacked. What compliance items or evaluation criteria points were at risk? Update quality checklist for this RFP type and agency size.', type: 'react' },
+    { agent: 'discovery', action: 'Which source produced this opportunity? Track win rate by source. If this was a win, increase keyword weight for similar terms. If loss with strong fit, analyze whether we found it early enough to build relationships.', type: 'react' },
+    { agent: 'pipeline_scanner', action: 'Update monitoring rules based on this outcome. How long did this opportunity spend in each stage? Was the timeline realistic? Recommend stage duration benchmarks for this opportunity type.', type: 'react' },
+    // TIER 2 — fire after tier 1, receive all tier 1 insights before thinking
+    { agent: 'proposal_agent', action: 'Using all tier 1 findings: analyze what made this proposal win or lose at the section level. Which sections scored well, which were weak? Encode specific lessons — not generic advice — for future proposals in this vertical and agency type.', type: 'react', tier: 2 },
+    { agent: 'content_engine', action: 'Using tier 1 findings: analyze language patterns in this outcome. If won, identify voice characteristics to reinforce. If lost, identify patterns to adjust. Update blocked phrases, preferred structures, active voice targets.', type: 'react', tier: 2 },
+    { agent: 'brief_agent', action: 'Using all findings: what should the next briefing package for a similar opportunity include that this one lacked? Update briefing template for this agency type and vertical. What open items were never resolved?', type: 'react', tier: 2 },
+    { agent: 'scraper_insights', action: 'Track this outcome against its source. What is the win rate from this source? Is this source producing quality opportunities or noise? Recommend keyword adjustments and source priority changes.', type: 'react', tier: 2 },
+    { agent: 'knowledge_base', action: 'Which KB chunks were most relevant to this proposal? If won, elevate their relevance scores. Tag winning content patterns by vertical and agency type. What KB gaps hurt this bid?', type: 'react', tier: 2 },
+    { agent: 'design_visual', action: 'Record which visual format and template was used. If won, tag as effective for this vertical/agency type. If lost, flag for review. Update visual format recommendations.', type: 'react', tier: 2 },
+    { agent: 'self_awareness', action: 'Using ALL tier 1 and tier 2 findings: connect every dot. OPI accuracy trend, pricing accuracy trend, competitive pattern, relationship impact, proposal quality correlation, source ROI. Identify the single highest-leverage system improvement. Write it as a specific recommendation with expected impact.', type: 'react', tier: 2 },
+    { agent: 'executive_brief', action: 'Include outcome in next weekly digest for Lou and Larry. One paragraph: what happened, financial impact, what we learned, what changes as a result.', type: 'signal' },
+    { agent: 'dashboard', action: 'Refresh win/loss record and pipeline stats', type: 'signal' }
   ],
 
   'opportunity.won': [
