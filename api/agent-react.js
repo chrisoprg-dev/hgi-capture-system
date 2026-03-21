@@ -174,15 +174,41 @@ async function loadStores(agentConfig, opportunityId) {
   return storeData;
 }
 
+var STORE_COLUMNS = {
+  competitive_intelligence: ['competitor_name', 'agency', 'opportunity_id', 'contract_value', 'outcome', 'bid_price', 'strengths', 'weaknesses', 'strategic_notes', 'vertical'],
+  relationship_graph: ['contact_name', 'title', 'organization', 'email', 'phone', 'relationship_strength', 'last_contact', 'notes', 'connected_orgs'],
+  system_performance_log: ['agent', 'event_type', 'metric_type', 'metric_value', 'details']
+};
+
 async function writeStores(updates, agentName, opportunityId) {
   var results = [];
   for (var i = 0; i < updates.length; i++) {
     var u = updates[i];
     if (!u.store || !u.data) { results.push({ store: u.store, status: 'skipped_invalid' }); continue; }
+    var validCols = STORE_COLUMNS[u.store];
+    if (!validCols) { results.push({ store: u.store, status: 'unknown_store' }); continue; }
     try {
       var record = {};
-      var keys = Object.keys(u.data);
-      for (var k = 0; k < keys.length; k++) { record[keys[k]] = u.data[keys[k]]; }
+      var dataKeys = Object.keys(u.data);
+      for (var k = 0; k < dataKeys.length; k++) {
+        var key = dataKeys[k];
+        if (validCols.indexOf(key) !== -1) {
+          var val = u.data[key];
+          record[key] = (typeof val === 'object') ? JSON.stringify(val) : String(val || '');
+        }
+      }
+      if (u.store === 'system_performance_log') {
+        record.agent = record.agent || agentName;
+        record.event_type = record.event_type || '';
+        if (!record.metric_type) record.metric_type = 'observation';
+        if (!record.details) {
+          var allVals = dataKeys.map(function(dk) { return dk + ': ' + String(u.data[dk] || '').slice(0, 200); }).join('; ');
+          record.details = allVals.slice(0, 2000);
+        }
+      }
+      if (u.store === 'competitive_intelligence' && !record.competitor_name) {
+        record.competitor_name = 'unknown';
+      }
       record.id = u.store.slice(0, 2) + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
       record.source_agent = agentName;
       record.opportunity_id = opportunityId || null;
