@@ -16,13 +16,29 @@ async function webSearch(query) {
     return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('\n');
   } catch(e) { return ''; }
 }
-async function think(system, prompt, maxT) {
+async function think(system, prompt, maxT, useSonnet) {
+  var model = useSonnet ? 'claude-sonnet-4-20250514' : 'claude-haiku-4-5-20251001';
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxT || 800, system: system, messages: [{ role: 'user', content: prompt }] }) });
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: model, max_tokens: maxT || 800, system: system, messages: [{ role: 'user', content: prompt }] }) });
     if (!r.ok) return '';
     const d = await r.json();
     return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
   } catch(e) { return ''; }
+}
+
+// Web search frequency gate — check if agent searched recently
+async function shouldWebSearch(agentName) {
+  var ALWAYS_SEARCH = ['intelligence_engine','crm_agent','financial_agent','discovery_agent','winnability_agent'];
+  if (ALWAYS_SEARCH.indexOf(agentName) !== -1) return true;
+  try {
+    var r = await fetch(SB + '/rest/v1/organism_memory?agent=eq.' + agentName + '&order=created_at.desc&limit=1&select=created_at', { headers: H });
+    if (!r.ok) return true;
+    var d = await r.json();
+    if (!d || !d.length) return true;
+    var lastRun = new Date(d[0].created_at);
+    var hoursSince = (Date.now() - lastRun.getTime()) / 3600000;
+    return hoursSince > 20;
+  } catch(e) { return true; }
 }
 async function safe(fn, label) { try { return await fn(); } catch(e) { return { _error: true, agent: label || 'unknown', message: e.message || String(e) }; } }
 
