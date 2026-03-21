@@ -51,7 +51,8 @@ async function safe(fn, label) { try { return await fn(); } catch(e) { return { 
 
 // Build full context for an opportunity — memory + ALL rich fields
 // This is the fix: agents now see the actual scope, research, proposal draft, financials
-function buildCtx(opp, mem) {
+function buildCtx(opp, mem, tier) {
+  var full = (tier === 'full');
   var parts = [];
   parts.push('=== OPPORTUNITY RECORD ===');
   parts.push('Title: ' + opp.title);
@@ -61,12 +62,12 @@ function buildCtx(opp, mem) {
   parts.push('Stage: ' + (opp.stage||''));
   parts.push('Due: ' + (opp.due_date||'TBD'));
   parts.push('Est Value: ' + (opp.estimated_value||'unknown'));
-  if ((opp.capture_action||'').length > 20) parts.push('\n--- CAPTURE ACTION / WINNABILITY ---\n' + (opp.capture_action||'').slice(0,800));
-  if ((opp.scope_analysis||'').length > 100) parts.push('\n--- SCOPE ANALYSIS (RFP REQUIREMENTS) ---\n' + (opp.scope_analysis||'').slice(0,2500));
-  if ((opp.financial_analysis||'').length > 100) parts.push('\n--- FINANCIAL ANALYSIS ---\n' + (opp.financial_analysis||'').slice(0,1200));
-  if ((opp.research_brief||'').length > 100) parts.push('\n--- RESEARCH BRIEF (COMPETITIVE INTEL) ---\n' + (opp.research_brief||'').slice(0,1500));
-  if ((opp.staffing_plan||'').length > 100) parts.push('\n--- PROPOSAL DRAFT ---\n' + (opp.staffing_plan||'').slice(0,5000));
-  if (mem && mem.length > 50) parts.push('\n=== ORGANISM MEMORY ===\n' + mem.slice(0,2500));
+  if ((opp.capture_action||'').length > 20) parts.push('\n--- CAPTURE ACTION / WINNABILITY ---\n' + (opp.capture_action||'').slice(0, full ? 1500 : 800));
+  if ((opp.scope_analysis||'').length > 100) parts.push('\n--- SCOPE ANALYSIS (RFP REQUIREMENTS) ---\n' + (opp.scope_analysis||'').slice(0, full ? 5000 : 2500));
+  if ((opp.financial_analysis||'').length > 100) parts.push('\n--- FINANCIAL ANALYSIS ---\n' + (opp.financial_analysis||'').slice(0, full ? 2500 : 1200));
+  if ((opp.research_brief||'').length > 100) parts.push('\n--- RESEARCH BRIEF (COMPETITIVE INTEL) ---\n' + (opp.research_brief||'').slice(0, full ? 3000 : 1500));
+  if ((opp.staffing_plan||'').length > 100) parts.push('\n--- PROPOSAL DRAFT ---\n' + (opp.staffing_plan||'').slice(0, full ? 15000 : 5000));
+  if (mem && mem.length > 50) parts.push('\n=== ORGANISM MEMORY ===\n' + mem.slice(0, full ? 4000 : 2500));
   return parts.join('\n');
 }
 
