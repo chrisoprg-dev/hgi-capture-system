@@ -6,13 +6,11 @@ const H = { 'apikey': SK, 'Authorization': 'Bearer ' + SK, 'Content-Type': 'appl
 function makeId() { return 'om-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); }
 async function sbGet(path) { try { const r = await fetch(SB + path, { headers: H }); if (!r.ok) return []; return await r.json(); } catch(e) { return []; } }
 async function storeMemory(agent, oppId, tags, observation, memType) {
-  try {
-    await fetch(SB + '/rest/v1/organism_memory', { method: 'POST', headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ id: makeId(), agent: agent, opportunity_id: oppId || null, entity_tags: tags, observation: observation, memory_type: memType || 'analysis', created_at: new Date().toISOString() }) });
-  } catch(e) {}
+  try { await fetch(SB + '/rest/v1/organism_memory', { method: 'POST', headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ id: makeId(), agent: agent, opportunity_id: oppId || null, entity_tags: tags, observation: observation, memory_type: memType || 'analysis', created_at: new Date().toISOString() }) }); } catch(e) {}
 }
 async function webSearch(query) {
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000, tools: [{ type: 'web_search_20250305', name: 'web_search' }], system: 'Intelligence analyst. Search web and return specific verified findings with sources.', messages: [{ role: 'user', content: query }] }) });
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, tools: [{ type: 'web_search_20250305', name: 'web_search' }], system: 'Intelligence analyst. Return specific verified findings with sources. Be concise.', messages: [{ role: 'user', content: query }] }) });
     if (!r.ok) return '';
     const d = await r.json();
     return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('\n');
@@ -20,11 +18,161 @@ async function webSearch(query) {
 }
 async function think(system, prompt, maxT) {
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxT || 1000, system: system, messages: [{ role: 'user', content: prompt }] }) });
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxT || 800, system: system, messages: [{ role: 'user', content: prompt }] }) });
     if (!r.ok) return '';
     const d = await r.json();
     return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
   } catch(e) { return ''; }
+}
+async function safe(fn) { try { return await fn(); } catch(e) { return null; } }
+
+// ═══ AGENT FUNCTIONS — each returns result object or null ═══
+
+async function agentIntelligence(opp, mem) {
+  var web = await webSearch('Louisiana government contracts awarded ' + opp.agency + ' ' + (opp.vertical||'disaster recovery') + ' professional services 2023 2024 2025 who won award amount');
+  if (!web || web.length < 100) return null;
+  var a = await think('HGI competitive intelligence analyst. NEVER direct federal — all work through state/local. Cite dollar amounts, names, dates.', 'OPP: ' + opp.title + ' | ' + opp.agency + '\nWEB:\n' + web.slice(0,2500) + '\nMEMORY:\n' + mem.slice(0,1000) + '\nExtract: (1) Named competitors and strengths (2) Recent award amounts (3) Incumbent (4) Agency procurement patterns (5) Red flags. Flag contradictions with prior assumptions.', 1000);
+  if (!a || a.length < 100) return null;
+  await storeMemory('intelligence_engine', opp.id, opp.agency+','+(opp.vertical||'')+',competitive_intel', 'INTEL ENGINE — '+opp.agency+':\n'+a, 'competitive_intel');
+  try { await fetch(SB+'/rest/v1/competitive_intelligence', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({id:'ci-'+Date.now()+'-'+Math.random().toString(36).slice(2,6), competitor_name:'market_research', agency:opp.agency||'', vertical:opp.vertical||'', strategic_notes:a.slice(0,2000), opportunity_id:opp.id, source_agent:'intelligence_engine', created_at:new Date().toISOString(), updated_at:new Date().toISOString()}) }); } catch(e) {}
+  return { agent:'intelligence_engine', opp:opp.title, chars:a.length };
+}
+
+async function agentCrm(opp, mem) {
+  var web = await webSearch('procurement director purchasing manager ' + opp.agency + ' Louisiana professional services contracts contact email phone 2024 2025');
+  if (!web || web.length < 100) return null;
+  var a = await think('HGI relationship intelligence agent. Find verified decision-maker contacts. Relationship strength cold/unknown unless evidence otherwise.', 'AGENCY: ' + opp.agency + ' | ' + (opp.state||'LA') + '\nWEB:\n' + web.slice(0,2000) + '\nMEMORY:\n' + mem.slice(0,600) + '\nExtract: named contacts, titles, emails, phones. Best outreach approach. Any HGI history or mutual connections.', 700);
+  if (!a || a.length < 80) return null;
+  await storeMemory('crm_agent', opp.id, opp.agency+',contacts,relationship', 'CRM — '+opp.agency+':\n'+a, 'relationship');
+  try { await fetch(SB+'/rest/v1/relationship_graph', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({id:'rg-'+Date.now()+'-'+Math.random().toString(36).slice(2,6), organization:opp.agency||'', notes:a.slice(0,1500), relationship_strength:'cold', source_agent:'crm_agent', opportunity_id:opp.id, created_at:new Date().toISOString(), updated_at:new Date().toISOString()}) }); } catch(e) {}
+  return { agent:'crm_agent', opp:opp.title, chars:a.length };
+}
+
+async function agentFinancial(opp, mem) {
+  var web = await webSearch('Louisiana ' + (opp.vertical||'disaster recovery') + ' consulting MSA contract award 2022 2023 2024 FEMA PA program management hourly rates parish municipality');
+  if (!web || web.length < 100) return null;
+  var a = await think('HGI financial analyst. Only cite verified dollar amounts with sources.', 'OPP: ' + opp.title + ' | ' + opp.agency + ' | Est: ' + (opp.estimated_value||'unknown') + '\nWEB AWARD DATA:\n' + web.slice(0,2000) + '\nMEMORY:\n' + mem.slice(0,600) + '\nExtract real award amounts — name agency, amount, period, scope. What does this imply for our estimate? High or low?', 700);
+  if (!a || a.length < 80) return null;
+  await storeMemory('financial_agent', opp.id, opp.agency+','+(opp.vertical||'')+',pricing_benchmark', 'FINANCIAL — '+opp.title+':\n'+a, 'pricing_benchmark');
+  return { agent:'financial_agent', opp:opp.title, chars:a.length };
+}
+
+async function agentResearch(opp, mem) {
+  var a = await think('HGI strategic research agent. Every recommendation ties to specific evidence. No generic advice.', 'OPP: ' + opp.title + ' | ' + opp.agency + ' | OPI:' + opp.opi + '\nEVAL: Tech30/Exp25/PP20/Staff15/Price10\nINTEL:\n' + mem.slice(0,2500) + '\nProduce: (1) Updated competitive landscape with named firms and specific threats (2) Win strategy mapped to eval point values (3) Intelligence gaps still needed (4) Red flags (5) Single highest-leverage action this week.', 900);
+  if (!a || a.length < 100) return null;
+  await storeMemory('research_analysis', opp.id, opp.agency+','+(opp.vertical||'')+',strategy', 'RESEARCH — '+opp.title+':\n'+a, 'analysis');
+  return { agent:'research_analysis', opp:opp.title, chars:a.length };
+}
+
+async function agentWinnability(opp, mem) {
+  var a = await think('HGI bid decision engine. Re-evaluate GO/PWIN honestly as intelligence accumulates.', 'OPP: ' + opp.title + ' | ' + opp.agency + ' | OPI:' + opp.opi + '\nINTEL:\n' + mem.slice(0,2000) + '\nRe-evaluate: (1) Should GO decision change? (2) PWIN movement and why? (3) New risks? (4) What would flip to NO-BID? (5) Recommendation: PWIN X% | GO/CONDITIONAL/NO-BID.', 600);
+  if (!a || a.length < 80) return null;
+  await storeMemory('winnability_agent', opp.id, opp.agency+',winnability,pwin', 'WINNABILITY — '+opp.title+':\n'+a, 'winnability');
+  return { agent:'winnability_agent', opp:opp.title, chars:a.length };
+}
+
+async function agentQualityGate(opp, mem) {
+  if ((opp.staffing_plan||'').length < 300) return null;
+  var a = await think('HGI submission quality gate. Catch every deficiency before an evaluator does.', 'OPP: ' + opp.title + ' | ' + opp.agency + '\nEVAL: Tech30/Exp25/PP20/Staff15/Price10\nSCOPE:\n' + (opp.scope_analysis||'').slice(0,700) + '\nProposal exists. Check: (1) Every RFP requirement addressed? (2) Thin eval criteria sections? (3) All 10 positions with rates? (4) 3 past performance refs with contacts? (5) Exhibits B-J noted? Verdict: GO/NO-GO with deficiency list.', 800);
+  if (!a || a.length < 80) return null;
+  await storeMemory('quality_gate', opp.id, opp.agency+',quality_gate,compliance', 'QUALITY GATE — '+opp.title+':\n'+a, 'analysis');
+  return { agent:'quality_gate', opp:opp.title, chars:a.length };
+}
+
+async function agentProposal(opp, mem) {
+  if ((opp.staffing_plan||'').length < 300) return null;
+  var a = await think('HGI proposal strategy agent. Specific improvements only — cite eval criteria and competitor intelligence.', 'OPP: ' + opp.title + ' | ' + opp.agency + '\nEVAL: Tech30/Exp25/PP20/Staff15/Price10\nINTEL:\n' + mem.slice(0,2000) + '\nProposal exists. Identify: (1) Weakest sections vs eval point values (2) Missing content that scores higher (3) Compliance gaps (4) Competitive positioning vs CDR Maguire/Tetra Tech/IEM (5) Single most impactful edit.', 800);
+  if (!a || a.length < 100) return null;
+  await storeMemory('proposal_agent', opp.id, opp.agency+','+(opp.vertical||'')+',proposal_improvement', 'PROPOSAL — '+opp.title+':\n'+a, 'pattern');
+  return { agent:'proposal_agent', opp:opp.title, chars:a.length };
+}
+
+async function agentBrief(opp, mem) {
+  if ((opp.stage||'') !== 'proposal' && (opp.stage||'') !== 'pursuing') return null;
+  var a = await think('HGI team briefing agent. Keep team picture current. Functional roles only — never personal names.', 'OPP: ' + opp.title + ' | ' + opp.agency + ' | Due:' + (opp.due_date||'TBD') + '\nINTEL:\n' + mem.slice(0,2000) + '\nUpdate: (1) What changed since last brief? (2) Open items unresolved (3) What must happen before next milestone (4) What each functional role does this week (5) Overall win confidence.', 700);
+  if (!a || a.length < 80) return null;
+  await storeMemory('brief_agent', opp.id, opp.agency+',briefing', 'BRIEF — '+opp.title+':\n'+a, 'analysis');
+  return { agent:'brief_agent', opp:opp.title, chars:a.length };
+}
+
+async function agentDiscovery(memText) {
+  var web = await webSearch('Louisiana government professional services procurement 2026 disaster recovery FEMA CDBG-DR housing new RFP solicitation pre-solicitation vendor conference');
+  var a = await think('HGI discovery agent. Find pre-solicitation signals and new sources. HGI works through state/local only.', 'WEB:\n' + (web||'').slice(0,2000) + '\nSOURCES ACTIVE: Central Bidding, LaPAC, FEMA, Grants.gov. MISSING: LA Housing Corp, SAM.gov, parish minutes.\nMEMORY:\n' + memText.slice(0,800) + '\nFind: (1) Pre-solicitation signals (2) New agencies to watch (3) LA/TX/FL/MS market signals (4) Source gaps competitors use that HGI misses.', 800);
+  if (!a || a.length < 80) return null;
+  await storeMemory('discovery_agent', null, 'discovery,pre_solicitation,market_signals', 'DISCOVERY:\n'+a, 'pattern');
+  return { agent:'discovery_agent', chars:a.length };
+}
+
+async function agentPipelineScanner(activeOpps, memText) {
+  var today = new Date();
+  var health = activeOpps.map(function(o) { var d = o.due_date ? Math.ceil((new Date(o.due_date)-today)/86400000) : null; return o.title+'|Stage:'+(o.stage||'?')+'|Days:'+(d!==null?d:'?')+'|OPI:'+o.opi; }).join('\n');
+  var a = await think('HGI pipeline health monitor. Flag everything needing immediate action.', 'PIPELINE:\n' + health + '\nMEMORY:\n' + memText.slice(0,1200) + '\nFlag: (1) Within 14 days without complete proposal (2) GO stuck same stage 7+ days (3) OPI inconsistent with intel (4) Deadline conflicts (5) Pipeline health score 1-10.', 600);
+  if (!a || a.length < 80) return null;
+  await storeMemory('pipeline_scanner', null, 'pipeline_health,deadlines', 'PIPELINE SCANNER:\n'+a, 'analysis');
+  return { agent:'pipeline_scanner', chars:a.length };
+}
+
+async function agentOpiCalibration(activeOpps, memText) {
+  var a = await think('HGI OPI calibration engine. Refine scoring based on accumulated intelligence.', 'OPPS:\n' + activeOpps.map(function(o) { return o.title+'|'+o.agency+'|OPI:'+o.opi+'|'+o.vertical; }).join('\n') + '\nINTEL:\n' + memText.slice(0,1800) + '\nFor each: (1) Does OPI reflect what organism knows? (2) Adjustments needed and by how much? (3) Consistently over/underweighted factors? (4) What would most improve scoring model?', 800);
+  if (!a || a.length < 80) return null;
+  await storeMemory('scanner_opi', null, 'opi_calibration,scoring', 'OPI CALIBRATION:\n'+a, 'pattern');
+  return { agent:'scanner_opi', chars:a.length };
+}
+
+async function agentContent(memText) {
+  var a = await think('HGI institutional voice agent. Active voice target 75%+. Maintain HGI writing standards.', 'MEMORY:\n' + memText.slice(0,1800) + '\nAnalyze: (1) Active vs passive voice patterns (2) Phrases to block (3) What makes HGI writing distinctive (4) Style improvements for next proposal.', 600);
+  if (!a || a.length < 80) return null;
+  await storeMemory('content_engine', null, 'voice,style', 'CONTENT ENGINE:\n'+a, 'pattern');
+  return { agent:'content_engine', chars:a.length };
+}
+
+async function agentBench(activeOpps, memText) {
+  var a = await think('HGI recruiting and bench agent. Track staffing gaps before they block bids.', 'OPPS:\n' + activeOpps.map(function(o){ return o.title+'|'+(o.vertical||'')+'|'+(o.stage||''); }).join('\n') + '\nSTAFF: 67 FT + 43 contract. Key: Louis Resweber (PD), Berron (PA SME), April Gloston (HM), Klunk (Financial), Wiltz (Documentation).\nINTEL:\n' + memText.slice(0,1000) + '\nFor each pursuit: (1) Roles needed vs available (2) Best staff fits (3) Teaming/sub needed (4) Recurring gaps (5) Recruiting action before next deadline.', 800);
+  if (!a || a.length < 80) return null;
+  await storeMemory('recruiting_bench', null, 'staffing,bench,gaps', 'BENCH:\n'+a, 'analysis');
+  return { agent:'recruiting_bench', chars:a.length };
+}
+
+async function agentKb(memText) {
+  var a = await think('HGI knowledge base agent. Identify the most impactful KB gaps.', 'VERTICALS: Disaster Recovery, Workforce/WIOA.\nKB: 21 docs, 350+ chunks. Strong: GOHSEP(149), TPCIGA(94), HTHA(22). Weak: 6 image-PDFs, 2 docx zero chunks.\nMEMORY:\n' + memText.slice(0,1200) + '\nIdentify: (1) KB content referenced most in current work (2) Critical past performance missing (3) Agency intel that should be chunks (4) Technical methodology gaps (5) Single document Lou should send next.', 700);
+  if (!a || a.length < 80) return null;
+  await storeMemory('knowledge_base_agent', null, 'kb_gaps,kb_health', 'KB AGENT:\n'+a, 'pattern');
+  return { agent:'knowledge_base_agent', chars:a.length };
+}
+
+async function agentScraper(activeOpps, memText) {
+  var a = await think('HGI scraper health monitor. Track source yield and ROI.', 'PIPELINE:\n' + activeOpps.map(function(o){ return (o.title||'').slice(0,50)+'|OPI:'+o.opi; }).join('\n') + '\nMEMORY:\n' + memText.slice(0,800) + '\nAnalyze: (1) Sources producing GO-quality vs noise (2) Central Bidding patterns (3) Highest-ROI new source to add (4) Degradation signs (5) Keyword adjustments.', 600);
+  if (!a || a.length < 80) return null;
+  await storeMemory('scraper_insights', null, 'scraper_health,source_roi', 'SCRAPER:\n'+a, 'pattern');
+  return { agent:'scraper_insights', chars:a.length };
+}
+
+async function agentExecBrief(activeOpps, memText) {
+  var a = await think('HGI executive briefing agent for Lou Resweber (CEO) and Larry Oney (Chairman). Concise, no noise.', 'PIPELINE:\n' + activeOpps.map(function(o){ return o.title+'|'+o.agency+'|OPI:'+o.opi+'|Due:'+(o.due_date||'TBD')+'|Stage:'+(o.stage||'?'); }).join('\n') + '\nINTEL:\n' + memText.slice(0,1800) + '\nDigest: (1) Pipeline summary and stakes (2) Critical decisions this week (3) Opportunities needing executive relationships (4) Win probability summary (5) What needs Lou/Larry visibility.', 700);
+  if (!a || a.length < 80) return null;
+  await storeMemory('executive_brief_agent', null, 'executive_brief,digest', 'EXEC BRIEF:\n'+a, 'analysis');
+  return { agent:'executive_brief_agent', chars:a.length };
+}
+
+async function agentDesign(activeOpps, memText) {
+  var a = await think('HGI design and visual agent. Every output should look like a billion-dollar program management firm.', 'PROPOSALS:\n' + activeOpps.filter(function(o){ return (o.staffing_plan||'').length > 300; }).map(function(o){ return o.title+'|'+o.agency; }).join('\n') + '\nMEMORY:\n' + memText.slice(0,1000) + '\nAnalyze: (1) Visual format to impress evaluators (2) Sections needing tables/org charts/matrices (3) Brand standards gold/navy (4) Visual differentiators vs CDR Maguire/Tetra Tech (5) Highest-priority visual improvement.', 600);
+  if (!a || a.length < 80) return null;
+  await storeMemory('design_visual', null, 'visual,branding,format', 'DESIGN:\n'+a, 'pattern');
+  return { agent:'design_visual', chars:a.length };
+}
+
+async function agentDashboard(activeOpps, allMemories, memText) {
+  var a = await think('HGI dashboard agent. Synthesize system health for Christopher morning briefing.', 'SYSTEM: ' + activeOpps.length + ' active opps | ' + allMemories.length + ' memories\nMEMORY:\n' + memText.slice(0,1500) + '\nSynthesize: (1) Organism health — how well is it working? (2) Which opps need Christopher vs autonomous? (3) Most important thing Christopher should know now? (4) Highest impact improvement this week.', 600);
+  if (!a || a.length < 80) return null;
+  await storeMemory('dashboard_agent', null, 'dashboard,morning_brief', 'DASHBOARD:\n'+a, 'analysis');
+  return { agent:'dashboard_agent', chars:a.length };
+}
+
+async function agentOppBrief(opp, mem) {
+  var a = await think('HGI opportunity brief agent. Deepest possible single-opportunity view. Surface what matters most first.', 'OPP: ' + opp.title + ' | ' + opp.agency + ' | OPI:' + opp.opi + ' | Due:'+(opp.due_date||'TBD') + '\nALL INTEL:\n' + mem.slice(0,3000) + '\nBrief: (1) Everything known about this agency (2) Complete competitive field with threat assessment (3) HGI strengths/gaps vs eval criteria (4) Financial picture and margin (5) Relationship map (6) Critical path to submission.', 1000);
+  if (!a || a.length < 100) return null;
+  await storeMemory('opportunity_brief_agent', opp.id, opp.agency+',opportunity_brief', 'OPP BRIEF — '+opp.title+':\n'+a, 'analysis');
+  return { agent:'opportunity_brief_agent', opp:opp.title, chars:a.length };
 }
 
 export default async function handler(req, res) {
@@ -36,248 +184,65 @@ export default async function handler(req, res) {
   const results = { trigger, started_at: new Date().toISOString(), work_completed: [], errors: [] };
 
   const [activeOpps, allMemories] = await Promise.all([
-    sbGet('/rest/v1/opportunities?status=in.(active,pursuing,proposal)&opi_score=gte.65&select=id,title,agency,vertical,state,opi_score,due_date,stage,scope_analysis,financial_analysis,research_brief,staffing_plan,estimated_value&order=opi_score.desc&limit=10'),
+    sbGet('/rest/v1/opportunities?status=in.(active,pursuing,proposal)&opi_score=gte.65&select=id,title,agency,vertical,state,opi_score,due_date,stage,scope_analysis,financial_analysis,research_brief,staffing_plan,estimated_value&order=opi_score.desc&limit=5'),
     sbGet('/rest/v1/organism_memory?memory_type=neq.decision_point&order=created_at.desc&limit=60')
   ]);
   results.opps_loaded = activeOpps.length;
   results.memories_loaded = allMemories.length;
-  const memText = allMemories.slice(0, 40).map(function(m) { return '[' + (m.agent||'') + '|' + (m.memory_type||'') + '|' + (m.created_at||'').slice(0,10) + ']:\n' + (m.observation||'').slice(0,350); }).join('\n\n---\n\n');
-
+  const memText = allMemories.slice(0, 40).map(function(m) { return '[' + (m.agent||'') + '|' + (m.memory_type||'') + '|' + (m.created_at||'').slice(0,10) + ']:\n' + (m.observation||'').slice(0,300); }).join('\n\n---\n\n');
   function oppMem(opp) {
-    return allMemories.filter(function(m) { return (m.opportunity_id === opp.id) || (m.entity_tags||'').includes(opp.agency||''); }).map(function(m) { return (m.observation||'').slice(0,300); }).join('\n\n') + '\n\n' + memText.slice(0,1500);
+    return allMemories.filter(function(m) { return (m.opportunity_id === opp.id) || (m.entity_tags||'').includes(opp.agency||''); }).map(function(m) { return (m.observation||'').slice(0,250); }).join('\n\n') + '\n\n' + memText.slice(0,1200);
   }
 
-  async function run(agentName, fn) {
-    try { var r = await fn(); if (r) results.work_completed.push(r); } catch(e) { results.errors.push(agentName + ':' + e.message); }
-  }
-
-  // ═══ PER-OPPORTUNITY AGENTS ═══
+  // ═══ ALL PER-OPPORTUNITY AGENTS FIRE IN PARALLEL ═══
+  // Build one big array of promises — every agent for every opportunity at once
+  var perOppPromises = [];
   for (var i = 0; i < activeOpps.length; i++) {
-    var opp = activeOpps[i];
-    var mem = oppMem(opp);
-
-    // 1. INTELLIGENCE ENGINE — web research on competitors, awards, agency intel
-    await run('intelligence_engine', async function() {
-      var web = await webSearch('Louisiana government contracts awarded ' + opp.agency + ' ' + (opp.vertical||'disaster recovery') + ' professional services 2023 2024 2025 who won how much');
-      if (!web || web.length < 100) return null;
-      var a = await think('HGI competitive intelligence analyst. NEVER a direct federal contract — all work through state/local. Cite dollar amounts, names, dates.', 'OPPORTUNITY: ' + opp.title + ' | ' + opp.agency + '\nWEB FINDINGS:\n' + web.slice(0,3000) + '\nPRIOR MEMORY:\n' + mem.slice(0,1200) + '\nExtract: (1) Named competitors likely to bid and strengths (2) Recent award amounts for comparable contracts (3) Incumbent if any (4) Agency budget/procurement patterns (5) Red flags or unique opportunities. Flag anything that contradicts prior assumptions.', 1200);
-      if (a && a.length > 100) {
-        await storeMemory('intelligence_engine', opp.id, opp.agency+','+(opp.vertical||'')+',competitive_intel', 'INTEL ENGINE — '+opp.agency+':\n'+a, 'competitive_intel');
-        try { await fetch(SB+'/rest/v1/competitive_intelligence', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({id:'ci-'+Date.now()+'-'+Math.random().toString(36).slice(2,6), competitor_name:'market_research', agency:opp.agency||'', vertical:opp.vertical||'', strategic_notes:a.slice(0,2000), opportunity_id:opp.id, source_agent:'intelligence_engine', created_at:new Date().toISOString(), updated_at:new Date().toISOString()}) }); } catch(e) {}
-        return { agent:'intelligence_engine', opp:opp.title, chars:a.length };
-      }
-      return null;
-    });
-
-    // 2. CRM / RELATIONSHIP AGENT — finds real decision-maker contacts
-    await run('crm_agent', async function() {
-      var web = await webSearch('procurement contact purchasing director ' + opp.agency + ' Louisiana who signs professional services contracts email phone');
-      if (!web || web.length < 100) return null;
-      var a = await think('HGI relationship intelligence agent. Find verified decision-maker contacts. Note relationship strength cold/unknown unless evidence otherwise.', 'AGENCY: ' + opp.agency + ' | STATE: ' + (opp.state||'LA') + '\nWEB FINDINGS:\n' + web.slice(0,2000) + '\nPRIOR MEMORY:\n' + mem.slice(0,800) + '\nExtract named contacts, titles, emails, phones. Note best outreach approach. Flag any mutual connections or HGI history with this agency.', 800);
-      if (a && a.length > 80) {
-        await storeMemory('crm_agent', opp.id, opp.agency+',contacts,relationship', 'CRM — '+opp.agency+' contacts:\n'+a, 'relationship');
-        try { await fetch(SB+'/rest/v1/relationship_graph', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({id:'rg-'+Date.now()+'-'+Math.random().toString(36).slice(2,6), organization:opp.agency||'', notes:a.slice(0,1500), relationship_strength:'cold', source_agent:'crm_agent', opportunity_id:opp.id, created_at:new Date().toISOString(), updated_at:new Date().toISOString()}) }); } catch(e) {}
-        return { agent:'crm_agent', opp:opp.title, chars:a.length };
-      }
-      return null;
-    });
-
-    // 3. FINANCIAL & PRICING AGENT — real comparable contract values
-    await run('financial_agent', async function() {
-      var web = await webSearch('Louisiana ' + (opp.vertical||'disaster recovery') + ' consulting contract award amount MSA 2022 2023 2024 FEMA PA program management hourly rates parish city');
-      if (!web || web.length < 100) return null;
-      var a = await think('HGI CFO-level financial analyst. Only cite verified dollar amounts with sources. Show what the numbers imply for our pricing.', 'OPPORTUNITY: ' + opp.title + ' | ' + opp.agency + ' | Current estimate: ' + (opp.estimated_value||'unknown') + '\nWEB AWARD DATA:\n' + web.slice(0,2000) + '\nPRIOR MEMORY:\n' + mem.slice(0,800) + '\nExtract real award amounts for comparable work — name agency, amount, period, scope. What does this imply for our estimate? Flag if we are priced too high or too low.', 800);
-      if (a && a.length > 80) {
-        await storeMemory('financial_agent', opp.id, opp.agency+','+(opp.vertical||'')+',pricing_benchmark', 'FINANCIAL — pricing benchmarks for '+opp.title+':\n'+a, 'pricing_benchmark');
-        return { agent:'financial_agent', opp:opp.title, chars:a.length };
-      }
-      return null;
-    });
-
-    // 4. RESEARCH & ANALYSIS AGENT — strategic dossier from all accumulated intel
-    await run('research_analysis', async function() {
-      var a = await think('HGI strategic research and analysis agent. Every recommendation must tie to specific evidence in the intelligence. No generic advice.', 'OPPORTUNITY: ' + opp.title + ' | ' + opp.agency + ' | OPI: ' + opp.opi + '\nEVAL CRITERIA: Technical 30 / Experience 25 / Past Performance 20 / Staffing 15 / Price 10\nACCUMULATED INTELLIGENCE:\n' + mem.slice(0,3000) + '\nProduce: (1) Updated competitive landscape with named firms and their specific threats (2) Revised win strategy mapped to eval criteria point values (3) Intelligence gaps still needed (4) Red flags that changed since initial analysis (5) Single highest-leverage action HGI should take this week.', 1000);
-      if (a && a.length > 100) {
-        await storeMemory('research_analysis', opp.id, opp.agency+','+(opp.vertical||'')+',strategy,research', 'RESEARCH ANALYSIS — '+opp.title+':\n'+a, 'analysis');
-        return { agent:'research_analysis', opp:opp.title, chars:a.length };
-      }
-      return null;
-    });
-
-    // 5. WINNABILITY AGENT — re-evaluates GO/PWIN as intelligence accumulates
-    await run('winnability_agent', async function() {
-      var a = await think('HGI bid decision engine. Re-evaluate GO/PWIN honestly as new intelligence arrives. Be specific about what changed.', 'OPPORTUNITY: ' + opp.title + ' | ' + opp.agency + ' | Current OPI: ' + opp.opi + '\nACCUMULATED INTELLIGENCE:\n' + mem.slice(0,2500) + '\nRe-evaluate: (1) Should GO decision change based on new intel? (2) Has PWIN moved and why specifically? (3) What new risks emerged? (4) What would flip this to NO-BID? (5) Current recommendation: PWIN X% | GO/CONDITIONAL/NO-BID.', 700);
-      if (a && a.length > 80) {
-        await storeMemory('winnability_agent', opp.id, opp.agency+',winnability,pwin', 'WINNABILITY RE-EVAL — '+opp.title+':\n'+a, 'winnability');
-        return { agent:'winnability_agent', opp:opp.title, chars:a.length };
-      }
-      return null;
-    });
-
-    // 6. QUALITY GATE AGENT — proactively audits proposals before submission
-    await run('quality_gate', async function() {
-      if ((opp.staffing_plan||'').length < 300) return null;
-      var a = await think('HGI submission quality gate. Catch every deficiency before an evaluator does. Be specific about what is missing.', 'OPPORTUNITY: ' + opp.title + ' | ' + opp.agency + '\nEVAL CRITERIA: Technical 30 / Experience 25 / Past Performance 20 / Staffing 15 / Price 10\nSCOPE: ' + (opp.scope_analysis||'').slice(0,800) + '\nProposal draft exists. Compliance check: (1) Every RFP requirement addressed? (2) Eval criteria sections thin or missing? (3) All 10 required positions with rates? (4) 3 past performance references with contact info? (5) Exhibits B-J noted? (6) Compliance matrix complete? Verdict: GO/NO-GO with deficiency list.', 900);
-      if (a && a.length > 80) {
-        await storeMemory('quality_gate', opp.id, opp.agency+',quality_gate,compliance', 'QUALITY GATE — '+opp.title+':\n'+a, 'analysis');
-        return { agent:'quality_gate', opp:opp.title, chars:a.length };
-      }
-      return null;
-    });
-
-    // 7. PROPOSAL AGENT — continuous improvement analysis on existing drafts
-    await run('proposal_agent', async function() {
-      if ((opp.staffing_plan||'').length < 300) return null;
-      var a = await think('HGI proposal strategy agent. Identify specific improvements — not generic. Cite what the organism knows about competitors and eval criteria.', 'OPPORTUNITY: ' + opp.title + ' | ' + opp.agency + '\nEVAL CRITERIA: Technical 30 / Experience 25 / Past Performance 20 / Staffing 15 / Price 10\nINTELLIGENCE:\n' + mem.slice(0,2000) + '\nProposal draft exists. Identify: (1) Weakest sections against eval criteria point values (2) Specific missing content that would score higher (3) Compliance gaps (4) Competitive positioning vs CDR Maguire / Tetra Tech / IEM (5) Single most impactful edit to make.', 900);
-      if (a && a.length > 100) {
-        await storeMemory('proposal_agent', opp.id, opp.agency+','+(opp.vertical||'')+',proposal_improvement', 'PROPOSAL AGENT — '+opp.title+':\n'+a, 'pattern');
-        return { agent:'proposal_agent', opp:opp.title, chars:a.length };
-      }
-      return null;
-    });
-
-    // 8. BRIEF AGENT — keeps team briefings current with latest intel
-    await run('brief_agent', async function() {
-      if ((opp.stage||'') !== 'proposal' && (opp.stage||'') !== 'pursuing') return null;
-      var a = await think('HGI team briefing agent. Keep the team picture current. Use functional roles only — never personal names.', 'OPPORTUNITY: ' + opp.title + ' | ' + opp.agency + ' | Due: ' + (opp.due_date||'TBD') + '\nLATEST INTELLIGENCE:\n' + mem.slice(0,2500) + '\nUpdate brief: (1) What changed since last brief — new competitors, agency intel, pricing shifts? (2) Open items still unresolved (3) What must happen before next milestone (4) What each functional role must do this week (5) Overall confidence level in win.', 800);
-      if (a && a.length > 80) {
-        await storeMemory('brief_agent', opp.id, opp.agency+',briefing,team_brief', 'BRIEF AGENT — '+opp.title+':\n'+a, 'analysis');
-        return { agent:'brief_agent', opp:opp.title, chars:a.length };
-      }
-      return null;
-    });
+    (function(opp) {
+      var mem = oppMem(opp);
+      perOppPromises.push(safe(function(){ return agentIntelligence(opp, mem); }));
+      perOppPromises.push(safe(function(){ return agentCrm(opp, mem); }));
+      perOppPromises.push(safe(function(){ return agentFinancial(opp, mem); }));
+      perOppPromises.push(safe(function(){ return agentResearch(opp, mem); }));
+      perOppPromises.push(safe(function(){ return agentWinnability(opp, mem); }));
+      perOppPromises.push(safe(function(){ return agentQualityGate(opp, mem); }));
+      perOppPromises.push(safe(function(){ return agentProposal(opp, mem); }));
+      perOppPromises.push(safe(function(){ return agentBrief(opp, mem); }));
+      perOppPromises.push(safe(function(){ return agentOppBrief(opp, mem); }));
+    })(activeOpps[i]);
   }
 
-  // ═══ SYSTEM-WIDE AGENTS — run once, see everything ═══
+  // ═══ ALL SYSTEM-WIDE AGENTS FIRE IN PARALLEL ═══
+  var systemPromises = [
+    safe(function(){ return agentDiscovery(memText); }),
+    safe(function(){ return agentPipelineScanner(activeOpps, memText); }),
+    safe(function(){ return agentOpiCalibration(activeOpps, memText); }),
+    safe(function(){ return agentContent(memText); }),
+    safe(function(){ return agentBench(activeOpps, memText); }),
+    safe(function(){ return agentKb(memText); }),
+    safe(function(){ return agentScraper(activeOpps, memText); }),
+    safe(function(){ return agentExecBrief(activeOpps, memText); }),
+    safe(function(){ return agentDesign(activeOpps, memText); }),
+    safe(function(){ return agentDashboard(activeOpps, allMemories, memText); })
+  ];
 
-  // 9. DISCOVERY AGENT — finds new sources and pre-solicitation signals
-  await run('discovery_agent', async function() {
-    var web = await webSearch('Louisiana government professional services procurement 2026 disaster recovery FEMA CDBG-DR housing new RFP solicitation pre-solicitation vendor conference');
-    var a = await think('HGI discovery agent. Find new opportunity sources and pre-solicitation signals before RFPs drop. HGI works through state/local only.', 'WEB SCAN:\n' + (web||'').slice(0,2500) + '\nCURRENT SOURCES: Central Bidding, LaPAC, FEMA API, Grants.gov. Missing: Louisiana Housing Corporation, SAM.gov, parish meeting minutes.\nMemory:\n' + memText.slice(0,1000) + '\nFind: (1) Pre-solicitation signals — budget discussions, vendor days, consultants mentioned (2) New agencies HGI should watch (3) Market signals about upcoming LA/TX/FL/MS disaster contracts (4) Source gaps competitors are watching that HGI is missing.', 900);
-    if (a && a.length > 80) {
-      await storeMemory('discovery_agent', null, 'discovery,pre_solicitation,market_signals', 'DISCOVERY AGENT:\n'+a, 'pattern');
-      return { agent:'discovery_agent', chars:a.length };
-    }
-    return null;
-  });
+  // Run both batches in parallel, collect results
+  var allResults = await Promise.all(perOppPromises.concat(systemPromises));
+  for (var j = 0; j < allResults.length; j++) {
+    if (allResults[j]) results.work_completed.push(allResults[j]);
+  }
 
-  // 10. PIPELINE SCANNER — monitors deadlines, stale pursuits, anomalies
-  await run('pipeline_scanner', async function() {
-    var today = new Date();
-    var health = activeOpps.map(function(o) { var d = o.due_date ? Math.ceil((new Date(o.due_date)-today)/86400000) : null; return o.title+'|Stage:'+(o.stage||'?')+'|Days:'+(d!==null?d:'?')+'|OPI:'+o.opi; }).join('\n');
-    var a = await think('HGI pipeline health monitor. Flag everything that needs immediate action. Be direct.', 'PIPELINE:\n' + health + '\nMEMORY:\n' + memText.slice(0,1500) + '\nFlag: (1) Opportunities within 14 days of deadline without complete proposal (2) GO opportunities stuck in same stage 7+ days (3) OPI scores inconsistent with current intelligence (4) Deadline conflicts — two proposals same week (5) Pipeline health score 1-10 with reasoning.', 700);
-    if (a && a.length > 80) {
-      await storeMemory('pipeline_scanner', null, 'pipeline_health,deadlines,anomalies', 'PIPELINE SCANNER:\n'+a, 'analysis');
-      return { agent:'pipeline_scanner', chars:a.length };
-    }
-    return null;
+  // ═══ SELF-AWARENESS RUNS LAST — sees everything ═══
+  var selfResult = await safe(async function() {
+    var a = await think('HGI self-awareness engine. You see everything every agent did. Identify the single highest-leverage improvement.', 'WORK COMPLETED:\n' + JSON.stringify(results.work_completed.slice(0,15)).slice(0,1500) + '\nERRORS: ' + results.errors.length + '\nMEMORIES: ' + allMemories.length + '\nAnalyze: (1) Patterns across opportunities and agents (2) Highest-value intelligence produced today (3) Data gaps costing HGI most (4) Single improvement with highest win rate impact (5) Contradictions or anomalies in data.', 1000);
+    if (!a || a.length < 100) return null;
+    await storeMemory('self_awareness', null, 'system_health,self_assessment,patterns', 'SELF-AWARENESS:\n'+a, 'pattern');
+    return { agent:'self_awareness', chars:a.length };
   });
-
-  // 11. SCANNER / OPI CALIBRATION — re-evaluates scores with accumulated intelligence
-  await run('scanner_opi', async function() {
-    var oppList = activeOpps.map(function(o) { return o.title+'|'+o.agency+'|OPI:'+o.opi+'|Vertical:'+(o.vertical||''); }).join('\n');
-    var a = await think('HGI OPI calibration engine. Continuously refine scoring accuracy based on everything the organism knows. Be specific about what to adjust.', 'ACTIVE OPPORTUNITIES:\n' + oppList + '\nORGANISM INTELLIGENCE:\n' + memText.slice(0,2000) + '\nFor each: (1) Does current OPI reflect what organism now knows? (2) Which scores need adjustment and by how much? (3) What factors are consistently over/underweighted? (4) What would change the scoring model most if added?', 900);
-    if (a && a.length > 80) {
-      await storeMemory('scanner_opi', null, 'opi_calibration,scoring', 'OPI CALIBRATION:\n'+a, 'pattern');
-      return { agent:'scanner_opi', chars:a.length };
-    }
-    return null;
-  });
-
-  // 12. CONTENT ENGINE — voice consistency and pattern learning
-  await run('content_engine', async function() {
-    var a = await think('HGI institutional voice agent. Maintain and improve HGI voice across all outputs. Active voice target 75%+.', 'ORGANISM MEMORY (recent outputs):\n' + memText.slice(0,2000) + '\nAnalyze: (1) Voice patterns emerging — active vs passive ratio, preferred phrases, sentence structures (2) Phrases to add to blocked list (3) What makes HGI writing distinctive and authoritative (4) Specific style improvements that would most strengthen the next proposal.', 700);
-    if (a && a.length > 80) {
-      await storeMemory('content_engine', null, 'voice,style,content_standards', 'CONTENT ENGINE:\n'+a, 'pattern');
-      return { agent:'content_engine', chars:a.length };
-    }
-    return null;
-  });
-
-  // 13. RECRUITING & BENCH AGENT — staffing gaps across all active pursuits
-  await run('recruiting_bench', async function() {
-    var a = await think('HGI recruiting and bench agent. Track staffing needs, identify gaps, flag recurring shortfalls before they block bids.', 'ACTIVE OPPORTUNITIES:\n' + activeOpps.map(function(o){ return o.title+'|Vertical:'+(o.vertical||'')+'|Stage:'+(o.stage||''); }).join('\n') + '\nHGI STAFF: 67 FT + 43 contract. Named staff: Louis Resweber (Program Director), Berron (PA SME), April Gloston (HM Specialist), Klunk (Financial/Grant), Wiltz (Documentation).\nINTELLIGENCE:\n' + memText.slice(0,1200) + '\nFor each pursuit: (1) Roles needed vs available (2) Which named staff best suited (3) Where teaming or subcontracting needed (4) Recurring qualification gaps appearing across multiple bids (5) Recruiting action needed before next deadline.', 900);
-    if (a && a.length > 80) {
-      await storeMemory('recruiting_bench', null, 'staffing,bench,gaps,recruiting', 'RECRUITING BENCH:\n'+a, 'analysis');
-      return { agent:'recruiting_bench', chars:a.length };
-    }
-    return null;
-  });
-
-  // 14. KNOWLEDGE BASE AGENT — identifies gaps, suggests what to add
-  await run('knowledge_base_agent', async function() {
-    var a = await think('HGI knowledge base agent. The KB is the organism brain — keep it complete and useful. Identify the most impactful gaps.', 'ACTIVE VERTICALS: Disaster Recovery (primary), Workforce/WIOA.\nCURRENT KB: 21 docs, 350+ chunks. Strong: GOHSEP (149 chunks), TPCIGA (94 chunks), HTHA (22 chunks). Weak: 6 image-PDFs minimal extraction, 2 docx zero chunks.\nMEMORY:\n' + memText.slice(0,1500) + '\nIdentify: (1) KB content referenced most in current proposals and research (2) Critical HGI past performance missing or thin (3) Agency-specific intelligence that should be KB chunks (4) Technical methodology content that would most improve proposals (5) Single document Lou should send next — what gap does it fill?', 800);
-    if (a && a.length > 80) {
-      await storeMemory('knowledge_base_agent', null, 'kb_gaps,missing_content,kb_health', 'KB AGENT:\n'+a, 'pattern');
-      return { agent:'knowledge_base_agent', chars:a.length };
-    }
-    return null;
-  });
-
-  // 15. SCRAPER INSIGHTS AGENT — source health and ROI
-  await run('scraper_insights', async function() {
-    var a = await think('HGI scraper health and data quality monitor. Track source yield, detect degradation, report ROI in GO-quality opportunities per source.', 'PIPELINE SOURCE MIX:\n' + activeOpps.map(function(o){ return (o.title||'').slice(0,50)+'|OPI:'+o.opi; }).join('\n') + '\nMEMORY:\n' + memText.slice(0,1000) + '\nAnalyze: (1) Which sources produce GO-quality opportunities vs noise? (2) Patterns in what Central Bidding catches vs misses? (3) Highest-ROI new source to add given active verticals? (4) Signs of scraper degradation or missed opportunities? (5) Recommended keyword adjustments per source.', 700);
-    if (a && a.length > 80) {
-      await storeMemory('scraper_insights', null, 'scraper_health,source_roi,keywords', 'SCRAPER INSIGHTS:\n'+a, 'pattern');
-      return { agent:'scraper_insights', chars:a.length };
-    }
-    return null;
-  });
-
-  // 16. EXECUTIVE BRIEF AGENT — keeps Lou and Larry digest current
-  await run('executive_brief_agent', async function() {
-    var a = await think('HGI executive briefing agent for Lou Resweber (CEO) and Larry Oney (Chairman). Concise, no noise. Big picture and what requires their attention or relationships.', 'PIPELINE:\n' + activeOpps.map(function(o){ return o.title+'|'+o.agency+'|OPI:'+o.opi+'|Due:'+(o.due_date||'TBD')+'|Stage:'+(o.stage||'?'); }).join('\n') + '\nINTELLIGENCE:\n' + memText.slice(0,2000) + '\nExecutive digest: (1) Pipeline summary — what are we pursuing and stakes? (2) This week critical decisions and deadlines (3) Opportunities needing executive relationships (4) Win probability summary — where most likely to win and why? (5) What should Lou and Larry know that needs their visibility?', 800);
-    if (a && a.length > 80) {
-      await storeMemory('executive_brief_agent', null, 'executive_brief,lou,larry,digest', 'EXECUTIVE BRIEF:\n'+a, 'analysis');
-      return { agent:'executive_brief_agent', chars:a.length };
-    }
-    return null;
-  });
-
-  // 17. DESIGN & VISUAL AGENT — tracks which formats win, recommends templates
-  await run('design_visual', async function() {
-    var a = await think('HGI design and visual agent. Every HGI output should look like it came from a firm that manages billion-dollar programs. Track what works.', 'ACTIVE PROPOSALS:\n' + activeOpps.filter(function(o){ return (o.staffing_plan||'').length > 300; }).map(function(o){ return o.title+'|'+o.agency; }).join('\n') + '\nMEMORY:\n' + memText.slice(0,1200) + '\nAnalyze: (1) What visual format and structure would most impress evaluators for each active proposal? (2) Which sections need visual elements — tables, org charts, compliance matrices? (3) Brand standards to enforce — gold/navy palette, professional typography (4) What visual elements would differentiate HGI from CDR Maguire and Tetra Tech submissions? (5) Highest-priority visual improvement across all active proposals.', 700);
-    if (a && a.length > 80) {
-      await storeMemory('design_visual', null, 'visual_design,branding,format,templates', 'DESIGN AGENT:\n'+a, 'pattern');
-      return { agent:'design_visual', chars:a.length };
-    }
-    return null;
-  });
-
-  // 18. DASHBOARD AGENT — aggregates system health metrics for display
-  await run('dashboard_agent', async function() {
-    var a = await think('HGI dashboard intelligence agent. Synthesize system health for Christopher morning briefing.', 'SYSTEM STATE:\nActive opps: ' + activeOpps.length + '\nMemories: ' + allMemories.length + '\nWork done this run (will be completed): intelligence, crm, financial, research, winnability, quality gate, proposal, brief, discovery, pipeline scan, opi calibration, content, bench, kb, scraper, exec brief, design\n\nMEMORY PATTERNS:\n' + memText.slice(0,1500) + '\nSynthesize: (1) Overall organism health — how well is the system working? (2) Which opportunities need Christopher attention vs running fine autonomously? (3) What is the most important thing Christopher should know right now? (4) System improvement that would have highest impact this week.', 700);
-    if (a && a.length > 80) {
-      await storeMemory('dashboard_agent', null, 'dashboard,system_health,morning_brief', 'DASHBOARD AGENT:\n'+a, 'analysis');
-      return { agent:'dashboard_agent', chars:a.length };
-    }
-    return null;
-  });
-
-  // 19. OPPORTUNITY BRIEF AGENT — deep single-opportunity view for decision-making
-  await run('opportunity_brief_agent', async function() {
-    var primaryOpp = activeOpps[0];
-    if (!primaryOpp) return null;
-    var a = await think('HGI opportunity brief agent. Produce the deepest possible single-opportunity view for decision-making. Surface what matters most first.', 'PRIMARY OPPORTUNITY: ' + primaryOpp.title + ' | ' + primaryOpp.agency + ' | OPI: ' + primaryOpp.opi + ' | Due: ' + (primaryOpp.due_date||'TBD') + '\nALL ACCUMULATED INTELLIGENCE:\n' + oppMem(primaryOpp).slice(0,3000) + '\nProduce complete decision brief: (1) Everything organism knows about this agency (2) Complete competitive field with specific threat assessment (3) HGI strengths and gaps mapped to eval criteria (4) Financial picture — realistic range and margin (5) Relationship map — who do we know, who do we not, what that means (6) Critical path to submission — every remaining milestone.', 1200);
-    if (a && a.length > 100) {
-      await storeMemory('opportunity_brief_agent', primaryOpp.id, primaryOpp.agency+',opportunity_brief,deep_dive', 'OPP BRIEF — '+primaryOpp.title+':\n'+a, 'analysis');
-      return { agent:'opportunity_brief_agent', opp:primaryOpp.title, chars:a.length };
-    }
-    return null;
-  });
-
-  // 20. SELF-AWARENESS ENGINE — runs last, sees everything, identifies improvements
-  await run('self_awareness', async function() {
-    var a = await think('HGI self-awareness engine. You see everything every agent did. Identify patterns, limitations, and the single highest-leverage improvement.', 'WORK COMPLETED THIS RUN:\n' + JSON.stringify(results.work_completed).slice(0,2000) + '\nERRORS:\n' + results.errors.join('\n') + '\nMEMORY STATE (' + allMemories.length + ' memories):\n' + memText.slice(0,2000) + '\nAnalyze: (1) Patterns emerging across all opportunities and agents (2) Which agents produced highest-value intelligence today (3) Data gaps costing HGI the most right now (4) Single improvement with highest impact on win rate (5) Anything that does not add up — contradictions, anomalies, stale data.', 1200);
-    if (a && a.length > 100) {
-      await storeMemory('self_awareness', null, 'system_health,self_assessment,patterns,improvements', 'SELF-AWARENESS DIGEST:\n'+a, 'pattern');
-      return { agent:'self_awareness', chars:a.length };
-    }
-    return null;
-  });
+  if (selfResult) results.work_completed.push(selfResult);
 
   try {
-    await fetch(SB+'/rest/v1/hunt_runs', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({ id:'hr-work-'+Date.now(), source:'organism_work', status: results.work_completed.length+' work items | '+activeOpps.length+' opps | '+allMemories.length+' memories | '+results.errors.length+' errors', run_at: new Date().toISOString(), opportunities_found: 0 }) });
+    await fetch(SB+'/rest/v1/hunt_runs', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({ id:'hr-work-'+Date.now(), source:'organism_work', status: results.work_completed.length+' items | '+activeOpps.length+' opps | '+allMemories.length+' memories | '+results.errors.length+' errors', run_at: new Date().toISOString(), opportunities_found: 0 }) });
   } catch(e) {}
 
   results.completed_at = new Date().toISOString();
