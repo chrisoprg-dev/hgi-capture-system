@@ -482,7 +482,7 @@ Full Text: ${fullText}
 
 HGI PROFILE:
 ${hgiKnowledge}
-
+${memoryInjection ? '\nORGANISM INTELLIGENCE:\n' + memoryInjection.slice(0, 3000) + '\n' : ''}
 SCORING INSTRUCTIONS:
 - OPI score 0-100 based on actual match between opportunity requirements and HGI capabilities
 - Score 85-100 only if HGI has direct past performance in this exact work
