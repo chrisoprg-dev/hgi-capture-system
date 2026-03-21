@@ -47,7 +47,7 @@ var CASCADE_MAP = {
     { agent: 'crm_relationship', action: 'Search relationship graph for contacts at this agency. Assess relationship strength. Identify cross-agency connections from other contacts. Recommend outreach strategy.', type: 'react', condition: function(p) { return p.data && (p.data.recommendation === 'GO' || p.data.recommendation === 'CONDITIONAL GO'); } },
     { agent: 'brief_agent', action: 'Generate team briefing', type: 'signal', notes: 'Already chained in orchestrator for GO decisions' },
     { agent: 'proposal_agent', action: 'Generate proposal if RFP exists', type: 'signal', notes: 'Already chained in orchestrator for GO+RFP' },
-    { agent: 'content_engine', action: 'Apply voice standards to generated content', type: 'signal' },
+    { agent: 'content_engine', action: 'Review all generated content for this opportunity against HGI voice standards. Check active voice ratio, blocked phrases, preferred terminology. Flag issues and suggest corrections.', type: 'react' },
     { agent: 'design_visual', action: 'Format briefing/proposal with brand standards', type: 'signal' }
   ],
 
