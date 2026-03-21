@@ -1,4 +1,4 @@
-export const config = { maxDuration: 120 };
+export const config = { maxDuration: 300 };
 
 const SB = process.env.SUPABASE_URL;
 const SK = process.env.SUPABASE_SERVICE_KEY;
