@@ -233,8 +233,7 @@ async function agentOpiCalibration(activeOpps, memText) {
 }
 
 async function agentContent(memText) {
-  var web = await webSearch('government proposal writing best practices active voice professional tone FEMA disaster recovery proposal evaluator preferences 2024 2025');
-  var webCtx = (web && web.length > 30) ? ('\nWEB WRITING INTEL:\n' + web.slice(0,1200)) : '';
+  var webCtx = ''; // cost gated — uses memory + prior intel
   var a = await think('HGI institutional voice agent. Active voice target 75%+. Analyze patterns from all organism output and proposal drafts.',
     'MEMORY (includes proposal excerpts):\n' + memText.slice(0,2000) + webCtx + '\nAnalyze: (1) Active vs passive voice ratio in recent outputs (2) Specific phrases to block (3) What makes HGI writing distinctive and authoritative (4) Most impactful style change for next proposal.',
     600);
