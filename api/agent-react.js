@@ -94,7 +94,7 @@ var AGENTS = {
   }
 };
 
-async function claudeReact(agentConfig, eventType, action, opportunity, storeData, extraPayload) {
+async function claudeReact(agentConfig, eventType, action, opportunity, storeData, extraPayload, memoryContext) {
   var oppSummary = {
     id: opportunity.id || null,
     title: opportunity.title || null,
