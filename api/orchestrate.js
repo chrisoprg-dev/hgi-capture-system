@@ -42,10 +42,12 @@ async function patchOpp(id, data) {
 }
 
 async function logEvent(eventType, oppId, title, data) {
-  fetch('https://hgi-capture-system.vercel.app/api/events', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event_type: eventType, opportunity_id: oppId, opportunity_title: title, source_module: 'orchestrator', data })
-  }).catch(() => {});
+  try {
+    await fetch('https://hgi-capture-system.vercel.app/api/events', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: eventType, opportunity_id: oppId, opportunity_title: title, source_module: 'orchestrator', data })
+    });
+  } catch(e) {}
 }
 
 export default async function handler(req, res) {
