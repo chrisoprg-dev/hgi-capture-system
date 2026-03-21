@@ -265,6 +265,8 @@ async function agentExecBrief(activeOpps, memText) {
 }
 
 async function agentDesign(activeOpps, memText) {
+  var web = await webSearch('government proposal design best practices visual elements winning submissions infographics org charts professional formatting 2024 2025');
+  var webCtx = (web && web.length > 30) ? ('\nWEB DESIGN INTEL:\n' + web.slice(0,1200)) : '';
   var a = await think('HGI design and visual agent. Every HGI output should look like it came from a firm that manages billion-dollar programs.',
     'ACTIVE PROPOSALS:\n' + activeOpps.filter(function(o){ return (o.staffing_plan||'').length > 100; }).map(function(o){ return o.title+'|'+o.agency+'|Due:'+(o.due_date||'TBD'); }).join('\n') + '\nMEMORY:\n' + memText.slice(0,1000) + '\nAnalyze: (1) Visual structure that would impress evaluators for each active proposal (2) Sections needing tables, org charts, compliance matrices (3) Brand standards — gold/navy, professional typography (4) Visual differentiators vs CDR Maguire and Tetra Tech (5) Single highest-priority visual improvement.',
     600);
