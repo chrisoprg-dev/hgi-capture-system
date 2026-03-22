@@ -48,6 +48,7 @@
     { "path": "/api/process-kb", "schedule": "*/6 * * * *" },
     { "path": "/api/scrape-grants-gov", "schedule": "0 6,18 * * *" },
     { "path": "/api/organism-think", "schedule": "0 13 * * *" },
-    { "path": "/api/organism-work", "schedule": "0 18 * * *" }
+    { "path": "/api/organism-work", "schedule": "0 18 * * *" },
+    { "path": "/api/sonnet-work", "schedule": "15 18 * * *" }
   ]
 }
