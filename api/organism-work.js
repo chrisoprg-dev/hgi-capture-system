@@ -342,20 +342,25 @@ export default async function handler(req, res) {
     }).map(function(m) { return (m.observation||'').slice(0, charLimit); }).join('\n\n');
   }
 
-  // ═══ PHASE 1: HAIKU AGENTS (all opps) + SYSTEM AGENTS — all parallel ═══
-  var haikuPromises = [];
+  // ═══ ALL AGENTS FIRE IN PARALLEL — tiered context ═══
+  var perOppPromises = [];
   for (var i = 0; i < activeOpps.length; i++) {
     (function(opp) {
-      var memCompact = oppMem(opp, 'compact');
-      var ctxCompact = buildCtx(opp, memCompact, 'compact');
       var memFull = oppMem(opp, 'full');
+      var memCompact = oppMem(opp, 'compact');
       var ctxFull = buildCtx(opp, memFull, 'full');
-      // Haiku routine agents — compact context, high rate limits
-      haikuPromises.push(safe(function(){ return agentCrm(opp, ctxCompact); }));
-      haikuPromises.push(safe(function(){ return agentFinancial(opp, ctxCompact); }));
-      haikuPromises.push(safe(function(){ return agentBrief(opp, ctxCompact); }));
-      // OppBrief uses Haiku despite full context — keep in parallel
-      haikuPromises.push(safe(function(){ return agentOppBrief(opp, ctxFull); }));
+      var ctxCompact = buildCtx(opp, memCompact, 'compact');
+      // Sonnet critical agents — full context
+      perOppPromises.push(safe(function(){ return agentIntelligence(opp, ctxFull); }));
+      perOppPromises.push(safe(function(){ return agentResearch(opp, ctxFull); }));
+      perOppPromises.push(safe(function(){ return agentWinnability(opp, ctxFull); }));
+      perOppPromises.push(safe(function(){ return agentQualityGate(opp, ctxFull); }));
+      perOppPromises.push(safe(function(){ return agentProposal(opp, ctxFull); }));
+      perOppPromises.push(safe(function(){ return agentOppBrief(opp, ctxFull); }));
+      // Haiku routine agents — compact context
+      perOppPromises.push(safe(function(){ return agentCrm(opp, ctxCompact); }));
+      perOppPromises.push(safe(function(){ return agentFinancial(opp, ctxCompact); }));
+      perOppPromises.push(safe(function(){ return agentBrief(opp, ctxCompact); }));
     })(activeOpps[i]);
   }
   var systemPromises = [
@@ -370,41 +375,11 @@ export default async function handler(req, res) {
     safe(function(){ return agentDesign(activeOpps, memText); }),
     safe(function(){ return agentDashboard(activeOpps, allMemories, memText); })
   ];
-  var phase1Results = await Promise.all(haikuPromises.concat(systemPromises));
-  for (var j = 0; j < phase1Results.length; j++) {
-    if (phase1Results[j] && phase1Results[j]._error) results.errors.push(phase1Results[j]);
-    else if (phase1Results[j]) results.work_completed.push(phase1Results[j]);
+  var allResults = await Promise.all(perOppPromises.concat(systemPromises));
+  for (var j = 0; j < allResults.length; j++) {
+    if (allResults[j] && allResults[j]._error) results.errors.push(allResults[j]);
+    else if (allResults[j]) results.work_completed.push(allResults[j]);
   }
-  results.phase1_count = results.work_completed.length;
-
-  // ═══ PHASE 2: SONNET AGENTS — only proposal-stage opps, 2 batches to stay under 300s ═══
-  var sonnetOpps = activeOpps.filter(function(o) { return (o.stage === 'proposal' || o.stage === 'pursuing') && (o.staffing_plan||'').length > 500; });
-  results.sonnet_opps = sonnetOpps.length;
-  for (var k = 0; k < sonnetOpps.length; k++) {
-    var opp = sonnetOpps[k];
-    var memFull = oppMem(opp, 'full');
-    var ctxFull = buildCtx(opp, memFull, 'full');
-    // Batch A: 3 Sonnet agents (intel + research + winnability)
-    var batchA = await Promise.all([
-      safe(function(){ return agentIntelligence(opp, ctxFull); }),
-      safe(function(){ return agentResearch(opp, ctxFull); }),
-      safe(function(){ return agentWinnability(opp, ctxFull); })
-    ]);
-    for (var a = 0; a < batchA.length; a++) {
-      if (batchA[a] && batchA[a]._error) results.errors.push(batchA[a]);
-      else if (batchA[a]) results.work_completed.push(batchA[a]);
-    }
-    // Batch B: 2 Sonnet agents (quality gate + proposal — these are heaviest)
-    var batchB = await Promise.all([
-      safe(function(){ return agentQualityGate(opp, ctxFull); }),
-      safe(function(){ return agentProposal(opp, ctxFull); })
-    ]);
-    for (var b = 0; b < batchB.length; b++) {
-      if (batchB[b] && batchB[b]._error) results.errors.push(batchB[b]);
-      else if (batchB[b]) results.work_completed.push(batchB[b]);
-    }
-  }
-  results.phase2_count = results.work_completed.length - results.phase1_count;
 
   // ═══ SELF-AWARENESS RUNS LAST — sees everything all agents produced ═══
   var selfWebCtx = ''; // cost gated — self-awareness synthesizes from agent output
