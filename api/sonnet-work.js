@@ -38,7 +38,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   var results = { started: new Date().toISOString(), agents: [], errors: [] };
   try {
-    var oppsR = await fetch(SB + '/rest/v1/opportunities?status=in.(active,pursuing,proposal)&opi_score=gte.65&stage=in.(proposal,pursuing)&select=id,title,agency,vertical,opi_score,due_date,stage,capture_action,scope_analysis,financial_analysis,research_brief,staffing_plan&order=opi_score.desc&limit=3', { headers: H });
+    var oppsR = await fetch(SB + '/rest/v1/opportunities?status=in.(active,pursuing,proposal)&opi_score=gte.65&stage=in.(proposal,pursuing)&select=id,title,agency,vertical,opi_score,due_date,stage,capture_action,scope_analysis,financial_analysis,research_brief,staffing_plan&order=opi_score.desc&limit=1', { headers: H });
     var opps = await oppsR.json();
     var memsR = await fetch(SB + '/rest/v1/organism_memory?memory_type=neq.decision_point&order=created_at.desc&limit=40', { headers: H });
     var mems = await memsR.json();
