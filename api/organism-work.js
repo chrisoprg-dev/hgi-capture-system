@@ -377,22 +377,31 @@ export default async function handler(req, res) {
   }
   results.phase1_count = results.work_completed.length;
 
-  // ═══ PHASE 2: SONNET AGENTS — sequential per opp (max 5 parallel at once) ═══
-  for (var k = 0; k < activeOpps.length; k++) {
-    var opp = activeOpps[k];
+  // ═══ PHASE 2: SONNET AGENTS — only proposal-stage opps, 2 batches to stay under 300s ═══
+  var sonnetOpps = activeOpps.filter(function(o) { return (o.stage === 'proposal' || o.stage === 'pursuing') && (o.staffing_plan||'').length > 500; });
+  results.sonnet_opps = sonnetOpps.length;
+  for (var k = 0; k < sonnetOpps.length; k++) {
+    var opp = sonnetOpps[k];
     var memFull = oppMem(opp, 'full');
     var ctxFull = buildCtx(opp, memFull, 'full');
-    // 5 Sonnet agents for this opp run in parallel
-    var sonnetBatch = await Promise.all([
+    // Batch A: 3 Sonnet agents (intel + research + winnability)
+    var batchA = await Promise.all([
       safe(function(){ return agentIntelligence(opp, ctxFull); }),
       safe(function(){ return agentResearch(opp, ctxFull); }),
-      safe(function(){ return agentWinnability(opp, ctxFull); }),
+      safe(function(){ return agentWinnability(opp, ctxFull); })
+    ]);
+    for (var a = 0; a < batchA.length; a++) {
+      if (batchA[a] && batchA[a]._error) results.errors.push(batchA[a]);
+      else if (batchA[a]) results.work_completed.push(batchA[a]);
+    }
+    // Batch B: 2 Sonnet agents (quality gate + proposal — these are heaviest)
+    var batchB = await Promise.all([
       safe(function(){ return agentQualityGate(opp, ctxFull); }),
       safe(function(){ return agentProposal(opp, ctxFull); })
     ]);
-    for (var s = 0; s < sonnetBatch.length; s++) {
-      if (sonnetBatch[s] && sonnetBatch[s]._error) results.errors.push(sonnetBatch[s]);
-      else if (sonnetBatch[s]) results.work_completed.push(sonnetBatch[s]);
+    for (var b = 0; b < batchB.length; b++) {
+      if (batchB[b] && batchB[b]._error) results.errors.push(batchB[b]);
+      else if (batchB[b]) results.work_completed.push(batchB[b]);
     }
   }
   results.phase2_count = results.work_completed.length - results.phase1_count;
