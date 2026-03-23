@@ -61,7 +61,7 @@ export default async function handler(req, res) {
       order: 'desc',
       filters: {
         award_type_codes: ['A', 'B', 'C', 'D'],
-        naics_codes: { require: NAICS_CODES },
+        naics_codes: NAICS_CODES,
         time_period: [{ start_date: fyStart, end_date: fyEnd }]
       },
       fields: ['Award ID', 'Recipient Name', 'Start Date', 'End Date', 'Award Amount', 'Awarding Agency', 'Awarding Sub Agency', 'Description', 'NAICS Code', 'Place of Performance State Code', 'Place of Performance City Name', 'generated_internal_id']
