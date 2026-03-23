@@ -308,8 +308,8 @@ function Dashboard({ setActive }) {
                   React.createElement('div',{style:{width:7,height:7,borderRadius:'50%',background:statusColor,flexShrink:0,animation:sc.status==='live'?'pulse 2s infinite':'none'}}),
                   React.createElement('div',{style:{flex:1,minWidth:0}},
                     React.createElement('div',{style:{display:'flex',alignItems:'center',gap:6}},
-                      React.createElement('span',{style:{color:TEXT,fontSize:12,fontWeight:600}}),sc.name,
-                      React.createElement('span',{style:{color:statusColor,fontSize:10,fontWeight:700,background:statusColor+'11',padding:'1px 6px',borderRadius:3}}),statusLabel
+                      React.createElement('span',{style:{color:TEXT,fontSize:12,fontWeight:600}},sc.name),
+                      React.createElement('span',{style:{color:statusColor,fontSize:10,fontWeight:700,background:statusColor+'11',padding:'1px 6px',borderRadius:3}},statusLabel)
                     ),
                     React.createElement('div',{style:{color:TEXT_D,fontSize:10,marginTop:2}},sc.schedule+' · last: '+lastRunStr+(sc.runs_today?' · '+sc.runs_today+' runs today':''))
                   )
