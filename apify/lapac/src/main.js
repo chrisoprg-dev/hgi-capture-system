@@ -268,7 +268,7 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                     source: 'LaPAC',
                     source_id: bidno.replace(/\s+/g, '-'),
                     title: extractedTitle,
-                    agency: 'Louisiana State Agency',
+                    agency: agency || 'Louisiana State Agency',
                     url: pdfUrl,
                     description: description,
                     rfp_text: extractedText.substring(0, 8000),
