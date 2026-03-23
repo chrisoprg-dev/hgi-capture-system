@@ -2,7 +2,7 @@ export const config = { maxDuration: 30 };
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  var token = process.env.APIFY_API_TOKEN;
+  var token = process.env.APIFY_API_TOKEN || process.env.APIFY_TOKEN || '';
   if (!token) return res.status(500).json({ error: 'No APIFY_API_TOKEN env var' });
   var actorId = req.query.actor || 'hVmvojDyPeJ799Suf';
   var action = req.query.action || 'build';
