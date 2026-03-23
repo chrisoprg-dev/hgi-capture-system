@@ -433,6 +433,14 @@ export default async function handler(req, res) {
     return "general";
   })();
 
+  // PRE-FILTER: Health vertical is not HGI — filter immediately, save Claude tokens
+  if (verticalHint === 'health') {
+    try {
+      await dbPatch('opportunities', recordId, { status: 'filtered', opi_score: 10, vertical: 'health', hgi_relevance: 'LOW', description: 'Health/behavioral health/substance abuse — not HGI vertical', last_updated: now });
+    } catch(e) {}
+    return res.status(200).json({ success: true, id: recordId, filtered: true, reason: 'health_vertical_excluded', opi_score: 10 });
+  }
+
   let hgiKnowledge = "";
   try {
     const kqResp = await fetch(`${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "https://hgi-capture-system.vercel.app"}/api/knowledge-query`, {
