@@ -113,7 +113,7 @@ async function agentCrm(opp, ctx) {
 }
 
 async function agentFinancial(opp, ctx) {
-  var web = await webSearch('Louisiana ' + (opp.vertical||'disaster recovery') + ' consulting contract award amount 2022 2023 2024 FEMA PA program management MSA parish municipality');
+  var web = await webSearch((opp.state||'Louisiana') + ' ' + (opp.vertical||'professional services') + ' ' + (opp.title||'').slice(0,60) + ' consulting contract award amount 2022 2023 2024 comparable contracts');
   var webCtx = (web && web.length > 30) ? ('\nWEB AWARD DATA:\n' + web.slice(0,1500)) : '\n(No new web award data)';
   var a = await think(
     'HGI financial analyst. Only cite verified dollar amounts with sources. Directly compare to the financial analysis already in the proposal record.',
