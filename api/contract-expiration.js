@@ -93,7 +93,7 @@ export default async function handler(req, res) {
           filters: {
             award_type_codes: ['A', 'B', 'C', 'D'],
             keywords: [competitorKeywords[ci]],
-            time_period: [{ start_date: start3mo, end_date: end12mo, date_type: 'date_signed' }]
+            time_period: [{ start_date: fyStart, end_date: fyEnd }]
           },
           fields: ['Award ID', 'Recipient Name', 'Start Date', 'End Date', 'Award Amount', 'Awarding Agency', 'Awarding Sub Agency', 'Description', 'NAICS Code', 'Place of Performance State Code', 'generated_internal_id']
         });
