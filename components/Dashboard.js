@@ -188,21 +188,21 @@ function Dashboard({ setActive }) {
                 return React.createElement('div',{key:a.id,title:a.name+' ('+a.status+'): '+a.notes,style:{width:11,height:11,borderRadius:2,background:a.status==='live'?GREEN:a.status==='partial'?ORANGE:BORDER}});
               })
             ),
-            recentMemory.length > 0 ? React.createElement('div',null,
-              React.createElement('div',{style:{color:TEXT_D,fontSize:10,fontWeight:700,letterSpacing:'0.06em',marginBottom:8}},'RECENT AGENT ACTIVITY'),
-              React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:4}},
-                recentMemory.slice(0,5).map(function(m,i){
-                  var agentColor = m.memory_type==='competitive_intel'?ORANGE:m.memory_type==='winnability'?GREEN:m.memory_type==='pricing_benchmark'?GOLD:BLUE;
-                  var timeAgo = m.created_at ? (function(){ var mins=Math.floor((Date.now()-new Date(m.created_at))/60000); return mins<60?mins+'m ago':Math.floor(mins/60)+'h ago'; })() : '';
-                  return React.createElement('div',{key:i,style:{display:'flex',alignItems:'flex-start',gap:8,padding:'5px 8px',background:BG3,borderRadius:4,border:'1px solid '+BORDER}},
-                    React.createElement('div',{style:{color:agentColor,fontSize:10,fontWeight:700,flexShrink:0,minWidth:130}},(m.agent||'').replace(/_/g,' ').toUpperCase()),
-                    React.createElement('div',{style:{color:TEXT_D,fontSize:11,flex:1,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}},(m.observation||'').slice(0,120)),
-                    React.createElement('div',{style:{color:TEXT_D,fontSize:10,flexShrink:0,marginLeft:8}},timeAgo)
+            decisions.length > 0 ? React.createElement('div',null,
+              React.createElement('div',{style:{color:TEXT_D,fontSize:10,fontWeight:700,letterSpacing:'0.06em',marginBottom:8}},'PENDING DECISIONS ('+decisions.length+')'),
+              React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:3}},
+                decisions.slice(0,4).map(function(dp,i){
+                  var dpColor = dp.priority==='critical'?RED:dp.priority==='high'?ORANGE:GOLD;
+                  var typeIcon = dp.type==='APPROVE_ACTION'?'⚡':dp.type==='OWNER_ACTION'?'👤':'⚙';
+                  return React.createElement('div',{key:i,style:{display:'flex',alignItems:'center',gap:6,padding:'4px 8px',background:BG3,borderRadius:4,border:'1px solid '+dpColor+'33'}},
+                    React.createElement('span',{style:{fontSize:11,flexShrink:0}},typeIcon),
+                    React.createElement('span',{style:{color:TEXT,fontSize:11,flex:1,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}},dp.title),
+                    React.createElement('span',{style:{color:dpColor,fontSize:10,fontWeight:700,flexShrink:0}},(dp.priority||'').toUpperCase())
                   );
                 })
               ),
-              React.createElement('div',{style:{color:TEXT_D,fontSize:10,marginTop:6}},recentMemory.length+' memories stored · Last run: '+(recentMemory[0]&&recentMemory[0].created_at?new Date(recentMemory[0].created_at).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):' unknown'))
-            ) : React.createElement('div',{style:{color:TEXT_D,fontSize:12}},'No agent activity yet. Run Think Now to generate organism intelligence.')
+              React.createElement('div',{style:{color:TEXT_D,fontSize:10,marginTop:6}},lastThink?'Last think: '+new Date(lastThink).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Think engine ready')
+            ) : React.createElement('div',{style:{color:TEXT_D,fontSize:12}},'No pending decisions. Click Think Now to generate.')
           )
         )
       )}
