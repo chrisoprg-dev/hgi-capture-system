@@ -11,17 +11,42 @@ function parseSections(draft) {
   var currentContent = [];
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
-    var headerMatch = line.match(/^\*\*([A-G]\.\d?\s*.+?)\*\*\s*/);
+    // Match ANY bold header — works for A-G lettered, numbered, or descriptive section titles
+    // Pattern: **Any section title between 3-100 chars**
+    var headerMatch = line.match(/^\*\*([^\n*]{3,100})\*\*\s*$/);
+    // Also match markdown headers (## Section Title)
+    if (!headerMatch) {
+      var mdMatch = line.match(/^#{1,3}\s+(.{3,100})$/);
+      if (mdMatch) headerMatch = [null, mdMatch[1].trim()];
+    }
     if (headerMatch) {
-      if (currentSection) sections.push({ header: currentSection, content: currentContent.join('\n').trim() });
+      if (currentSection) sections.push({ header: currentSection, content: currentContent.join('\n').trim(), isTopLevel: isTopLevelSection(currentSection) });
       currentSection = headerMatch[1].trim();
       currentContent = [];
     } else if (currentSection) {
       currentContent.push(line);
     }
   }
-  if (currentSection) sections.push({ header: currentSection, content: currentContent.join('\n').trim() });
+  if (currentSection) sections.push({ header: currentSection, content: currentContent.join('\n').trim(), isTopLevel: isTopLevelSection(currentSection) });
   return sections;
+}
+
+// Determine if a section header is top-level (warrants a page break)
+// Works for: A. Executive Summary, 1. Technical Approach, ## Section Title, SECTION A, etc.
+function isTopLevelSection(header) {
+  if (!header) return false;
+  // A-G letter sections (original format)
+  if (/^[A-G]\./.test(header)) return true;
+  // Numbered sections: 1. 2. 3.
+  if (/^\d+\.\s+[A-Z]/.test(header)) return true;
+  // ALL CAPS section headers (common in TPA, workforce RFPs)
+  if (/^[A-Z][A-Z\s]{8,}$/.test(header)) return true;
+  // Roman numeral sections
+  if (/^(I|II|III|IV|V|VI|VII|VIII|IX|X)\.\s/.test(header)) return true;
+  // Sections with significant keywords that are typically major sections
+  var majorKeywords = ['executive summary', 'technical approach', 'management approach', 'past performance', 'qualifications', 'staffing', 'pricing', 'cost', 'transmittal', 'introduction', 'scope', 'methodology', 'experience', 'references'];
+  var lh = header.toLowerCase();
+  return majorKeywords.some(function(k) { return lh.indexOf(k) !== -1 && header.length < 60; });
 }
 
 export default async function handler(req, res) {
