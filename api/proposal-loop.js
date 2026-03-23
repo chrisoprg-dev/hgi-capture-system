@@ -70,7 +70,7 @@ export default async function handler(req, res) {
     R.gate_chars = gateText.length;
     R.prop_chars = propText.length;
     // STEP 1: Score current draft
-    var scorePrompt = '=== CURRENT DRAFT ===\n' + draft.slice(0,15000) + '\n\n=== SCOPE/EVAL CRITERIA ===\n' + (opp.scope_analysis||'').slice(0,4000) + '\n\nScore this proposal 0-100 as a real evaluator would. First line MUST be: SCORE: XX/100. Then 2 sentences why.';
+    var scorePrompt = '=== CURRENT DRAFT ===\n' + draft.slice(0,22000) + '\n\n=== SCOPE/EVAL CRITERIA ===\n' + (opp.scope_analysis||'').slice(0,4000) + '\n\nScore this proposal 0-100 as a real evaluator would. First line MUST be: SCORE: XX/100. Then 2 sentences why.';
     var beforeScore = await sonnet('Senior government proposal evaluator. Score ruthlessly. First line: SCORE: XX/100', scorePrompt, 500);
     var bMatch = beforeScore.match(/SCORE:\s*(\d+)/i);
     R.before_score = bMatch ? parseInt(bMatch[1]) : 0;
