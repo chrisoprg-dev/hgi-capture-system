@@ -114,7 +114,16 @@ export default async function handler(req, res) {
       var aid = allContracts[ui]['Award ID'] || allContracts[ui]['generated_internal_id'] || ('idx-' + ui);
       if (!seen[aid]) { seen[aid] = true; unique.push(allContracts[ui]); }
     }
-    R.contracts_found = unique.length;
+    R.contracts_found_raw = unique.length;
+    // Filter to contracts with End Date in the 3-12 month window
+    var expiring = unique.filter(function(c) {
+      var endDate = c['End Date'];
+      if (!endDate) return false;
+      return endDate >= cutoff3mo && endDate <= cutoff12mo;
+    });
+    R.contracts_found = expiring.length;
+    R.filtered_from = unique.length;
+    unique = expiring;
     if (unique.length === 0) {
       R.note = 'No expiring contracts found in window';
       await fetch(SB + '/rest/v1/hunt_runs', { method: 'POST', headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ id: 'hr-ce-' + Date.now(), source: 'contract_expiration', status: '0 contracts found', run_at: new Date().toISOString(), opportunities_found: 0 }) }).catch(function(){});
