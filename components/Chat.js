@@ -45,42 +45,15 @@ function Chat() {
     setLoading(true);
 
     try {
-      // Build context from pipeline
-      var pipelineContext = '';
-      if (pl.pipeline && pl.pipeline.length > 0) {
-        pipelineContext = '\\nACTIVE PIPELINE (' + pl.pipeline.length + ' opportunities):\\n';
-        pl.pipeline.slice(0, 10).forEach(function(o) {
-          pipelineContext += '- ' + o.title + ' | Agency: ' + (o.agency || 'Unknown') + ' | OPI: ' + (o.opi_score || 'N/A') + ' | Due: ' + (o.due_date || 'Unknown') + ' | Stage: ' + (o.stage || 'identified') + '\\n';
-        });
-      }
-
-      // Get KB context
-      var kbContext = '';
+      // Fetch complete system prompt from chat-context API (includes pipeline, organism memory, correct HGI facts)
+      var systemPrompt = 'You are the HGI AI Capture System.';
       try {
-        var kbR = await fetch('/api/knowledge-query?vertical=all');
-        if (kbR.ok) {
-          var kbD = await kbR.json();
-          kbContext = kbD.prompt_injection || '';
+        var ctxR = await fetch('/api/chat-context');
+        if (ctxR.ok) {
+          var ctxD = await ctxR.json();
+          systemPrompt = ctxD.system_prompt || systemPrompt;
         }
       } catch(e) {}
-
-      // Get system status
-      var statusContext = '';
-      try {
-        var stR = await fetch('/api/opportunities?sort=opi_score.desc&limit=5');
-        if (stR.ok) {
-          var stD = await stR.json();
-          var topOpps = stD.opportunities || stD || [];
-          if (topOpps.length > 0) {
-            statusContext = '\\nTOP OPPORTUNITIES BY OPI:\\n';
-            topOpps.forEach(function(o) {
-              statusContext += '- ' + o.title + ' (OPI ' + (o.opi_score || 0) + ', ' + (o.agency || '') + ', due ' + (o.due_date || 'TBD') + ')\\n';
-            });
-          }
-        }
-      } catch(e) {}
-
-      var systemPrompt = 'You are the HGI AI Capture System assistant. You help HGI staff (Christopher Oney - President, Lou Resweber - CEO, Candy Dottolo - CAO, Dillon - Proposals) understand the pipeline, opportunities, and system capabilities.\\n\\nHGI CONTEXT: Hammerman & Gainer LLC, founded 1929, 97 years, ~50 employees. Largest minority-owned TPA in the US. Headquartered in Kenner, Louisiana. Core verticals: Disaster Recovery (CDBG-DR, FEMA PA), TPA/Claims Administration, Property Tax Appeals, Workforce Services, Health Programs, Infrastructure, Federal Contracts.\\n\\nPast Performance: Road Home Program ' + String.fromCharCode(36) + '12B, BP GCCF 1M+ claims, PBGC 34M beneficiaries, TPCIGA 28 years, Restore Louisiana, Terrebonne Parish.\\n\\nRATE CARD: Principal ' + String.fromCharCode(36) + '180/hr, Program Director ' + String.fromCharCode(36) + '165/hr, SME ' + String.fromCharCode(36) + '155/hr, Sr PM ' + String.fromCharCode(36) + '150/hr, PM ' + String.fromCharCode(36) + '140/hr, Grant Writer ' + String.fromCharCode(36) + '105/hr, Admin Support ' + String.fromCharCode(36) + '65/hr.' + pipelineContext + statusContext + (kbContext ? '\\nKNOWLEDGE BASE:\\n' + kbContext.slice(0, 2000) : '') + '\\n\\nAnswer questions clearly and concisely. Reference specific opportunities by name and OPI score when relevant. If asked about something not in your context, say so honestly.';
 
       var response = await callClaude(userMsg, systemPrompt, 2000);
       setMessages(function(prev) { return prev.concat([{ role: 'assistant', content: response }]); });
