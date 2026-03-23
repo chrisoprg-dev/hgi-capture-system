@@ -111,8 +111,9 @@ export default async function handler(req, res) {
       for (var ci = 0; ci < cLines.length; ci++) {
         var cl = cLines[ci].trim();
         if (!cl) continue;
-        var subMatch = cl.match(/^\*\*([A-G]\.\d+\s*.+?)\*\*/);
-        if (subMatch) { children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 120 }, children: [new TextRun({ text: subMatch[1], font: 'Arial', size: 26, bold: true, color: '2E5DA6' })] })); continue; }
+        // Sub-section: any bold line that is a sub-header (shorter, not a full paragraph)
+        var subMatch = cl.match(/^\*\*([^\n*]{3,80})\*\*$/);
+        if (subMatch && subMatch[1].length < 80) { children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 120 }, children: [new TextRun({ text: subMatch[1], font: 'Arial', size: 26, bold: true, color: '2E5DA6' })] })); continue; }
         var boldMatch = cl.match(/^\*\*(.+?)\*\*/);
         if (boldMatch) { children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: boldMatch[1], font: 'Arial', size: 22, bold: true })] })); continue; }
         if (cl.startsWith('- ') || cl.startsWith('\u2022 ')) { children.push(new Paragraph({ numbering: { reference: 'hgi-bullets', level: 0 }, spacing: { after: 80 }, children: [new TextRun({ text: cl.substring(2), font: 'Arial', size: 22 })] })); continue; }
