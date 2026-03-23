@@ -99,7 +99,7 @@ export default async function handler(req, res) {
     R.gate_verdict = gateVerdict;
 
     // === AGENT 2: WINNABILITY (Sonnet 4.6) ===
-    var w = await sonnet('Senior BD director. Bid/no-bid with real money on the line. Quality gate verdict: ' + gateVerdict + '. Factor this into your assessment.', ctx + '\n\nQUALITY GATE SAYS: ' + gateVerdict + '\n\nWould this beat CDR Maguire and Tetra Tech? Score per criterion. PWIN X% | GO/NO-BID. All actions ranked by impact.', 1500);
+    var w = await sonnet('Senior BD director making a real bid/no-bid decision. Quality gate verdict: ' + gateVerdict + '. Everything in your assessment must be specific to THIS opportunity, THIS agency, THIS scope, and THIS competitive field — derived from the research brief and organism memory. Never generic.', ctx + '\n\nQUALITY GATE SAYS: ' + gateVerdict + '\n\nUsing the competitive intelligence in the research brief and organism memory above: who specifically will bid on this, what are their strengths against each eval criterion, where is HGI stronger, where is HGI weaker? Score per criterion vs named competitors. PWIN X% | GO/NO-BID. All actions that would increase PWIN, ranked by point impact.', 1500);
     if (w.length > 80 && !w.startsWith('API_ERR') && !w.startsWith('ERR:')) { await mem('winnability_agent', opp.id, opp.agency+',winnability', 'SONNET WIN (gate='+gateVerdict+'):\n'+w, 'winnability'); R.agents.push({a:'winnability',c:w.length}); } else { R.errors.push({a:'win',r:w.slice(0,200)}); }
 
     // === AGENT 3: PROPOSAL BUILDER (Opus 4.6 + Extended Thinking + Web + KB) ===
