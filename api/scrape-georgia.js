@@ -1,6 +1,6 @@
-// api/scrape-georgia.js — Georgia state procurement scraper
-// Source: Georgia Procurement Registry (GPR) — public, no auth required
-// Runs 2x daily via Vercel cron
+// api/scrape-georgia.js — Georgia opportunities via SAM.gov API
+// Georgia GPR is JavaScript-rendered (SPA) — not reachable via direct HTTP from Vercel.
+// This scraper uses SAM.gov (confirmed reachable) filtered to Georgia state opportunities only.
 import { HGI_KEYWORDS } from './hgi-master-context.js';
 export const config = { maxDuration: 60 };
 
@@ -9,112 +9,72 @@ var SK = process.env.SUPABASE_SERVICE_KEY;
 var INTAKE = 'https://hgi-capture-system.vercel.app/api/intake';
 var INTAKE_SECRET = process.env.INTAKE_SECRET;
 var H = { apikey: SK, Authorization: 'Bearer ' + SK, 'Content-Type': 'application/json' };
+var SAM_API_KEY = process.env.SAM_GOV_API_KEY || 'DEMO_KEY';
+var SAM_BASE = 'https://sam.gov/api/prod/opportunities/v2/search';
 
-// Georgia-specific keyword set — focused on HGI verticals most likely in GA market
-var GA_KEYWORDS = [
-  'claims administration', 'third party administrator',
-  'program management', 'grant management', 'grant administration',
-  'workers compensation administration', 'TPA services',
-  'disaster recovery', 'housing program management',
-  'workforce development services', 'case management services',
-  'settlement administration', 'insurance administration'
-];
+var GA_KEYWORDS = ['claims administration', 'program management', 'grant administration', 'third party administrator', 'workforce development WIOA', 'disaster recovery program', 'workers compensation TPA', 'housing authority HUD', 'settlement administration', 'staff augmentation'];
 
-function stripHtml(html) {
-  return (html || '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/\s{2,}/g, ' ').trim();
+function getDateRange() {
+  var to = new Date();
+  var from = new Date();
+  from.setDate(from.getDate() - 60);
+  var fmt = function(d) { return String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0') + '/' + d.getFullYear(); };
+  return { from: fmt(from), to: fmt(to) };
 }
 
-async function searchGeorgia(keyword) {
+async function searchSamGeorgia(keyword) {
   try {
-    // Georgia Team Works procurement search
-    var url = 'https://ssl.doas.state.ga.us/gpr/index.cfm?action=searchsolicitations&solicitationNumber=&solType=ALL&keyword=' + encodeURIComponent(keyword) + '&dept=&openonly=true';
-    var r = await fetch(url, {
-      method: 'GET',
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': 'text/html,application/xhtml+xml' },
-      signal: AbortSignal.timeout(8000)
-    });
+    var dates = getDateRange();
+    var params = new URLSearchParams({ api_key: SAM_API_KEY, keyword: keyword, postedFrom: dates.from, postedTo: dates.to, ptype: 'o,p,k', active: 'true', limit: '20' });
+    var r = await fetch(SAM_BASE + '?' + params.toString(), { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(8000) });
     if (!r.ok) return [];
-    var html = await r.text();
-    var results = [];
-    // Parse table rows from Georgia GPR results
-    var rowRegex = /<tr[^>]*class=["']?result[^"']*["']?[^>]*>([\s\S]*?)<\/tr>/gi;
-    var cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    var hrefRegex = /href=["']([^"']+)["']/i;
-    // Georgia GPR uses standard table — extract all rows with 4+ cells
-    var allRows = html.match(/<tr[^>]*>(?:[\s\S]*?<td[\s\S]*?){4,}[\s\S]*?<\/tr>/gi) || [];
-    for (var i = 0; i < allRows.length; i++) {
-      var row = allRows[i];
-      var cells = [];
-      var m;
-      var re2 = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-      while ((m = re2.exec(row)) !== null) cells.push(stripHtml(m[1]));
-      // Skip header rows and empty rows
-      if (cells.length >= 3 && cells[0].length > 5 && !cells[0].toLowerCase().includes('solicitation')) {
-        var hrefM = hrefRegex.exec(row);
-        var detailUrl = hrefM ? ('https://ssl.doas.state.ga.us' + hrefM[1]) : 'https://ssl.doas.state.ga.us/gpr/';
-        results.push({
-          title: cells[0] || cells[1] || '',
-          agency: cells[1] || cells[2] || 'Georgia Agency',
-          deadline: cells[cells.length - 1] || '',
-          sol_number: cells[2] || '',
-          url: detailUrl,
-          keyword: keyword
-        });
-      }
-    }
-    return results.filter(function(r2) { return r2.title.length > 5; });
+    var d = await r.json();
+    return (d.opportunitiesData || []).filter(function(o) {
+      var state = (o.placeOfPerformance && o.placeOfPerformance.state && o.placeOfPerformance.state.code) || (o.officeAddress && o.officeAddress.state) || '';
+      return state === 'GA';
+    });
   } catch(e) { return []; }
 }
 
-async function sendToIntake(bid) {
+async function sendToIntake(opp, keyword) {
   try {
+    var agency = opp.fullParentPathName ? opp.fullParentPathName.split('.').pop().trim() : 'Georgia Agency';
+    var deadline = opp.responseDeadLine ? opp.responseDeadLine.slice(0,10) : '';
+    var naics = Array.isArray(opp.naicsCodes) && opp.naicsCodes.length ? opp.naicsCodes[0] : (opp.naicsCode || '');
     var r = await fetch(INTAKE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-intake-secret': INTAKE_SECRET },
-      body: JSON.stringify({
-        source: 'georgia_gpr',
-        source_id: bid.sol_number || bid.title.replace(/[^a-zA-Z0-9]/g, '-').slice(0, 60),
-        title: bid.title,
-        agency: bid.agency,
-        url: bid.url,
-        state: 'GA',
-        response_deadline: bid.deadline,
-        description: 'Georgia procurement: ' + bid.title + '. Agency: ' + bid.agency + '. Found via keyword: ' + bid.keyword,
-        rfp_text: 'Georgia GPR: ' + bid.title + ' | Agency: ' + bid.agency + ' | Deadline: ' + bid.deadline + ' | Source keyword: ' + bid.keyword
-      })
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-intake-secret': INTAKE_SECRET },
+      body: JSON.stringify({ source: 'sam.gov', source_id: opp.noticeId || opp.solicitationNumber || opp.title.replace(/[^a-zA-Z0-9]/g,'-').slice(0,60), title: opp.title || 'Untitled', agency: agency, url: opp.uiLink || ('https://sam.gov/workspace/contract/opp/'+opp.noticeId+'/view'), state: 'GA', naics: String(naics||''), response_deadline: deadline, description: opp.title+' | '+agency+' | Georgia | NAICS: '+naics, rfp_text: 'SAM.gov Georgia: '+opp.title+' | '+opp.type+' | '+agency+' | NAICS: '+naics+' | Keyword: '+keyword, intake_secret: INTAKE_SECRET })
     });
-    var d = await r.json();
-    return { title: bid.title, status: d.success ? 'ingested' : (d.skipped ? 'skipped' : 'error'), opi: d.opi_score };
-  } catch(e) { return { title: bid.title, status: 'error', error: e.message }; }
+    var d2 = await r.json();
+    return { title: opp.title, status: d2.success ? 'ingested' : (d2.skipped ? 'skipped' : 'error'), opi: d2.opi_score };
+  } catch(e) { return { title: opp.title||'error', status: 'error', error: e.message }; }
 }
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  var results = { source: 'georgia_gpr', started: new Date().toISOString(), keywords_searched: 0, found: 0, ingested: 0, skipped: 0, errors: 0, details: [] };
-  var seenTitles = new Set();
-  var allBids = [];
+  var results = { source: 'sam_gov_georgia', started: new Date().toISOString(), keywords_searched: 0, found: 0, ingested: 0, skipped: 0, errors: 0, details: [] };
+  var seenIds = new Set();
+  var allOpps = [];
   for (var i = 0; i < GA_KEYWORDS.length; i++) {
     results.keywords_searched++;
-    var bids = await searchGeorgia(GA_KEYWORDS[i]);
-    for (var j = 0; j < bids.length; j++) {
-      var key = bids[j].title.toLowerCase().slice(0, 50);
-      if (!seenTitles.has(key)) { seenTitles.add(key); allBids.push(bids[j]); }
+    var opps = await searchSamGeorgia(GA_KEYWORDS[i]);
+    for (var j = 0; j < opps.length; j++) {
+      var id = opps[j].noticeId || opps[j].solicitationNumber || opps[j].title;
+      if (id && !seenIds.has(id)) { seenIds.add(id); allOpps.push({ opp: opps[j], keyword: GA_KEYWORDS[i] }); }
     }
+    if (i < GA_KEYWORDS.length-1) await new Promise(function(r2){setTimeout(r2,200);});
   }
-  results.found = allBids.length;
-  var batch = allBids.slice(0, 15);
+  results.found = allOpps.length;
+  var batch = allOpps.slice(0,15);
   for (var k = 0; k < batch.length; k++) {
-    var ir = await sendToIntake(batch[k]);
+    var ir = await sendToIntake(batch[k].opp, batch[k].keyword);
     results.details.push(ir);
-    if (ir.status === 'ingested') results.ingested++;
-    else if (ir.status === 'skipped') results.skipped++;
+    if (ir.status==='ingested') results.ingested++;
+    else if (ir.status==='skipped') results.skipped++;
     else results.errors++;
   }
   results.completed = new Date().toISOString();
-  try {
-    await fetch(SB + '/rest/v1/hunt_runs', { method: 'POST', headers: Object.assign({}, H, { Prefer: 'return=minimal' }),
-      body: JSON.stringify({ source: 'scrape_georgia', status: 'found:' + results.found + '|in:' + results.ingested + '|skip:' + results.skipped, run_at: new Date().toISOString(), opportunities_found: results.ingested }) });
-  } catch(e) {}
+  try { await fetch(SB+'/rest/v1/hunt_runs',{method:'POST',headers:Object.assign({},H,{Prefer:'return=minimal'}),body:JSON.stringify({source:'scrape_georgia',status:'found:'+results.found+'|in:'+results.ingested+'|skip:'+results.skipped,run_at:new Date().toISOString(),opportunities_found:results.ingested})}); } catch(e) {}
   return res.status(200).json(results);
 }
