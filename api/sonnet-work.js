@@ -90,8 +90,14 @@ export default async function handler(req, res) {
       (opp.financial_analysis||'').slice(0,1500);
     R.ctx = ctx.length;
 
-    // === AGENT 1: QUALITY GATE (Sonnet 4.6) ===
-    var g = await sonnet('Senior proposal compliance reviewer. Read the eval criteria in THIS RFP scope analysis. Score each criterion exactly as this client will score it — by the actual point weights in this solicitation. Do not apply generic section labels or assume standard formats. Your first line MUST be: VERDICT: [score]/100 | [GO or NO-GO]', ctx + '\n\nRead the evaluation criteria in the scope analysis above. For each criterion listed with its point value: score the current draft 1-10, identify exactly what is missing or weak, state how many points are at risk. First line MUST be: VERDICT: XX/100 | GO or NO-GO', 1500);
+    // === AGENT 1: QUALITY GATE (Sonnet 4.6) — MEMORY-AWARE ===
+    var gateResearch = (opp.research_brief||'').slice(0, 1500);
+    var gateSystem = 'Senior proposal compliance reviewer with full competitive context. You have three inputs: (1) the RFP scope and eval criteria, (2) the current proposal draft, (3) competitive intelligence and research findings from prior agent analysis. Use ALL three. Score each criterion as a real evaluator would — by stated point weights — but informed by what you know about the competitive field and the specific gaps the research agents found. Do not audit in a vacuum. Your first line MUST be: VERDICT: [score]/100 | [GO or NO-GO]';
+    var gatePrompt = ctx +
+      (gateResearch.length > 50 ? '\n\n=== COMPETITIVE RESEARCH & STRATEGIC INTEL ===\n' + gateResearch : '') +
+      (gateMemCtx.length > 50 ? '\n\n=== ORGANISM MEMORY — COMPETITIVE INTEL, ANALYSIS, RED TEAM FINDINGS ===\n' + gateMemCtx : '') +
+      '\n\nUsing all context above — RFP scope, proposal draft, competitive research, and organism memory — score each eval criterion exactly as this evaluator panel will. For each criterion: current draft score 1-10, specific gap identified by research or memory, points at risk, and what exact content would close the gap. First line MUST be: VERDICT: XX/100 | GO or NO-GO';
+    var g = await sonnet(gateSystem, gatePrompt, 1500);
     var gateVerdict = 'unknown';
     if (g.length > 80 && !g.startsWith('API_ERR') && !g.startsWith('ERR:')) {
       await mem('quality_gate', opp.id, opp.agency+',quality_gate', 'SONNET GATE:\n'+g, 'analysis');
