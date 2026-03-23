@@ -28,12 +28,24 @@ export default async function handler(req, res) {
     if (R.draft < 200) return res.status(200).json({ note: 'No draft', opp: opp.title });
     var ctx = '=== ' + opp.title + ' | ' + opp.agency + ' | OPI ' + opp.opi_score + ' ===\n' + (opp.scope_analysis||'').slice(0,4000) + '\n---\n' + (opp.staffing_plan||'').slice(0,12000) + '\n---\n' + (opp.capture_action||'').slice(0,1000) + '\n---\n' + (opp.financial_analysis||'').slice(0,1500);
     R.ctx = ctx.length;
-    var g = await sonnet('Senior proposal compliance reviewer. Score like a real evaluator — specific sections, specific points at risk, specific gaps.', ctx + '\n\nSCORE EACH CRITERION 1-10. List ALL gaps. VERDICT: score/100 | GO/NO-GO.', 1500);
-    if (g.length > 80 && !g.startsWith('API_ERR') && !g.startsWith('ERR:')) { await mem('quality_gate', opp.id, opp.agency+',quality_gate', 'SONNET GATE:\n'+g, 'analysis'); R.agents.push({a:'quality_gate',c:g.length}); } else { R.errors.push({a:'gate',r:g.slice(0,200)}); }
-    var w = await sonnet('Senior BD director. Bid/no-bid with real money on the line.', ctx + '\n\nWould this beat CDR Maguire and Tetra Tech? Score per criterion. PWIN X% | GO/NO-BID. All actions ranked by impact.', 1500);
-    if (w.length > 80 && !w.startsWith('API_ERR') && !w.startsWith('ERR:')) { await mem('winnability_agent', opp.id, opp.agency+',winnability', 'SONNET WIN:\n'+w, 'winnability'); R.agents.push({a:'winnability',c:w.length}); } else { R.errors.push({a:'win',r:w.slice(0,200)}); }
-    var p = await sonnet('Senior proposal writer. Write actual improved text, not descriptions.', ctx + '\n\nScore each section 1-10. For below 8: write the improved paragraph. Single highest-point improvement first.', 2000);
-    if (p.length > 100 && !p.startsWith('API_ERR') && !p.startsWith('ERR:')) { await mem('proposal_agent', opp.id, opp.agency+',proposal', 'SONNET PROPOSAL:\n'+p, 'pattern'); R.agents.push({a:'proposal',c:p.length}); } else { R.errors.push({a:'prop',r:(p||'').slice(0,200)}); }
+    var g = await sonnet('Senior proposal compliance reviewer. Score like a real evaluator — specific sections, specific points at risk, specific gaps. Your first line MUST be: VERDICT: [score]/100 | [GO or NO-GO]', ctx + '\n\nSCORE EACH CRITERION 1-10. List ALL gaps. First line MUST be: VERDICT: XX/100 | GO or NO-GO', 1500);
+    var gateVerdict = 'unknown';
+    if (g.length > 80 && !g.startsWith('API_ERR') && !g.startsWith('ERR:')) {
+      await mem('quality_gate', opp.id, opp.agency+',quality_gate', 'SONNET GATE:\n'+g, 'analysis');
+      R.agents.push({a:'quality_gate',c:g.length});
+      if (g.toUpperCase().indexOf('NO-GO') !== -1) gateVerdict = 'NO-GO';
+      else if (g.toUpperCase().indexOf('| GO') !== -1) gateVerdict = 'GO';
+    } else { R.errors.push({a:'gate',r:g.slice(0,200)}); }
+    R.gate_verdict = gateVerdict;
+    var w = await sonnet('Senior BD director. Bid/no-bid with real money on the line. Quality gate verdict: ' + gateVerdict + '. Factor this into your assessment.', ctx + '\n\nQUALITY GATE SAYS: ' + gateVerdict + '\n\nWould this beat CDR Maguire and Tetra Tech? Score per criterion. PWIN X% | GO/NO-BID. All actions ranked by impact.', 1500);
+    if (w.length > 80 && !w.startsWith('API_ERR') && !w.startsWith('ERR:')) { await mem('winnability_agent', opp.id, opp.agency+',winnability', 'SONNET WIN (gate='+gateVerdict+'):\n'+w, 'winnability'); R.agents.push({a:'winnability',c:w.length}); } else { R.errors.push({a:'win',r:w.slice(0,200)}); }
+    if (gateVerdict === 'NO-GO') {
+      R.agents.push({a:'proposal',c:0,skipped:'gate_NO-GO'});
+      await mem('proposal_agent', opp.id, opp.agency+',proposal', 'PROPOSAL BLOCKED BY GATE (NO-GO). Fix deficiencies before investing in proposal improvements. Gate output:\n'+g.slice(0,2000), 'analysis');
+    } else {
+      var p = await sonnet('Senior proposal writer. Write actual improved text, not descriptions. Quality gate findings: ' + g.slice(0,500), ctx + '\n\nGATE FINDINGS (address these first):\n' + g.slice(0,1000) + '\n\nScore each section 1-10. For below 8: write the improved paragraph. Single highest-point improvement first.', 2000);
+      if (p.length > 100 && !p.startsWith('API_ERR') && !p.startsWith('ERR:')) { await mem('proposal_agent', opp.id, opp.agency+',proposal', 'SONNET PROPOSAL (gate='+gateVerdict+'):\n'+p, 'pattern'); R.agents.push({a:'proposal',c:p.length}); } else { R.errors.push({a:'prop',r:(p||'').slice(0,200)}); }
+    }
   } catch(e) { R.errors.push({fatal:e.message}); }
   try { await fetch(SB+'/rest/v1/hunt_runs', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({id:'hr-sonnet-'+Date.now(), source:'sonnet_work', status: R.agents.length+'/3 agents | '+R.errors.length+' errors', run_at: new Date().toISOString(), opportunities_found: 0}) }); } catch(e) {}
   R.completed = new Date().toISOString();
