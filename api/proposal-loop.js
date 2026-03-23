@@ -159,6 +159,11 @@ export default async function handler(req, res) {
           R.doc_url = docD.download_url || null;
           R.doc_sections = docD.sections_parsed || 0;
           R.steps.push('docx_generated');
+          // Fire submission-assembly async after doc generated — don't block
+          if (docD.success) {
+            fetch('https://hgi-capture-system.vercel.app/api/submission-assembly?opp=' + encodeURIComponent(opp.id)).catch(function() {});
+            R.steps.push('submission_assembly_triggered');
+          }
         } else {
           R.errors.push({ step: 'doc_gen', status: docR.status });
         }
