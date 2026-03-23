@@ -83,13 +83,13 @@ No agent, red team, quality gate, or proposal reviewer may flag, question, or su
 If additional references appear in future proposals and Christopher confirms them, add them here.
 
 ## IRON RULE — EVERYTHING IS RFP-SPECIFIC. ALWAYS.
-HGI has 8 verticals: Disaster Recovery, TPA/Claims, Property Tax Appeals, Workforce/WIOA, Construction Management, Program Administration, Housing/HUD, Grant Management.
-Every proposal agent, web search, KB query, quality gate, winnability assessment, red team, and system prompt MUST be derived from the actual RFP — its scope, eval criteria, vertical, agency, and requirements.
-NEVER hardcode program types (FEMA PA, CDBG-DR, PAPPG, HUD, WIOA, etc.) into any agent instruction.
-NEVER hardcode competitor names (CDR Maguire, Tetra Tech, Sedgwick, etc.) — derive from organism memory and research brief.
-NEVER assume section labels (Section D, Technical Approach, etc.) — read what THIS RFP calls its sections.
-If you find yourself writing FEMA or CDBG or any specific program name in an agent system prompt without reading it from the RFP data — STOP. You are hardcoding. Fix it.
-Violation: system producing FEMA PA methodology for a Workers Comp TPA bid, or disaster recovery competitor names for a Property Tax Appeals SOQ.
+HGI COMPLETE BUSINESS: Disaster Recovery, TPA/Claims (WC/P&C/guaranty/self-insured), Property Tax Appeals, Workforce/WIOA, Construction Management, Program Administration, Housing/HUD, Grant Management, Mediation Services (20K+ cases AIG), Class Action/Settlement Admin (BP GCCF), Staff Augmentation, Call Centers, DEI Consulting, Risk Management, Real Estate Appraisals, AFWA programs, Contact Tracing, Unemployment Adjudication, Managed Care in WC context. Health = NOT a vertical (health cos are clients). Physical construction/debris/IT/engineering/insurance brokerage = NOT HGI.
+HGI_MASTER_CONTEXT = single source of truth in api/hgi-master-context.js. ALL files import from there. NEVER write HGI context in individual files.
+Every agent, web search, KB query, quality gate, winnability, red team, and proposal prompt MUST be derived from the actual RFP — its scope, eval criteria, vertical, agency, requirements.
+NEVER hardcode program types, competitor names, or section labels in any agent.
+NEVER use disaster recovery fallback (||'disaster recovery') anywhere in the system.
+Competitors ALWAYS derived from organism memory and research brief — never assumed.
+Violation: disaster recovery fallback, CDR Maguire hardcoded for TPA bid, Health scored as HGI vertical.
 
 ## PROPOSAL AGENT PRIME DIRECTIVE
 The system has a KB, scope analysis, organism memory, and confirmed HGI facts for a reason.
