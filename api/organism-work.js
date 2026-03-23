@@ -84,7 +84,7 @@ function buildCtx(opp, mem, tier) {
 // ═══ AGENT FUNCTIONS — all receive full context ═══
 
 async function agentIntelligence(opp, ctx) {
-  var web = await webSearch('Louisiana government contracts awarded ' + opp.agency + ' ' + (opp.vertical||'disaster recovery') + ' professional services 2023 2024 2025 who won award amount competitor');
+  var web = await webSearch(opp.agency + ' ' + (opp.state||'Louisiana') + ' ' + (opp.vertical||'professional services') + ' contracts awarded 2023 2024 2025 who won award amount competitor incumbent');
   // Lower threshold — even short web results are useful
   var webCtx = (web && web.length > 30) ? ('\nWEB FINDINGS:\n' + web.slice(0,2000)) : '\n(No new web data — analyze from existing intelligence below)';
   var a = await think(
