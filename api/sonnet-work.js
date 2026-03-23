@@ -4,6 +4,11 @@ const SK = process.env.SUPABASE_SERVICE_KEY;
 const AK = process.env.ANTHROPIC_API_KEY;
 const H = { 'apikey': SK, 'Authorization': 'Bearer ' + SK, 'Content-Type': 'application/json' };
 function makeId() { return 'om-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); }
+function logCost(agent, model, inTok, outTok, endpoint) {
+  var p = model.indexOf('sonnet') !== -1 ? { in: 0.000003, out: 0.000015 } : { in: 0.00000025, out: 0.00000125 };
+  var cost = inTok * p.in + outTok * p.out;
+  fetch(SB + '/rest/v1/hunt_runs', { method: 'POST', headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ id: 'cost-' + Date.now() + '-' + Math.random().toString(36).slice(2,6), source: 'api_cost', status: JSON.stringify({ agent: agent, model: model, input_tokens: inTok, output_tokens: outTok, cost_usd: cost, endpoint: endpoint || 'sonnet-work' }), run_at: new Date().toISOString(), opportunities_found: 0 }) }).catch(function() {});
+}
 async function mem(agent, oppId, tags, obs, mType) {
   try { await fetch(SB + '/rest/v1/organism_memory', { method: 'POST', headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ id: makeId(), agent: agent, opportunity_id: oppId || null, entity_tags: tags, observation: obs, memory_type: mType || 'analysis', created_at: new Date().toISOString() }) }); return true; } catch(e) { return false; }
 }
