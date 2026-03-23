@@ -81,7 +81,18 @@ export default async function handler(req, res) {
     const extractedText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
     console.log('[extract-pdf] final extracted chars:', extractedText.length);
 
-    return res.json({ success: true, url, extractedText, charCount: extractedText.length, pdfSizeBytes, rawTextChars: rawText.length });
+    // Parse structured fields from Claude output
+    var parsed = {};
+    var titleM = extractedText.match(/TITLE:\s*(.+)/i);
+    var agencyM = extractedText.match(/AGENCY:\s*(.+)/i);
+    var deadlineM = extractedText.match(/DEADLINE:\s*(.+)/i);
+    var scopeM = extractedText.match(/SCOPE:\s*(.+)/i);
+    if (titleM) parsed.title = titleM[1].trim();
+    if (agencyM) parsed.agency = agencyM[1].trim();
+    if (deadlineM && deadlineM[1].trim().toUpperCase() !== 'NONE') parsed.deadline = deadlineM[1].trim();
+    if (scopeM) parsed.scope = scopeM[1].trim();
+
+    return res.json({ success: true, url, extractedText, parsed, charCount: extractedText.length, pdfSizeBytes, rawTextChars: rawText.length });
 
   } catch (e) {
     console.error('[extract-pdf] catch error:', e.message);
