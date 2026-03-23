@@ -131,4 +131,4 @@ The goal is a submission-ready proposal, not an annotated draft.
 5. Read all files in the zip attachment completely
 6. Only then proceed with session work
 
-Last updated: Session 29 | March 23, 2026
+Last updated: Session 30 | March 23, 2026
