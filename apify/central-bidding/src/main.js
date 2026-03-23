@@ -280,8 +280,7 @@ const crawler = new PlaywrightCrawler({
                 'grant support', 'grant consulting', 'grant application'
             ];
             const TIER2_KEYWORDS = [
-                // Infrastructure / Construction Management
-                'construction management', 'capital program', 'infrastructure management',
+                // Infrastructure / Transit
                 'transit', 'transportation', 'airport management',
                 // Finance / Audit / Compliance
                 'finance', 'audit', 'compliance', 'assessor', 'tax', 'fiscal',
