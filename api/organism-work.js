@@ -167,8 +167,8 @@ async function agentQualityGate(opp, ctx) {
 
 async function agentProposal(opp, ctx) {
   if ((opp.staffing_plan||'').length < 100) return null;
-  var vertical = opp.vertical || 'disaster recovery';
-  var web = await webSearch(opp.agency + ' ' + vertical + ' best practices methodology industry standards winning proposal techniques 2025 2026');
+  var vertical = opp.vertical || 'professional services';
+  var web = await webSearch((opp.title||'').slice(0,80) + ' ' + vertical + ' best practices methodology industry standards winning government proposal techniques 2025 2026');
   var webCtx = (web && web.length > 30) ? ('\nWEB — DOMAIN BEST PRACTICES & INDUSTRY STANDARDS:\n' + web.slice(0,2000)) : '';
   
   // STEP 1: Identify specific improvements with evaluator scoring logic
