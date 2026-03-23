@@ -91,11 +91,11 @@ async function runOpp(opp, R) {
     var gateVerdict = 'unknown';
     if (g.length > 80 && !g.startsWith('API_ERR') && !g.startsWith('ERR:')) {
       await mem('quality_gate', opp.id, opp.agency+',quality_gate', 'SONNET GATE:\n'+g, 'analysis');
-      R.agents.push({a:'quality_gate',c:g.length});
+      oppR.agents.push({a:'quality_gate',c:g.length});
       if (g.toUpperCase().indexOf('NO-GO') !== -1) gateVerdict = 'NO-GO';
       else if (g.toUpperCase().indexOf('| GO') !== -1) gateVerdict = 'GO';
-    } else { R.errors.push({a:'gate',r:g.slice(0,200)}); }
-    R.gate_verdict = gateVerdict;
+    } else { oppR.errors.push({a:'gate',r:g.slice(0,200)}); }
+    oppR.gate_verdict = gateVerdict;
 
     // === AGENT 2: WINNABILITY (Sonnet 4.6) — MEMORY-AWARE ===
     var winSystem = 'Senior BD director making a real bid/no-bid decision with full competitive context. You have: (1) the RFP scope and proposal draft, (2) the quality gate verdict and findings, (3) competitive intelligence and research from prior agent analysis — named competitors, pricing benchmarks, agency patterns, red team scores. Use ALL of it. Your PWIN must be based on real competitive findings, not generic assessment. Never say "likely competitors" when memory tells you exactly who they are.';
