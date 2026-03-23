@@ -2,24 +2,24 @@ export const config = { maxDuration: 30 };
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   var results = {};
-  // Test 1: OData filter syntax (correct OpenFEMA v2 format)
+  // Correct endpoint: CamelCase, OData $filter syntax
+  var cutoff = new Date(Date.now() - 60 * 24 * 3600000).toISOString().slice(0,10);
+  var url = 'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries?$filter=declarationType%20eq%20%27DR%27%20and%20(state%20eq%20%27LA%27%20or%20state%20eq%20%27TX%27%20or%20state%20eq%20%27FL%27%20or%20state%20eq%20%27MS%27)%20and%20declarationDate%20gt%20%27' + cutoff + '%27&$orderby=declarationDate%20desc&$top=5';
   try {
-    var r1 = await fetch('https://www.fema.gov/api/open/v2/disasterDeclarationsSummaries?$filter=declarationType%20eq%20%27DR%27%20and%20state%20eq%20%27LA%27&$orderby=declarationDate%20desc&$top=3');
-    results.test1_status = r1.status;
-    if (r1.ok) { var d1 = await r1.json(); results.test1_keys = Object.keys(d1); results.test1_count = (d1.DisasterDeclarationsSummaries || d1.disasterDeclarationsSummaries || []).length; }
-  } catch(e) { results.test1_error = e.message; }
-  // Test 2: Simple filter without OData
-  try {
-    var r2 = await fetch('https://www.fema.gov/api/open/v2/disasterDeclarationsSummaries?declarationType=DR&state=LA&limit=3');
-    results.test2_status = r2.status;
-    if (r2.ok) { var d2 = await r2.json(); results.test2_keys = Object.keys(d2); results.test2_count = (d2.DisasterDeclarationsSummaries || d2.disasterDeclarationsSummaries || []).length; }
-  } catch(e) { results.test2_error = e.message; }
-  // Test 3: FEMA disasters page (newer API)
-  try {
-    var r3 = await fetch('https://www.fema.gov/api/open/v1/disasterDeclarations?declarationType=DR&stateCode=LA&limit=3');
-    results.test3_status = r3.status;
-    if (r3.ok) { var d3 = await r3.json(); results.test3_keys = Object.keys(d3); }
-  } catch(e) { results.test3_error = e.message; }
+    var r = await fetch(url);
+    results.status = r.status;
+    results.url_used = url;
+    if (r.ok) {
+      var d = await r.json();
+      results.top_keys = Object.keys(d);
+      var recs = d.DisasterDeclarationsSummaries || [];
+      results.count = recs.length;
+      results.sample = recs.slice(0,2).map(function(r) { return { disasterNumber: r.disasterNumber, state: r.state, declarationTitle: r.declarationTitle, declarationDate: r.declarationDate, declarationType: r.declarationType }; });
+    } else {
+      var t = await r.text();
+      results.error_body = t.slice(0,300);
+    }
+  } catch(e) { results.error = e.message; }
   results.timestamp = new Date().toISOString();
   return res.status(200).json(results);
 }
