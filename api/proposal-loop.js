@@ -65,40 +65,49 @@ export default async function handler(req, res) {
     var bMatch = beforeScore.match(/SCORE:\s*(\d+)/i);
     R.before_score = bMatch ? parseInt(bMatch[1]) : 0;
     R.steps.push('scored_before');
-    // STEP 2: Identify weakest section, rewrite ONLY that section, splice back in
-    var identifyPrompt = '=== QUALITY GATE FINDINGS ===\n' + gateText.slice(0,2500) + '\n\n=== PROPOSAL AGENT IMPROVEMENTS ===\n' + propText.slice(0,2500) + '\n\nWhich single section of the proposal scored lowest and has the highest point impact if improved? Return ONLY one of: A1|A2|A3|B|C|D1|D2|D3|D4|D5|D6|D7|E|F|G\nFirst line MUST be: WEAKEST: [section code]';
-    var weakest = await sonnet('Identify the single weakest proposal section by evaluator point impact.', identifyPrompt, 200);
-    var wMatch = weakest.match(/WEAKEST:\s*(\S+)/i);
-    var targetSection = wMatch ? wMatch[1].trim() : 'D1';
-    R.target_section = targetSection;
-    R.steps.push('identified_weakest');
-    // Extract that section from the draft
-    var sectionMap = {'A1':'A.1','A2':'A.2','A3':'A.3','B':'B.','C':'C.','D':'D.','D1':'D.1','D2':'D.2','D3':'D.3','D4':'D.4','D5':'D.5','D6':'D.6','D7':'D.7','E':'E.','F':'F.','G':'G.'};
-    var sectionLabel = sectionMap[targetSection] || 'D.';
-    var sIdx = draft.indexOf('**' + sectionLabel);
-    if (sIdx === -1) sIdx = draft.indexOf(sectionLabel);
-    if (sIdx === -1) { R.errors.push({step:'section_not_found',section:targetSection}); return res.status(200).json(R); }
-    // Find end marker based on whether this is a major section or subsection
-    var isSubsection = targetSection.length > 1 && targetSection.charAt(1) >= '0' && targetSection.charAt(1) <= '9';
-    var sEnd = draft.length;
-    if (isSubsection) {
-      // Subsection: D1 ends at D.2, D2 ends at D.3, etc.
-      var subNum = parseInt(targetSection.slice(1));
-      var nextSub = targetSection.charAt(0) + '.' + (subNum + 1);
-      sEnd = draft.indexOf('**' + nextSub, sIdx + 10);
-      if (sEnd === -1) {
-        // Last subsection — end at next major section
-        var nextLetters = {A:'B',B:'C',C:'D',D:'E',E:'F',F:'G',G:'Required'};
-        var endM = nextLetters[targetSection.charAt(0)] || 'Required';
-        sEnd = draft.indexOf('**' + endM, sIdx + 10);
-      }
-    } else {
-      // Major section: D ends at E, A ends at B, etc.
-      var nextLetters2 = {A:'B',B:'C',C:'D',D:'E',E:'F',F:'G',G:'Required'};
-      var endM2 = nextLetters2[targetSection] || 'Required';
-      sEnd = draft.indexOf('**' + endM2, sIdx + 10);
+    // STEP 2: Identify weakest section dynamically from THIS draft's actual structure
+    // Extract all section headers from the draft — works for ANY RFP structure, not just A-G
+    var headerMatches = [];
+    var headerRegex = /^\*\*([^\n*]{3,80})\*\*/gm;
+    var hm;
+    while ((hm = headerRegex.exec(draft)) !== null) {
+      headerMatches.push({ header: hm[1].trim(), index: hm.index });
     }
-    if (sEnd === -1) sEnd = draft.length;
+    // Fallback: look for numbered or lettered headers without bold markers
+    if (headerMatches.length < 2) {
+      var altRegex = /^(#{1,3}\s+.{3,80}|[A-Z][\w\s]{3,60}:?$|\d+\.\s+[A-Z].{3,60})/gm;
+      while ((hm = altRegex.exec(draft)) !== null) {
+        headerMatches.push({ header: hm[1].trim().replace(/^#+\s+/,''), index: hm.index });
+      }
+    }
+    R.sections_found = headerMatches.length;
+    // Ask AI to identify weakest section using actual section names from this draft
+    var sectionList = headerMatches.slice(0, 20).map(function(h, i) { return i + ': ' + h.header; }).join('\n');
+    var identifyPrompt = '=== DRAFT SECTIONS IN THIS PROPOSAL ===\n' + sectionList + '\n\n=== QUALITY GATE FINDINGS ===\n' + gateText.slice(0,2000) + '\n\n=== PROPOSAL AGENT IMPROVEMENTS ===\n' + propText.slice(0,2000) + '\n\nWhich section number (from the list above) scored lowest and has the highest point impact if improved?\nFirst line MUST be: WEAKEST_INDEX: [number]\nSecond line MUST be: WEAKEST_HEADER: [exact header text from the list]';
+    var weakest = await sonnet('Identify the single weakest proposal section by evaluator point impact. Use ONLY section numbers from the provided list.', identifyPrompt, 200);
+    var wIdxMatch = weakest.match(/WEAKEST_INDEX:\s*(\d+)/i);
+    var wHdrMatch = weakest.match(/WEAKEST_HEADER:\s*(.+)/i);
+    var targetIdx = wIdxMatch ? parseInt(wIdxMatch[1]) : 0;
+    var targetHeader = wHdrMatch ? wHdrMatch[1].trim() : (headerMatches.length > 0 ? headerMatches[0].header : '');
+    R.target_section = targetHeader;
+    R.steps.push('identified_weakest');
+    // Extract section using found header positions — works for any structure
+    var sIdx = -1;
+    var sEnd = draft.length;
+    if (targetIdx < headerMatches.length) {
+      sIdx = headerMatches[targetIdx].index;
+      // End at next section header, or end of draft
+      if (targetIdx + 1 < headerMatches.length) {
+        sEnd = headerMatches[targetIdx + 1].index;
+      }
+    }
+    if (sIdx === -1) {
+      // Last fallback: search for the header text directly
+      var searchFor = '**' + targetHeader + '**';
+      sIdx = draft.indexOf(searchFor);
+      if (sIdx === -1) sIdx = draft.indexOf(targetHeader);
+    }
+    if (sIdx === -1) { R.errors.push({step:'section_not_found', section:targetHeader, sections_found:headerMatches.length}); return res.status(200).json(R); }
     var originalSection = draft.slice(sIdx, sEnd);
     R.original_section_chars = originalSection.length;
     // Rewrite just this section
