@@ -20,12 +20,14 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   var R = { started: new Date().toISOString(), agents: [], errors: [] };
   try {
-    var opps = await (await fetch(SB + '/rest/v1/opportunities?status=eq.active&stage=eq.proposal&opi_score=gte.65&select=id,title,agency,opi_score,scope_analysis,financial_analysis,research_brief,staffing_plan,capture_action&order=opi_score.desc&limit=1', { headers: H })).json();
-    if (!opps || !opps.length) return res.status(200).json({ note: 'No proposal-stage opp' });
-    var opp = opps[0];
+    var opps = await (await fetch(SB + '/rest/v1/opportunities?status=eq.active&stage=in.(proposal,pursuing)&opi_score=gte.65&select=id,title,agency,opi_score,scope_analysis,financial_analysis,research_brief,staffing_plan,capture_action&order=opi_score.desc&limit=2', { headers: H })).json();
+    if (!opps || !opps.length) return res.status(200).json({ note: 'No active proposal/pursuing opps' });
+    // Process highest-priority opp that has a draft
+    var opp = null;
+    for (var oi = 0; oi < opps.length; oi++) { if ((opps[oi].staffing_plan||'').length >= 200) { opp = opps[oi]; break; } }
+    if (!opp) return res.status(200).json({ note: 'No opp with draft', opps: opps.map(function(o){return o.title;}) });
     R.opp = opp.title;
     R.draft = (opp.staffing_plan||'').length;
-    if (R.draft < 200) return res.status(200).json({ note: 'No draft', opp: opp.title });
     var ctx = '=== ' + opp.title + ' | ' + opp.agency + ' | OPI ' + opp.opi_score + ' ===\n' + (opp.scope_analysis||'').slice(0,4000) + '\n---\n' + (opp.staffing_plan||'').slice(0,12000) + '\n---\n' + (opp.capture_action||'').slice(0,1000) + '\n---\n' + (opp.financial_analysis||'').slice(0,1500);
     R.ctx = ctx.length;
     var g = await sonnet('Senior proposal compliance reviewer. Score like a real evaluator — specific sections, specific points at risk, specific gaps. Your first line MUST be: VERDICT: [score]/100 | [GO or NO-GO]', ctx + '\n\nSCORE EACH CRITERION 1-10. List ALL gaps. First line MUST be: VERDICT: XX/100 | GO or NO-GO', 1500);
