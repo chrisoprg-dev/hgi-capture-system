@@ -435,8 +435,23 @@ export default async function handler(req, res) {
   html += '<div class="callout"><div class="callout-l">Key Differentiator</div>';
   html += '<div class="callout-t">HGI has delivered <strong>zero misappropriation across '+D+'13 billion+</strong> in federal program funds \u2014 an unmatched compliance record spanning nearly a century of fiduciary service.</div></div>';
 
+  // Inject contextual photo after callout — complements text, does not replace it
+  if (sectionImg1) html += imgTag(sectionImg1, agency+' program context', 200, agency+' \u2014 '+vertTitle);
+
   // THE FULL PROPOSAL — every word preserved, visuals injected inline
   html += proposalHTML;
+
+  // Inject field work photo after approach section if found
+  if (sectionImg2) {
+    var approachIdx = html.indexOf('Approach');
+    if (approachIdx > -1) {
+      var approachInsert = html.indexOf('</h2></div>', approachIdx);
+      if (approachInsert > -1) {
+        var ai = approachInsert + '</h2></div>'.length;
+        html = html.slice(0, ai) + imgTag(sectionImg2, 'Field assessment', 180, 'FEMA PA field operations \u2014 damage assessment \u2014 project worksheet development') + html.slice(ai);
+      }
+    }
+  }
 
   // CORPORATE PROFILE at end
   html += '<div class="page-break"></div>';
