@@ -9,7 +9,7 @@ function getCSTDateStr() { return new Date(Date.now() - 6 * 3600000).toISOString
 
 function logCost(inTok, outTok) {
   var cost = inTok * 0.000003 + outTok * 0.000015;
-  fetch(SB + '/rest/v1/hunt_runs', { method: 'POST', headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ id: 'cost-rt-' + Date.now(), source: 'api_cost', status: JSON.stringify({ agent: 'red_team', model: 'claude-sonnet-4-20250514', input_tokens: inTok, output_tokens: outTok, cost_usd: cost, endpoint: 'red-team' }), run_at: new Date().toISOString(), opportunities_found: 0 }) }).catch(function() {});
+  fetch(SB + '/rest/v1/hunt_runs', { method: 'POST', headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ id: 'cost-rt-' + Date.now(), source: 'api_cost', status: JSON.stringify({ agent: 'red_team', model: 'claude-sonnet-4-6', input_tokens: inTok, output_tokens: outTok, cost_usd: cost, endpoint: 'red-team' }), run_at: new Date().toISOString(), opportunities_found: 0 }) }).catch(function() {});
 }
 
 async function storeMemory(oppId, agency, observation) {
