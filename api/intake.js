@@ -414,7 +414,7 @@ export default async function handler(req, res) {
     if (t.match(/workers.comp|tpa|claims.admin|guaranty|insurance|liability/)) return "tpa";
     if (t.match(/tax.appeal|property.tax|ad.valorem|billing.dispute|utility/)) return "appeals";
     if (t.match(/workforce|unemployment|job.training|wioa|career/)) return "workforce";
-    if (t.match(/health|medicaid|public.health|hhs|nursing/)) return "health";
+    if (t.match(/medicaid|behavioral.health|substance.abuse|eating.disorder|cancer.surveillance|clinical.services/)) return "health";
     if (t.match(/construction|infrastructure|transit|capital.program/)) return "construction";
     if (t.match(/federal|pbgc|pension|trust.admin/)) return "federal";
     return "general";
