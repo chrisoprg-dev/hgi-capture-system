@@ -15,8 +15,9 @@ export default async function handler(req, res) {
   try {
     var url = BASE + target;
     var opts = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
-    if (target === 'quality-gate' && oppId) {
+    if ((target === 'quality-gate' || target === 'generate-doc') && oppId) {
       opts.body = JSON.stringify({ opportunity_id: oppId });
+      if (target === 'generate-doc') url = url + '?opp=' + encodeURIComponent(oppId);
     } else if (target === 'organism-work' || target === 'organism-think') {
       opts.body = JSON.stringify({ trigger: 'mcp_manual' });
     } else {
