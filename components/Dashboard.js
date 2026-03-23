@@ -171,27 +171,37 @@ function Dashboard({ setActive }) {
         ))}
       </div>
 
-      {(selfAssess||registry)&&(
+      {registry&&(
         React.createElement('div',{style:{marginBottom:20}},
-          React.createElement('div',{className:'card',style:{background:BG2,border:'1px solid '+GOLD+'33',borderRadius:8,padding:'16px 20px'}},
-            React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}},
+          React.createElement('div',{style:{background:BG2,border:'1px solid '+GOLD+'33',borderRadius:8,padding:'16px 20px'}},
+            React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}},
               React.createElement('div',{style:{color:GOLD,fontWeight:700,fontSize:13,letterSpacing:'0.08em'}},'\uD83E\uDDE0 ORGANISM STATUS'),
-              registry&&React.createElement('div',{style:{display:'flex',gap:8}},
+              React.createElement('div',{style:{display:'flex',gap:8}},
                 React.createElement('span',{style:{background:GREEN+'22',color:GREEN,padding:'2px 8px',borderRadius:4,fontSize:11,fontWeight:700}},registry.summary.live+' LIVE'),
                 React.createElement('span',{style:{background:ORANGE+'22',color:ORANGE,padding:'2px 8px',borderRadius:4,fontSize:11,fontWeight:700}},registry.summary.partial+' PARTIAL'),
                 React.createElement('span',{style:{background:TEXT_D+'22',color:TEXT_D,padding:'2px 8px',borderRadius:4,fontSize:11,fontWeight:700}},registry.summary.planned+' PLANNED')
               )
             ),
-            registry&&React.createElement('div',{style:{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}},
-              registry.agents.map(function(a){return React.createElement('div',{key:a.id,title:a.name+': '+a.notes,style:{width:10,height:10,borderRadius:2,background:a.status==='live'?GREEN:a.status==='partial'?ORANGE:BORDER}});})
+            React.createElement('div',{style:{display:'flex',gap:5,marginBottom:12,flexWrap:'wrap'}},
+              registry.agents.map(function(a){
+                return React.createElement('div',{key:a.id,title:a.name+' ('+a.status+'): '+a.notes,style:{width:11,height:11,borderRadius:2,background:a.status==='live'?GREEN:a.status==='partial'?ORANGE:BORDER}});
+              })
             ),
-            selfAssess&&selfAssess.assessment&&React.createElement('div',null,
-              React.createElement('div',{style:{color:TEXT,fontSize:13,lineHeight:1.7,maxHeight:120,overflow:'hidden',whiteSpace:'pre-wrap'}},
-                (selfAssess.assessment.assessment||'').split('\n').slice(0,8).join('\n')
+            recentMemory.length > 0 ? React.createElement('div',null,
+              React.createElement('div',{style:{color:TEXT_D,fontSize:10,fontWeight:700,letterSpacing:'0.06em',marginBottom:8}},'RECENT AGENT ACTIVITY'),
+              React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:4}},
+                recentMemory.slice(0,5).map(function(m,i){
+                  var agentColor = m.memory_type==='competitive_intel'?ORANGE:m.memory_type==='winnability'?GREEN:m.memory_type==='pricing_benchmark'?GOLD:BLUE;
+                  var timeAgo = m.created_at ? (function(){ var mins=Math.floor((Date.now()-new Date(m.created_at))/60000); return mins<60?mins+'m ago':Math.floor(mins/60)+'h ago'; })() : '';
+                  return React.createElement('div',{key:i,style:{display:'flex',alignItems:'flex-start',gap:8,padding:'5px 8px',background:BG3,borderRadius:4,border:'1px solid '+BORDER}},
+                    React.createElement('div',{style:{color:agentColor,fontSize:10,fontWeight:700,flexShrink:0,minWidth:130}},(m.agent||'').replace(/_/g,' ').toUpperCase()),
+                    React.createElement('div',{style:{color:TEXT_D,fontSize:11,flex:1,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}},(m.observation||'').slice(0,120)),
+                    React.createElement('div',{style:{color:TEXT_D,fontSize:10,flexShrink:0,marginLeft:8}},timeAgo)
+                  );
+                })
               ),
-              React.createElement('div',{style:{color:TEXT_D,fontSize:10,marginTop:8}},'Last assessed: '+new Date(selfAssess.generated_at).toLocaleString())
-            ),
-            !selfAssess&&React.createElement('div',{style:{color:TEXT_D,fontSize:12}},'No self-assessment yet. The organism has not checked itself.')
+              React.createElement('div',{style:{color:TEXT_D,fontSize:10,marginTop:6}},recentMemory.length+' memories stored · Last run: '+(recentMemory[0]&&recentMemory[0].created_at?new Date(recentMemory[0].created_at).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):' unknown'))
+            ) : React.createElement('div',{style:{color:TEXT_D,fontSize:12}},'No agent activity yet. Run Think Now to generate organism intelligence.')
           )
         )
       )}
