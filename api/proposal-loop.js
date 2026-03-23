@@ -138,6 +138,19 @@ export default async function handler(req, res) {
       R.action = 'APPLIED';
       R.steps.push('draft_updated');
       await mem('proposal_loop', opp.id, opp.agency + ',proposal_loop,improvement', 'PROPOSAL LOOP APPLIED: Score ' + R.before_score + ' -> ' + R.after_score + ' (+' + R.score_delta + '). Draft updated from ' + R.draft_chars + ' to ' + R.improved_chars + ' chars. Section improved: ' + R.target_section + '.', 'pattern');
+      // Auto-generate Word doc after every successful improvement
+      try {
+        var docR = await fetch('https://hgi-capture-system.vercel.app/api/generate-doc?opp=' + encodeURIComponent(opp.id));
+        if (docR.ok) {
+          var docD = await docR.json();
+          R.doc_generated = docD.success || false;
+          R.doc_url = docD.download_url || null;
+          R.doc_sections = docD.sections_parsed || 0;
+          R.steps.push('docx_generated');
+        } else {
+          R.errors.push({ step: 'doc_gen', status: docR.status });
+        }
+      } catch(docErr) { R.errors.push({ step: 'doc_gen', msg: docErr.message }); }
     } else {
       // Score dropped or draft shrunk — store in memory but do NOT overwrite
       R.action = 'REVERTED';
