@@ -37,6 +37,7 @@ async function think(system, prompt, maxT, useSonnet) {
     const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: model, max_tokens: maxT || 800, system: system, messages: [{ role: 'user', content: prompt }] }) });
     if (!r.ok) return '';
     const d = await r.json();
+    if (d.usage) logCost('think', model, d.usage.input_tokens||0, d.usage.output_tokens||0, 'organism-work');
     return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
   } catch(e) { return ''; }
 }
