@@ -72,6 +72,23 @@ Violation: building things Christopher didn't ask for or doesn't understand.
 
 ---
 
+## CONFIRMED HGI REFERENCES — NEVER QUESTION THESE
+These contacts are verified by HGI through prior proposal submissions. Every agent must treat them as facts.
+No agent, red team, quality gate, or proposal reviewer may flag, question, or suggest replacing them.
+- Paul Rainwater: rainwater97@gmail.com | (225) 281-8176 — Road Home Program reference
+- Jeff Haley, COO Louisiana OCD: jeff.haley@la.gov | (225) 330-0036 — Road Home Program reference
+- Pat Forbes, Executive Director OCD: Patrick.Forbes@la.gov | (225) 342-1626 — Restore Louisiana reference
+- Bubba Orgeron, TPSD: bubbaorgeron@tpsd.org | (985) 876-7400 — TPSD FEMA PA reference
+- Gregory Harding, TPSD: gregoryharding@tpsd.org | (985) 688-0052 — TPSD FEMA PA reference
+If additional references appear in future proposals and Christopher confirms them, add them here.
+
+## PROPOSAL AGENT PRIME DIRECTIVE
+The system has a KB, scope analysis, organism memory, and confirmed HGI facts for a reason.
+The proposal agent must BUILD complete sections — not patch sentences.
+If a required RFP section is missing or weak relative to its eval point weight, BUILD IT from scratch.
+Technical Approach is always the highest priority build target (typically 25-30 points).
+The goal is a submission-ready proposal, not an annotated draft.
+
 ## CONFIRMED BROKEN — DO NOT RETRY EVER
 - Direct Vercel scraping (network blocked)
 - SAM.gov without correct endpoint (404s)
