@@ -77,8 +77,11 @@ export default async function handler(req, res) {
     R.draft = (opp.staffing_plan||'').length;
 
     // Load organism memory for this opp
-    var mems = await (await fetch(SB + '/rest/v1/organism_memory?opportunity_id=eq.' + encodeURIComponent(opp.id) + '&memory_type=neq.decision_point&order=created_at.desc&limit=12&select=agent,observation', { headers: H })).json();
+    var mems = await (await fetch(SB + '/rest/v1/organism_memory?opportunity_id=eq.' + encodeURIComponent(opp.id) + '&memory_type=neq.decision_point&order=created_at.desc&limit=20&select=agent,observation,memory_type', { headers: H })).json();
     var memCtx = (mems||[]).map(function(m) { return '[' + m.agent + ']: ' + (m.observation||'').slice(0, 350); }).join('\n\n');
+    // Gate-specific memory — full detail on competitive intel, research, winnability, red team
+    var GATE_TYPES = ['competitive_intel','analysis','winnability','pattern'];
+    var gateMemCtx = (mems||[]).filter(function(m) { return GATE_TYPES.indexOf(m.memory_type||'') !== -1; }).map(function(m) { return '[' + m.agent + ' | ' + (m.memory_type||'') + ']:\n' + (m.observation||'').slice(0, 600); }).join('\n\n---\n\n');
 
     var ctx = '=== ' + opp.title + ' | ' + opp.agency + ' | OPI ' + opp.opi_score + ' ===\n' +
       (opp.scope_analysis||'').slice(0,4000) + '\n---\n' +
