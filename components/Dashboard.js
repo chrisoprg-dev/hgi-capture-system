@@ -43,19 +43,25 @@ function Dashboard({ setActive }) {
   const executeDecision = async function(dp) {
     if (!dp.action_endpoint || executing) return;
     setExecuting(dp.id);
+    // Long-running endpoints (orchestrate = 300s) fire-and-forget with 8s timeout.
+    // AbortError means it started and is running in background — not a failure.
+    var ctrl = new AbortController();
+    var tmo = setTimeout(function() { ctrl.abort(); }, 8000);
     try {
-      const r = await fetch(dp.action_endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dp.action_payload || {}) });
-      const d = await r.json();
-      if (d.error || d.skipped) {
-        alert('Execution error: ' + (d.error || d.reason || 'unknown error') + '\n\nDecision was NOT dismissed.');
+      await fetch(dp.action_endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dp.action_payload || {}), signal: ctrl.signal });
+      clearTimeout(tmo);
+    } catch(err) {
+      clearTimeout(tmo);
+      if (err.name !== 'AbortError') {
+        // Real network failure — not just a timeout
+        alert('Failed to start: ' + err.message);
         setExecuting(null);
         return;
       }
-      alert('Done: ' + dp.title + '\nCompleted: ' + (d.steps_completed || []).join(', '));
-      await dismissDecision(dp.id);
-    } catch(err) {
-      alert('Failed: ' + err.message);
+      // AbortError = timed out = running in background — this is expected and correct
     }
+    alert('Started: ' + dp.title + '\n\nRunning in background. Check pipeline in 2-3 minutes for results.');
+    await dismissDecision(dp.id);
     setExecuting(null);
   };
 
