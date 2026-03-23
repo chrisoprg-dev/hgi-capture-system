@@ -249,7 +249,7 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                         }
                         // Use parsed agency if available
                         if (extractData.parsed && extractData.parsed.agency) {
-                            agency = extractData.parsed.agency;
+                            extractedAgency = extractData.parsed.agency;
                         }
                     } else {
                         const errBody = await extractRes.text();
