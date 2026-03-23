@@ -59,6 +59,14 @@ export default async function handler(req, res) {
       if (m.agent === 'red_team' && !redText) redText = (m.observation||'').slice(0,2500);
     }
     if (!gateText && !propText && !redText) return res.status(200).json({ note: 'No Sonnet findings yet', opp: opp.title });
+    // Extract red team's adversarial HGI score — more reliable than self-scoring
+    var redTeamScore = null;
+    if (redText) {
+      var rtMatch = redText.match(/TOTALS[^\n]*\n[^\n]*HGI:\s*(\d+)\s*\/\s*100/i);
+      if (!rtMatch) rtMatch = redText.match(/HGI:\s*(\d+)\s*\/\s*100/i);
+      if (rtMatch) redTeamScore = parseInt(rtMatch[1]);
+    }
+    R.red_team_score = redTeamScore;
     R.gate_chars = gateText.length;
     R.prop_chars = propText.length;
     // STEP 1: Score current draft
