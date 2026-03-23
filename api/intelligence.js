@@ -108,13 +108,16 @@ export default async function handler(req, res) {
 
   try {
     // Pull full pipeline state
-    const [opportunities, recentHunts, femaDeclarations] = await Promise.allSettled([
+    const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
+    const [opportunities, recentHunts, femaDeclarations, lapacStatus] = await Promise.allSettled([
       sbGet('opportunities?status=eq.active&order=opi_score.desc&limit=50'),
-      sbGet('hunt_runs?order=run_at.desc&limit=20'),
+      sbGet('hunt_runs?order=run_at.desc&limit=50'),
       fetch("https://www.fema.gov/api/open/v2/disasterDeclarationsSummaries?$orderby=declarationDate%20desc&$top=5&$filter=stateCode%20in%20('LA','TX','FL','MS','AL','GA')")
         .then(r => r.ok ? r.json() : { DisasterDeclarationsSummaries: [] })
         .then(d => d.DisasterDeclarationsSummaries || [])
-        .catch(() => [])
+        .catch(() => []),
+      APIFY_TOKEN ? fetch('https://api.apify.com/v2/acts/hVmvojDyPeJ799Suf/runs/last?token=' + APIFY_TOKEN)
+        .then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null)
     ]);
 
     const opps = opportunities.status === 'fulfilled' ? opportunities.value || [] : [];
