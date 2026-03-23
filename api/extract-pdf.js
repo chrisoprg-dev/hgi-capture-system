@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         max_tokens: 1000,
         messages: [{
           role: 'user',
-          content: 'Extract key procurement details from this RFP text: title, issuing agency, deadline/due date, scope of work summary, key requirements. Return as plain text, concise.\n\n' + textForClaude
+          content: 'Extract procurement details from this government RFP/solicitation text. Return in EXACTLY this format with no markdown headers or extra formatting:\nTITLE: [exact solicitation title]\nAGENCY: [issuing agency name]\nDEADLINE: [due date if found, or NONE]\nSCOPE: [1-2 sentence scope summary]\nKEY REQUIREMENTS: [comma-separated key requirements]\n\nIMPORTANT: The TITLE line must contain the actual name of the solicitation, not a generic label. If no clear title, use the solicitation/bid number.\n\n' + textForClaude
         }]
       })
     });
