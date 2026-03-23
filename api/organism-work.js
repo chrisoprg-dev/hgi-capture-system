@@ -32,7 +32,7 @@ async function webSearch(query) {
   } catch(e) { return ''; }
 }
 async function think(system, prompt, maxT, useSonnet) {
-  var model = useSonnet ? 'claude-sonnet-4-20250514' : 'claude-haiku-4-5-20251001';
+  var model = useSonnet ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: model, max_tokens: maxT || 800, system: system, messages: [{ role: 'user', content: prompt }] }) });
     if (!r.ok) return '';
