@@ -88,7 +88,7 @@ export default async function handler(req, res) {
     R.ctx = ctx.length;
 
     // === AGENT 1: QUALITY GATE (Sonnet 4.6) ===
-    var g = await sonnet('Senior proposal compliance reviewer. Score like a real evaluator — specific sections, specific points at risk, specific gaps. Your first line MUST be: VERDICT: [score]/100 | [GO or NO-GO]', ctx + '\n\nSCORE EACH CRITERION 1-10. List ALL gaps. First line MUST be: VERDICT: XX/100 | GO or NO-GO', 1500);
+    var g = await sonnet('Senior proposal compliance reviewer. Read the eval criteria in THIS RFP scope analysis. Score each criterion exactly as this client will score it — by the actual point weights in this solicitation. Do not apply generic section labels or assume standard formats. Your first line MUST be: VERDICT: [score]/100 | [GO or NO-GO]', ctx + '\n\nRead the evaluation criteria in the scope analysis above. For each criterion listed with its point value: score the current draft 1-10, identify exactly what is missing or weak, state how many points are at risk. First line MUST be: VERDICT: XX/100 | GO or NO-GO', 1500);
     var gateVerdict = 'unknown';
     if (g.length > 80 && !g.startsWith('API_ERR') && !g.startsWith('ERR:')) {
       await mem('quality_gate', opp.id, opp.agency+',quality_gate', 'SONNET GATE:\n'+g, 'analysis');
