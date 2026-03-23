@@ -21,6 +21,18 @@ export default async function handler(req, res) {
     if (!opps || !opps.length) return res.status(404).json({ error: 'Opportunity not found' });
     var opp = opps[0];
 
+    // Load organism memory for this opportunity
+    var memCtx = '';
+    try {
+      var memR = await fetch(SB + '/rest/v1/organism_memory?opportunity_id=eq.' + encodeURIComponent(opportunity_id) + '&order=created_at.desc&limit=10&select=agent,observation', { headers: H });
+      var mems = await memR.json();
+      if (mems && mems.length) {
+        memCtx = '\nORGANISM INTELLIGENCE:\n';
+        for (var mi = 0; mi < mems.length; mi++) {
+          memCtx += '[' + (mems[mi].agent||'') + ']: ' + (mems[mi].observation||'').slice(0,400) + '\n';
+        }
+      }
+    } catch(e) {}
     var rfpText = (opp.rfp_text || '').slice(0, 6000);
     var submission = (opp.staffing_plan || '').slice(0, 6000);
     var description = (opp.description || '').slice(0, 1000);
