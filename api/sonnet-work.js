@@ -82,7 +82,7 @@ export default async function handler(req, res) {
 
     var ctx = '=== ' + opp.title + ' | ' + opp.agency + ' | OPI ' + opp.opi_score + ' ===\n' +
       (opp.scope_analysis||'').slice(0,4000) + '\n---\n' +
-      (opp.staffing_plan||'').slice(0,12000) + '\n---\n' +
+      (opp.staffing_plan||'').slice(0,22000) + '\n---\n' +
       (opp.capture_action||'').slice(0,1000) + '\n---\n' +
       (opp.financial_analysis||'').slice(0,1500);
     R.ctx = ctx.length;
