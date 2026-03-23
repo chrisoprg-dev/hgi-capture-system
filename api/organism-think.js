@@ -16,6 +16,13 @@ async function sbGet(path) {
 function makeId() {
   return 'om-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
 }
+function getCSTDate() {
+  // CST = UTC-6. Vercel runs UTC — offset so Claude sees Christopher's local date.
+  return new Date(Date.now() - 6 * 3600000);
+}
+function getCSTDateStr() {
+  return getCSTDate().toISOString().slice(0, 10);
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
