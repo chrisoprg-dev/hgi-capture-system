@@ -44,6 +44,7 @@
     "api/proposal-loop.js": { "maxDuration": 300 },
     "api/run.js": { "maxDuration": 300 },
     "api/cost-monitor.js": { "maxDuration": 30 },
+    "api/red-team.js": { "maxDuration": 300 },
     "api/chat-context.js": { "maxDuration": 30 },
     "api/proposal-graphics.js": { "maxDuration": 60 }
   },
