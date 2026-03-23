@@ -218,9 +218,9 @@ async function agentOppBrief(opp, ctx) {
 }
 
 async function agentDiscovery(memText) {
-  var web = await webSearch('Louisiana government professional services procurement 2026 disaster recovery FEMA CDBG-DR housing new RFP solicitation pre-solicitation vendor conference');
-  var a = await think('HGI discovery agent. Find pre-solicitation signals and new opportunity sources. HGI works through state/local only — never direct federal.',
-    'WEB SCAN:\n' + (web||'(no results)').slice(0,2000) + '\nACTIVE SOURCES: Central Bidding, LaPAC, FEMA, Grants.gov. MISSING: LA Housing Corp, SAM.gov, parish minutes.\nMEMORY:\n' + memText.slice(0,800) + '\nFind: (1) Pre-solicitation signals — budget discussions, vendor days (2) New agencies HGI should watch (3) Market signals LA/TX/FL/MS (4) Source gaps competitors monitor that HGI misses.',
+  var web = await webSearch('Louisiana Texas Florida Mississippi Alabama Georgia government procurement 2026 RFP solicitation TPA claims administration program management workforce disaster recovery housing settlement mediation staff augmentation new vendor conference pre-solicitation');
+  var a = await think('HGI discovery agent. Find pre-solicitation signals and new opportunity sources across ALL HGI business lines. HGI works through state/local only — never direct federal. HGI does: disaster recovery, TPA/claims, property tax appeals, workforce, construction management, housing/HUD, grant management, mediation, class action settlement admin, staff augmentation, call centers, DEI consulting, self-insured claims, risk management.',
+    'WEB SCAN:\n' + (web||'(no results)').slice(0,2000) + '\nACTIVE SOURCES: Central Bidding, LaPAC, Grants.gov. GEOGRAPHY: LA, TX, FL, MS, AL, GA.\nMEMORY:\n' + memText.slice(0,800) + '\nFind: (1) Pre-solicitation signals across ALL HGI verticals — not just disaster (2) New agencies and insurance entities HGI should watch in TX/FL/MS/AL/GA (3) Market signals — TPA awards, settlement administration bids, workforce programs, housing authority solicitations (4) Source gaps — what portals carry TPA/insurance/settlement/workforce RFPs that HGI currently misses?',
     800);
   if (!a || a.length < 80) return null;
   await storeMemory('discovery_agent', null, 'discovery,pre_solicitation,market_signals', 'DISCOVERY:\n'+a, 'pattern');
