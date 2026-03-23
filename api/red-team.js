@@ -66,19 +66,25 @@ export default async function handler(req, res) {
       '=== ORGANISM INTELLIGENCE ===\n' + (memCtx || '(none yet)') + '\n\n' +
       '=== RED TEAM SIMULATION INSTRUCTIONS ===\n' +
       'You are a panel of 3 senior government proposal evaluators. Score this RFP competitively.\n\n' +
-      'KNOWN COMPETITORS:\n' +
-      '- CDR Maguire: Louisiana-dominant FEMA PA firm, deep GOHSEP relationships, strong technical methodology, aggressive pricing\n' +
-      '- Tetra Tech/AMR: National firm, deep FEMA relationships, strong brand, high overhead, less Louisiana-specific\n' +
-      '- IEM: Louisiana-based, FEMA PA experience, smaller bench than HGI\n\n' +
-      'TASK: For each eval criterion, score HGI and each competitor 0-100% of available points. Show your math.\n\n' +
+      'COMPETITORS: Use the organism intelligence and competitive research above to identify who will actually bid on THIS specific opportunity. ' +
+      'If no specific competitors are found in memory, research the most likely firms for this vertical and agency based on the scope. ' +
+      'Do NOT assume disaster recovery competitors (CDR Maguire, Tetra Tech, IEM) unless this is actually a disaster recovery bid. ' +
+      'For TPA/claims bids: Sedgwick, Gallagher Bassett, Broadspire, York Risk, CCMSI. ' +
+      'For settlement/class action: Epiq, JND Legal, Rust Consulting, Kroll. ' +
+      'For workforce: Equus, ResCare/BrightSpring, EDSI. ' +
+      'For property tax: Ryan LLC, Paradigm Tax Group, Invoke Tax. ' +
+      'For housing/HUD: Nan McKay, Quadel, The Nelrod Company. ' +
+      'For construction management: Hill International, Arcadis, Jacobs, WSP. ' +
+      'Name 2-3 actual competitors for THIS bid based on vertical and scope.\n\n' +
+      'TASK: For each eval criterion, score HGI and each identified competitor 0-100% of available points. Show your math.\n\n' +
       'OUTPUT FORMAT — follow exactly:\n\n' +
       'SCORE MATRIX\n' +
       '[criterion name] ([points available]):\n' +
-      '  HGI: [score]/[max] — [1 sentence why]\n  CDR Maguire: [score]/[max] — [1 sentence why]\n' +
-      '  Tetra Tech: [score]/[max] — [1 sentence why]\n' +
-      '  IEM: [score]/[max] — [1 sentence why]\n\n' +
+      '  HGI: [score]/[max] — [1 sentence why]\n' +
+      '  [Competitor 1 name]: [score]/[max] — [1 sentence why]\n' +
+      '  [Competitor 2 name]: [score]/[max] — [1 sentence why]\n\n' +
       'TOTALS:\n' +
-      '  HGI: [total]/100 | CDR Maguire: [total]/100 | Tetra Tech: [total]/100 | IEM: [total]/100\n\n' +
+      '  HGI: [total]/100 | [Competitor 1]: [total]/100 | [Competitor 2]: [total]/100\n\n'+
       'PWIN: [X]% (based on score differential and competitive field)\n\n' +
       'HGI GAPS — ordered by point impact (highest first):\n' +
       'For each gap where HGI is losing points vs competitors:\n' +
