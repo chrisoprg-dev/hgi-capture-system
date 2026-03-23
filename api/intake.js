@@ -9,9 +9,11 @@ Core capabilities:
 - TPA/Claims Administration: Workers Comp TPA, Property & Casualty TPA, Insurance Guaranty Associations. Past: TPCIGA 20+ years Texas, LIGA Louisiana
 - Property Tax Appeals: 10+ year history City of New Orleans. Proven recurring-revenue model replicable to any city/parish/county
 - Workforce & Social Services: Louisiana Workforce Commission, unemployment adjudication, case management, benefits administration
-- Health & Human Services: Louisiana Department of Health, public health program admin, claims processing, compliance monitoring
+- Housing/HUD: Housing authority program management, HUD compliance, HMGP housing recovery
+- Grant Management: Federal/state grant administration, financial compliance, reporting
 - Infrastructure & Capital Programs: Transit authorities, construction management, financial oversight, HUD/DOT/FTA program admin
 - Federal Programs: PBGC 34M beneficiaries, HUD, FEMA, Treasury ERAP-type programs, federal claims administration
+NOT HGI: Medicaid, health insurance, behavioral health, substance abuse treatment, public health, clinical services, eating disorders, cancer programs
 Geography: Louisiana (ALL parishes + municipal), Texas, Florida, Mississippi, Alabama, Georgia, Federal
 Key NAICS: 541611, 541690, 561110, 561990, 524291, 923120, 921190
 Small/mid contracts: HGI actively pursues contracts under $500K if recurring or strategic`;
