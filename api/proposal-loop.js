@@ -15,10 +15,21 @@ async function sonnet(system, prompt, maxT) {
     return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
   } catch(e) { return 'ERR: ' + e.message; }
 }
+function getCSTDateStr() { return new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10); }
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
   var R = { started: new Date().toISOString(), steps: [], errors: [] };
+  // DAILY RUN GUARD — one run per day CST. Prevents accidental double-spend from manual triggers.
+  var force = (req.query && req.query.force === 'true');
+  if (!force) {
+    try {
+      var todayCST = getCSTDateStr();
+      var recent = await (await fetch(SB + '/rest/v1/hunt_runs?source=eq.proposal_loop&order=run_at.desc&limit=5', { headers: H })).json();
+      var ranToday = (recent||[]).some(function(r) { return (r.run_at||'').slice(0,10) === todayCST && (r.status||'').indexOf('error') === -1; });
+      if (ranToday) return res.status(200).json({ skipped: true, reason: 'Already ran today CST (' + todayCST + '). Use ?force=true to override.' });
+    } catch(e) {}
+  }
   try {
     // Load highest-priority proposal-stage opp
     var opps = await (await fetch(SB + '/rest/v1/opportunities?status=eq.active&stage=eq.proposal&opi_score=gte.65&select=id,title,agency,opi_score,scope_analysis,staffing_plan,capture_action,financial_analysis&order=opi_score.desc&limit=1', { headers: H })).json();
