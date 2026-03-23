@@ -133,7 +133,7 @@ export default async function handler(req, res) {
     R.improved_chars = improved.length;
     R.steps.push('rewritten');
     // STEP 3: Score improved draft
-    var afterPrompt = '=== IMPROVED DRAFT ===\n' + improved.slice(0,15000) + '\n\n=== SCOPE/EVAL CRITERIA ===\n' + (opp.scope_analysis||'').slice(0,4000) + '\n\nScore this proposal 0-100 as a real evaluator would. First line MUST be: SCORE: XX/100. Then 2 sentences why.';
+    var afterPrompt = '=== IMPROVED DRAFT ===\n' + improved.slice(0,22000) + '\n\n=== SCOPE/EVAL CRITERIA ===\n' + (opp.scope_analysis||'').slice(0,4000) + '\n\nScore this proposal 0-100 as a real evaluator would. First line MUST be: SCORE: XX/100. Then 2 sentences why.';
     var afterScore = await sonnet('Senior government proposal evaluator. Score ruthlessly. First line: SCORE: XX/100', afterPrompt, 500);
     var aMatch = afterScore.match(/SCORE:\s*(\d+)/i);
     R.after_score = aMatch ? parseInt(aMatch[1]) : 0;
