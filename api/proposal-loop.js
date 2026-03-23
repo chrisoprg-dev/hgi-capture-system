@@ -48,13 +48,38 @@ export default async function handler(req, res) {
     var bMatch = beforeScore.match(/SCORE:\s*(\d+)/i);
     R.before_score = bMatch ? parseInt(bMatch[1]) : 0;
     R.steps.push('scored_before');
-    // STEP 2: Rewrite weakest sections using gate + proposal findings
-    var rewritePrompt = '=== CURRENT PROPOSAL DRAFT ===\n' + draft.slice(0,15000) + '\n\n=== QUALITY GATE FINDINGS ===\n' + gateText.slice(0,2500) + '\n\n=== PROPOSAL AGENT IMPROVEMENTS ===\n' + propText.slice(0,2500) + '\n\n=== WINNABILITY ASSESSMENT ===\n' + winText.slice(0,1500) + '\n\n=== SCOPE/EVAL CRITERIA ===\n' + (opp.scope_analysis||'').slice(0,3000) + '\n\nYou are rewriting this proposal to score higher. You have the quality gate deficiencies and the proposal agent improvements above.\n\nRULES:\n1. Output the COMPLETE improved proposal — every section, not just changed parts\n2. Preserve ALL [ACTION REQUIRED] flags exactly as they appear\n3. Preserve the version header but update it: [ORGANISM DRAFT v3 — Improved from WORKING DRAFT v2]\n4. Preserve all rates, personnel names, contact info, exhibit listings exactly\n5. Rewrite ONLY the sections the gate and proposal agent identified as weak\n6. Make Technical Approach (Section D) more St. George-specific per gate findings\n7. Strengthen competitive differentiation language per winnability assessment\n8. Do NOT remove any content — only improve existing content\n9. Do NOT add fabricated past performance, personnel, or claims\n10. Keep the same section structure A through G plus Exhibits\n\nOutput the complete improved proposal now.';
-    var improved = await sonnet('Senior government proposal writer. You are improving an existing draft using specific findings from quality gate and proposal improvement agents. Preserve everything that works. Fix only what the agents identified as weak. Output the COMPLETE proposal.', rewritePrompt, 8000);
-    if (improved.length < 1000 || improved.startsWith('API_ERR') || improved.startsWith('ERR:')) {
-      R.errors.push({ step: 'rewrite', msg: improved.slice(0,200) });
+    // STEP 2: Identify weakest section, rewrite ONLY that section, splice back in
+    var identifyPrompt = '=== QUALITY GATE FINDINGS ===\n' + gateText.slice(0,2500) + '\n\n=== PROPOSAL AGENT IMPROVEMENTS ===\n' + propText.slice(0,2500) + '\n\nWhich single section of the proposal scored lowest and has the highest point impact if improved? Return ONLY one of: A1|A2|A3|B|C|D1|D2|D3|D4|D5|D6|D7|E|F|G\nFirst line MUST be: WEAKEST: [section code]';
+    var weakest = await sonnet('Identify the single weakest proposal section by evaluator point impact.', identifyPrompt, 200);
+    var wMatch = weakest.match(/WEAKEST:\s*(\S+)/i);
+    var targetSection = wMatch ? wMatch[1].trim() : 'D1';
+    R.target_section = targetSection;
+    R.steps.push('identified_weakest');
+    // Extract that section from the draft
+    var sectionMap = {'A1':'A.1','A2':'A.2','A3':'A.3','B':'B.','C':'C.','D1':'D.1','D2':'D.2','D3':'D.3','D4':'D.4','D5':'D.5','D6':'D.6','D7':'D.7','E':'E.','F':'F.','G':'G.'};
+    var sectionLabel = sectionMap[targetSection] || 'D.';
+    var sIdx = draft.indexOf('**' + sectionLabel);
+    if (sIdx === -1) sIdx = draft.indexOf(sectionLabel);
+    if (sIdx === -1) { R.errors.push({step:'section_not_found',section:targetSection}); return res.status(200).json(R); }
+    // Find end of section (next section header or end of draft)
+    var nextHeaders = ['**A.','**B.','**C.','**D.','**E.','**F.','**G.','**Required','**Insurance','**Exhibits'];
+    var sEnd = draft.length;
+    for (var nh = 0; nh < nextHeaders.length; nh++) {
+      var nIdx = draft.indexOf(nextHeaders[nh], sIdx + 10);
+      if (nIdx > sIdx && nIdx < sEnd) sEnd = nIdx;
+    }
+    var originalSection = draft.slice(sIdx, sEnd);
+    R.original_section_chars = originalSection.length;
+    // Rewrite just this section
+    var rewritePrompt = '=== SECTION TO IMPROVE ===\n' + originalSection.slice(0,6000) + '\n\n=== QUALITY GATE FINDINGS ===\n' + gateText.slice(0,2000) + '\n\n=== PROPOSAL AGENT IMPROVEMENTS ===\n' + propText.slice(0,2000) + '\n\n=== WINNABILITY ASSESSMENT ===\n' + winText.slice(0,1000) + '\n\n=== SCOPE/EVAL CRITERIA ===\n' + (opp.scope_analysis||'').slice(0,2000) + '\n\nRewrite this section to score higher. RULES:\n1. Keep the same section header and structure\n2. Preserve ALL [ACTION REQUIRED] flags exactly\n3. Preserve all rates, names, contact info, credentials exactly\n4. Make it more specific to the agency and RFP requirements\n5. Strengthen competitive differentiation\n6. Add quantified evidence where the gate found gaps\n7. Do NOT fabricate past performance or claims\n8. Output ONLY the improved section — nothing before or after it';
+    var improvedSection = await sonnet('Senior proposal writer rewriting one section to maximize evaluator score. Output ONLY the improved section text.', rewritePrompt, 4000);
+    if (improvedSection.length < 200 || improvedSection.startsWith('API_ERR') || improvedSection.startsWith('ERR:')) {
+      R.errors.push({ step: 'rewrite', msg: improvedSection.slice(0,200) });
       return res.status(200).json(R);
     }
+    R.improved_section_chars = improvedSection.length;
+    // Splice improved section back into full draft
+    var improved = draft.slice(0, sIdx) + improvedSection + draft.slice(sEnd);
     R.improved_chars = improved.length;
     R.steps.push('rewritten');
     // STEP 3: Score improved draft
