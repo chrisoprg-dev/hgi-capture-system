@@ -2,7 +2,7 @@ export const config = { maxDuration: 300 };
 // Internal endpoint runner — allows MCP fetch_source_page (GET only) to trigger POST endpoints
 // Usage: /api/run?target=proposal-loop or /api/run?target=sonnet-work
 // Only whitelisted targets allowed for safety
-const WHITELIST = ['proposal-loop','sonnet-work','organism-work','organism-think','quality-gate','chat-context','generate-doc'];
+const WHITELIST = ['proposal-loop','sonnet-work','organism-work','organism-think','quality-gate','chat-context','generate-doc','rebuild-apify'];
 const BASE = 'https://hgi-capture-system.vercel.app/api/';
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
