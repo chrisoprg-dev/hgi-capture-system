@@ -1,15 +1,7 @@
 // api/hunt.js — HGI Automated Hunt Engine
 export const config = { maxDuration: 60 };
 
-const HGI_CONTEXT = `Hammerman & Gainer LLC (HGI) — 95 years.
-- Disaster Recovery: CDBG-DR, FEMA PA, HMGP, BRIC. Past: Road Home $12B, Restore Louisiana, BP GCCF 1M+ claims
-- TPA/Claims: Workers Comp TPA, P&C, Insurance Guaranty. Past: TPCIGA 20yrs Texas, LIGA Louisiana
-- Property Tax Appeals: 10+ years City of New Orleans
-- Workforce: Louisiana Workforce Commission, unemployment adjudication, benefits admin
-- Health: LDH, public health program admin, case processing
-- Infrastructure: Transit, construction management, capital program oversight
-- Federal: PBGC 34M beneficiaries, HUD, FEMA, Treasury ERAP-type
-NAICS: 541611, 541690, 561110, 561990, 524291, 923120, 921190`;
+import { HGI_CONTEXT, HGI_KEYWORDS, HGI_CLASSIFICATION_GUIDE } from './hgi-master-context.js';
 
 function getToday() { return new Date().toISOString().split("T")[0]; }
 function getDaysAgo(n) { const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().split("T")[0]; }
