@@ -10,6 +10,7 @@ function Dashboard({ setActive }) {
   const [decExpanded, setDecExpanded] = useState({});
   const [thinkRunning, setThinkRunning] = useState(false);
   const [lastThink, setLastThink] = useState(null);
+  const [recentMemory, setRecentMemory] = useState([]);
 
   const greeting = () => { const h=new Date().getHours(); return h<12?'Good morning':h<17?'Good afternoon':'Good evening'; };
 
