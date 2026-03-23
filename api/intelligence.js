@@ -325,20 +325,58 @@ export default async function handler(req, res) {
         const days = o.last_updated ? Math.floor((now - new Date(o.last_updated)) / (1000*60*60*24)) : 999;
         return days > 7 && (o.opi_score || 0) >= 60;
       }).length,
-      last_scraper_run: hunts.find(h => h.source === 'apify_batch')?.run_at || null,
+      last_scraper_run: hunts.find(h => h.source === 'apify_batch' || h.source === 'apify_central_bidding')?.run_at || null,
       new_today: opps.filter(o => (now - new Date(o.discovered_at)) < 24*60*60*1000).length,
       // Scraper deep stats — real data from hunt_runs
-      scraper_batches_today: hunts.filter(h => h.source === 'apify_batch' && (now - new Date(h.run_at)) < 86400000).length,
-      scraper_batches_total: hunts.filter(h => h.source === 'apify_batch').length,
-      scraper_last_batch_scanned: (() => { const latest = hunts.find(h => h.source === 'apify_batch'); return latest ? (latest.scanned || latest.opportunities_found || 0) : 0; })(),
-      scraper_rfps_reviewed_today: (() => { const apifyToday = hunts.filter(h => h.source === 'apify_batch' && (now - new Date(h.run_at)) < 86400000); return apifyToday.reduce((sum, h) => sum + (h.scanned || h.opportunities_found || 0), 0); })(),
-      scraper_net_new_today: (() => { const apifyToday = hunts.filter(h => h.source === 'apify_batch' && (now - new Date(h.run_at)) < 86400000); return apifyToday.reduce((sum, h) => sum + (h.net_new || h.opportunities_new || 0), 0); })(),
+      scraper_batches_today: hunts.filter(h => (h.source === 'apify_batch' || h.source === 'apify_central_bidding') && (now - new Date(h.run_at)) < 86400000).length,
+      scraper_batches_total: hunts.filter(h => h.source === 'apify_batch' || h.source === 'apify_central_bidding').length,
+      scraper_last_batch_scanned: (() => { const latest = hunts.find(h => h.source === 'apify_batch' || h.source === 'apify_central_bidding'); return latest ? (latest.scanned || latest.opportunities_found || 0) : 0; })(),
+      scraper_rfps_reviewed_today: (() => { const t = hunts.filter(h => (h.source === 'apify_batch' || h.source === 'apify_central_bidding') && (now - new Date(h.run_at)) < 86400000); return t.reduce((s, h) => s + (h.scanned || h.opportunities_found || 0), 0); })(),
+      scraper_net_new_today: (() => { const t = hunts.filter(h => (h.source === 'apify_batch' || h.source === 'apify_central_bidding') && (now - new Date(h.run_at)) < 86400000); return t.reduce((s, h) => s + (h.net_new || h.opportunities_new || 0), 0); })(),
       scraper_total_categories: 479,
-      scraper_categories_covered: (() => { const latest = hunts.find(h => h.source === 'apify_batch'); return latest ? (latest.scanned || latest.opportunities_found || 0) : 0; })(),
+      scraper_categories_covered: (() => { const latest = hunts.find(h => h.source === 'apify_batch' || h.source === 'apify_central_bidding'); return latest ? (latest.scanned || latest.opportunities_found || 0) : 0; })(),
       opportunities_filtered_today: 0,
       opportunities_active_today: opps.filter(o => (now - new Date(o.discovered_at)) < 86400000 && o.status === 'active').length,
       opportunities_pending_review: opps.filter(o => o.status === 'active' && (!o.stage || o.stage === 'identified')).length,
-      top_verticals_today: (() => { const v = {}; opps.forEach(o => { if(o.vertical) v[o.vertical] = (v[o.vertical]||0)+1; }); return Object.entries(v).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,n])=>k+':'+n).join(', ') || 'none'; })()
+      top_verticals_today: (() => { const v = {}; opps.forEach(o => { if(o.vertical) v[o.vertical] = (v[o.vertical]||0)+1; }); return Object.entries(v).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,n])=>k+':'+n).join(', ') || 'none'; })(),
+      // Multi-scraper sources for dashboard display
+      scraper_sources: [
+        {
+          name: 'Central Bidding',
+          schedule: 'Every 6 min',
+          last_run: hunts.find(h => h.source === 'apify_batch' || h.source === 'apify_central_bidding')?.run_at || null,
+          runs_today: hunts.filter(h => (h.source === 'apify_batch' || h.source === 'apify_central_bidding') && (now - new Date(h.run_at)) < 86400000).length,
+          status: (() => { const r = hunts.find(h => h.source === 'apify_batch' || h.source === 'apify_central_bidding'); return r && (now - new Date(r.run_at)) < 1200000 ? 'live' : r ? 'delayed' : 'unknown'; })()
+        },
+        {
+          name: 'LaPAC',
+          schedule: 'On demand',
+          last_run: lapacRun ? (lapacRun.data ? lapacRun.data.finishedAt || lapacRun.data.startedAt : null) : null,
+          runs_today: 0,
+          status: lapacRun && lapacRun.data && lapacRun.data.status === 'SUCCEEDED' ? 'live' : 'unknown'
+        },
+        {
+          name: 'Grants.gov',
+          schedule: '4x daily',
+          last_run: hunts.find(h => h.source === 'grants_gov')?.run_at || null,
+          runs_today: hunts.filter(h => h.source === 'grants_gov' && (now - new Date(h.run_at)) < 86400000).length,
+          status: (() => { const r = hunts.find(h => h.source === 'grants_gov'); return r && (now - new Date(r.run_at)) < 21600000 ? 'live' : r ? 'scheduled' : 'unknown'; })()
+        },
+        {
+          name: 'Alabama',
+          schedule: '2x daily',
+          last_run: hunts.find(h => h.source === 'scrape_alabama')?.run_at || null,
+          runs_today: hunts.filter(h => h.source === 'scrape_alabama' && (now - new Date(h.run_at)) < 86400000).length,
+          status: 'setup'
+        },
+        {
+          name: 'Georgia GPR',
+          schedule: '2x daily',
+          last_run: hunts.find(h => h.source === 'scrape_georgia')?.run_at || null,
+          runs_today: hunts.filter(h => h.source === 'scrape_georgia' && (now - new Date(h.run_at)) < 86400000).length,
+          status: 'setup'
+        }
+      ]
     };
 
     // Sort actions by priority then urgency
