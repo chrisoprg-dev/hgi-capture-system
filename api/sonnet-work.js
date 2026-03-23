@@ -189,10 +189,30 @@ async function runOpp(opp, R) {
       }
     }
 
+  } catch(e) { oppR.errors.push({fatal:e.message}); }
+  return oppR;
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  var R = { started: new Date().toISOString(), opps_processed: [], errors: [] };
+  try {
+    var allOpps = await (await fetch(SB + '/rest/v1/opportunities?status=eq.active&stage=in.(proposal,pursuing)&opi_score=gte.65&select=id,title,agency,vertical,opi_score,scope_analysis,financial_analysis,research_brief,staffing_plan,capture_action&order=opi_score.desc&limit=5', { headers: H })).json();
+    if (!allOpps || !allOpps.length) return res.status(200).json({ note: 'No active proposal/pursuing opps' });
+    var oppsWithDraft = allOpps.filter(function(o) { return (o.staffing_plan||'').length >= 200; });
+    if (!oppsWithDraft.length) return res.status(200).json({ note: 'No opps with draft', titles: allOpps.map(function(o){return o.title;}) });
+    R.total_opps = oppsWithDraft.length;
+    // Sequential loop — each opp gets full gate+winnability+Opus cycle
+    for (var oi = 0; oi < oppsWithDraft.length; oi++) {
+      var oppResult = await runOpp(oppsWithDraft[oi], R);
+      R.opps_processed.push(oppResult);
+    }
   } catch(e) { R.errors.push({fatal:e.message}); }
-
-  try { await fetch(SB+'/rest/v1/hunt_runs', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({id:'hr-sonnet-'+Date.now(), source:'sonnet_work', status: R.agents.length+'/3 agents | '+R.errors.length+' errors | web:'+R.web_searches+' kb:'+R.kb_chars, run_at: new Date().toISOString(), opportunities_found: 0}) }); } catch(e) {}
-
+  try {
+    var totalAgents = R.opps_processed.reduce(function(s,o){ return s+(o.agents||[]).length; }, 0);
+    await fetch(SB+'/rest/v1/hunt_runs', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({id:'hr-sonnet-'+Date.now(), source:'sonnet_work', status: totalAgents+' agents | '+R.opps_processed.length+' opps | '+R.errors.length+' errors', run_at: new Date().toISOString(), opportunities_found: 0}) });
+  } catch(e) {}
   R.completed = new Date().toISOString();
   return res.status(200).json(R);
 }
