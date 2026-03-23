@@ -152,7 +152,7 @@ export default async function handler(req, res) {
     });
     if (cr.ok) {
       const cd = await cr.json();
-      if (cd.usage) logCost('organism_think', 'claude-sonnet-4-20250514', cd.usage.input_tokens||0, cd.usage.output_tokens||0, 'organism-think');
+      if (cd.usage) logCost('organism_think', 'claude-sonnet-4-6', cd.usage.input_tokens||0, cd.usage.output_tokens||0, 'organism-think');
       const text = (cd.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
       const match = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
       if (match) {
