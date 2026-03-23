@@ -40,8 +40,8 @@ export default async function handler(req, res) {
     // FEMA OpenFEMA API — disasters declared in last 14 days in target states
     // Major disaster declarations only (DR type)
     var cutoff = new Date(Date.now() - 14 * 24 * 3600000).toISOString().slice(0, 10);
-    var stateFilter = TARGET_STATES.map(function(s) { return "state eq '" + s + "'"; }).join(' or ');
-    var femaUrl = 'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries?$filter=declarationType%20eq%20%27DR%27%20and%20(' + encodeURIComponent(stateFilter) + ')%20and%20declarationDate%20gt%20%27' + cutoff + '%27&$orderby=declarationDate%20desc&$top=20';
+    var stateFilter = TARGET_STATES.map(function(s) { return 'state%20eq%20%27' + s + '%27'; }).join('%20or%20');
+    var femaUrl = 'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries?$filter=declarationType%20eq%20%27DR%27%20and%20(' + stateFilter + ')%20and%20declarationDate%20gt%20%27' + cutoff + '%27&$orderby=declarationDate%20desc&$top=20';
 
     var femaR = await fetch(femaUrl);
     if (!femaR.ok) {
