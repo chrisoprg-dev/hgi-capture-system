@@ -127,7 +127,7 @@ async function agentFinancial(opp, ctx) {
 
 async function agentResearch(opp, ctx) {
   var doWeb = await shouldWebSearch('research_analysis');
-  var web = doWeb ? await webSearch((opp.agency||'') + ' ' + (opp.vertical||'disaster recovery') + ' evaluation criteria best practices winning proposal strategies government RFP 2024 2025') : '';
+  var web = doWeb ? await webSearch((opp.agency||'') + ' ' + (opp.vertical||'professional services') + ' ' + (opp.title||'').slice(0,60) + ' evaluation criteria best practices winning proposal strategies government RFP 2025 2026') : '';
   var webCtx = (web && web.length > 30) ? ('\nWEB RESEARCH FINDINGS:\n' + web.slice(0,1500)) : '';
   var a = await think(
     'You are a strategic capture advisor who combines deep domain expertise with competitive intelligence to build win strategies. You have the full proposal draft, scope, research brief, financials, organism memory, AND fresh web intelligence. Your recommendations must be specific enough to act on — reference exact proposal sections, exact eval criteria point values, exact competitor names.',
