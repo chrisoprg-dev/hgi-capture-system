@@ -12,6 +12,7 @@ async function sonnet(system, prompt, maxT) {
     var r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxT || 4000, system: system, messages: [{ role: 'user', content: prompt }] }) });
     if (!r.ok) return 'API_ERR_' + r.status;
     var d = await r.json();
+    if (d.usage) logCost('proposal_loop', 'claude-sonnet-4-20250514', d.usage.input_tokens||0, d.usage.output_tokens||0, 'proposal-loop');
     return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
   } catch(e) { return 'ERR: ' + e.message; }
 }
