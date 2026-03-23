@@ -126,7 +126,8 @@ Agency: ${opp.agency}
 State: ${opp.state||"Federal"}
 Due: ${opp.due_date||"Unknown"}
 Description: ${(opp.description||opp.rfp_text||"").slice(0,2000)}
-HGI: ${HGI_CONTEXT}
+HGI COMPLETE PROFILE: ${HGI_CONTEXT}
+SUB-VERTICAL CLASSIFICATION: ${HGI_CLASSIFICATION_GUIDE}
 
 Return ONLY:
 {"vertical":"disaster|tpa|workforce|health|infrastructure|tax_appeals|federal","opiScore":0-100,"urgency":"IMMEDIATE|ACTIVE|PIPELINE|WATCH","strategicImportance":"TIER_1|TIER_2|TIER_3","hgiRelevance":"HIGH|MEDIUM|LOW","hgiFit":"string","whyHgiWins":["a","b","c"],"keyRequirements":["a","b"],"scopeOfWork":["a","b","c","d"],"captureAction":"string","incumbent":"","recompete":false,"description":"string"}`;
