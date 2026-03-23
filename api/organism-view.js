@@ -13,6 +13,16 @@ async function loadTable(table, limit, order) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+
+  // JSON mode: ?json=1 — returns recent organism_memory for dashboard display
+  if (req.query && req.query.json === '1') {
+    try {
+      var r = await fetch(SB + '/rest/v1/organism_memory?memory_type=neq.decision_point&order=created_at.desc&limit=20&select=id,agent,memory_type,observation,created_at,opportunity_id', { headers: H });
+      var mems = r.ok ? await r.json() : [];
+      return res.status(200).json({ memories: mems, count: mems.length });
+    } catch(e) { return res.status(200).json({ memories: [], error: e.message }); }
+  }
+
   res.setHeader('Content-Type', 'text/html');
 
   var ci = await loadTable('competitive_intelligence', 50);
