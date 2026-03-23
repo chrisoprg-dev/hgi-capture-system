@@ -220,7 +220,7 @@ async function agentDiscovery(memText) {
 }
 
 async function agentPipelineScanner(activeOpps, memText) {
-  var today = new Date();
+  var today = getCSTDate();
   var health = activeOpps.map(function(o) { var d = o.due_date ? Math.ceil((new Date(o.due_date)-today)/86400000) : null; return o.title+'|Stage:'+(o.stage||'?')+'|Days:'+(d!==null?d:'?')+'|OPI:'+o.opi_score+'|Proposal:'+(o.staffing_plan||'').length+'chars'; }).join('\n');
   var agencies = activeOpps.map(function(o){return o.agency||'';}).filter(function(a){return a;}).join(' OR ');
   var web = ''; // cost gated
