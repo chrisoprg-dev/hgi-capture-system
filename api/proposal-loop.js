@@ -50,6 +50,7 @@ export default async function handler(req, res) {
     var gateText = '';
     var propText = '';
     var winText = '';
+    var redText = '';
     for (var i = 0; i < (mems||[]).length; i++) {
       var m = mems[i];
       if (m.agent === 'quality_gate' && !gateText) gateText = (m.observation||'').slice(0,3000);
