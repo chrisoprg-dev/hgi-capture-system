@@ -1,49 +1,8 @@
 export const maxDuration = 300;
 
-const OPI_SCORING_PROMPT = `You are scoring government contracting opportunities for HGI (a consulting firm). Score each opportunity 0-100 based on how well it matches HGI's service verticals.
+import { HGI_CONTEXT, HGI_CLASSIFICATION_GUIDE } from './hgi-master-context.js';
 
-SCORING INSTRUCTIONS:
-- Analyze the ENTIRE opportunity including title, description, and rfp_text content
-- Do NOT just score based on title alone - read all available content
-- Score based on alignment with HGI's core verticals
-
-HIGH SCORING OPPORTUNITIES (60-95 points):
-- CDBG (Community Development Block Grant) administration, compliance, monitoring
-- FEMA disaster recovery, hazard mitigation, grant management
-- Grant management and administration services
-- Program administration and oversight
-- Third Party Administrator (TPA) services
-- Claims processing and administration
-- Workforce development programs
-- Property tax appeals and assessments
-- Housing rehabilitation program management
-- Environmental review services
-- Compliance monitoring and reporting
-
-MEDIUM SCORING OPPORTUNITIES (30-59 points):
-- General consulting that could include HGI verticals
-- Program evaluation that might involve grants/disaster recovery
-- Administrative services that could encompass HGI areas
-
-LOW SCORING OPPORTUNITIES (0-29 points):
-- Construction and infrastructure projects
-- Supply procurement and purchasing
-- Equipment and materials acquisition
-- Physical construction services
-- Engineering and design services
-- IT hardware/software procurement
-- Vehicle and equipment purchases
-- General construction management without program administration focus
-
-SCORING GUIDANCE:
-- 90-95: Perfect match for core HGI services (CDBG admin, FEMA recovery, TPA services)
-- 80-89: Strong match with clear HGI vertical alignment
-- 70-79: Good match with some HGI service components
-- 60-69: Moderate match, could involve HGI services
-- 30-59: Weak match, minimal HGI alignment
-- 0-29: Poor match, primarily construction/procurement
-
-Return only the numeric score (0-100).`;
+const OPI_SCORING_PROMPT = 'You are scoring government contracting opportunities for HGI. Score each opportunity 0-100 based on how well it matches HGI capabilities.\n\nAnalyze the ENTIRE opportunity — title, description, rfp_text. Do NOT score on title alone.\n\n' + HGI_CLASSIFICATION_GUIDE + '\n\nSCORING GUIDANCE:\n- 90-95: Perfect match — HGI has direct past performance in this exact work type\n- 80-89: Strong match — HGI capabilities directly apply\n- 70-79: Good match — clear vertical alignment\n- 60-69: Moderate match — adjacent HGI capabilities\n- 30-59: Weak match — minimal HGI alignment\n- 0-29: Poor match — physical construction, IT, health, insurance brokerage, or other excluded work\n\nReturn only the numeric score (0-100).';
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
