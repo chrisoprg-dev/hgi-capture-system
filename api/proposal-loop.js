@@ -56,18 +56,20 @@ export default async function handler(req, res) {
     R.target_section = targetSection;
     R.steps.push('identified_weakest');
     // Extract that section from the draft
-    var sectionMap = {'A1':'A.1','A2':'A.2','A3':'A.3','B':'B.','C':'C.','D1':'D.1','D2':'D.2','D3':'D.3','D4':'D.4','D5':'D.5','D6':'D.6','D7':'D.7','E':'E.','F':'F.','G':'G.'};
+    // Major sections: A, B, C, D, E, F, G. Subsections: A1=A.1, D1=D.1 etc.
+    var sectionMap = {'A1':'A.1','A2':'A.2','A3':'A.3','B':'B.','C':'C.','D':'D.','D1':'D.1','D2':'D.2','D3':'D.3','D4':'D.4','D5':'D.5','D6':'D.6','D7':'D.7','E':'E.','F':'F.','G':'G.'};
     var sectionLabel = sectionMap[targetSection] || 'D.';
     var sIdx = draft.indexOf('**' + sectionLabel);
     if (sIdx === -1) sIdx = draft.indexOf(sectionLabel);
     if (sIdx === -1) { R.errors.push({step:'section_not_found',section:targetSection}); return res.status(200).json(R); }
-    // Find end of section (next section header or end of draft)
-    var nextHeaders = ['**A.','**B.','**C.','**D.','**E.','**F.','**G.','**Required','**Insurance','**Exhibits'];
-    var sEnd = draft.length;
-    for (var nh = 0; nh < nextHeaders.length; nh++) {
-      var nIdx = draft.indexOf(nextHeaders[nh], sIdx + 10);
-      if (nIdx > sIdx && nIdx < sEnd) sEnd = nIdx;
-    }
+    // Find end: next MAJOR section letter (not subsection of same letter)
+    // If targeting D or D1-D7, end at E. If targeting A or A1-A3, end at B. etc.
+    var majorLetter = targetSection.charAt(0);
+    var nextLetters = {A:'B',B:'C',C:'D',D:'E',E:'F',F:'G',G:'Required'};
+    var endMarker = nextLetters[majorLetter] || 'Required';
+    var sEnd = draft.indexOf('**' + endMarker, sIdx + 10);
+    if (sEnd === -1) sEnd = draft.indexOf(endMarker + '.', sIdx + 10);
+    if (sEnd === -1) sEnd = draft.length;
     var originalSection = draft.slice(sIdx, sEnd);
     R.original_section_chars = originalSection.length;
     // Rewrite just this section
