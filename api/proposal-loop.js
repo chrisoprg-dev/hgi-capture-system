@@ -16,6 +16,11 @@ async function sonnet(system, prompt, maxT) {
   } catch(e) { return 'ERR: ' + e.message; }
 }
 function getCSTDateStr() { return new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10); }
+function logCost(agent, model, inTok, outTok, endpoint) {
+  var p = model.indexOf('sonnet') !== -1 ? { in: 0.000003, out: 0.000015 } : { in: 0.00000025, out: 0.00000125 };
+  var cost = inTok * p.in + outTok * p.out;
+  fetch(SB + '/rest/v1/hunt_runs', { method: 'POST', headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ id: 'cost-' + Date.now() + '-' + Math.random().toString(36).slice(2,6), source: 'api_cost', status: JSON.stringify({ agent: agent, model: model, input_tokens: inTok, output_tokens: outTok, cost_usd: cost, endpoint: endpoint || 'proposal-loop' }), run_at: new Date().toISOString(), opportunities_found: 0 }) }).catch(function() {});
+}
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
