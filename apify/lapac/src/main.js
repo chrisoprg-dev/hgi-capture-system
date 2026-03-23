@@ -383,8 +383,11 @@ log('Starting LaPAC Playwright scraper');
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 log('Browser launched');
 
-// 8 high-yield keywords covering all HGI verticals — fits within 300s Apify timeout
+// 8 keywords covering ALL 8 HGI verticals — fits within 300s Apify timeout
 // Each ~30s = 240s total, leaving margin for PDF extraction
+// Verticals mapped: disaster recovery (1), TPA/claims (2,4), property tax (7),
+// workforce/WIOA (5 via program management overlap), construction mgmt (8),
+// program admin (5), housing/HUD (6), grant mgmt (3)
 const SEARCH_KEYWORDS = [
     'disaster recovery',
     'claims administration',
@@ -392,8 +395,8 @@ const SEARCH_KEYWORDS = [
     'workers compensation',
     'program management',
     'housing assistance',
-    'hazard mitigation',
-    'workforce development'
+    'property tax',
+    'construction management'
 ];
 
 const seenUrls = new Set();
