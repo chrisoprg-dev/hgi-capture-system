@@ -63,18 +63,8 @@ async function opusProposal(system, prompt) {
   } catch(e) { return 'ERR: ' + e.message; }
 }
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  var R = { started: new Date().toISOString(), agents: [], errors: [] };
-  try {
-    var opps = await (await fetch(SB + '/rest/v1/opportunities?status=eq.active&stage=in.(proposal,pursuing)&opi_score=gte.65&select=id,title,agency,vertical,opi_score,scope_analysis,financial_analysis,research_brief,staffing_plan,capture_action&order=opi_score.desc&limit=2', { headers: H })).json();
-    if (!opps || !opps.length) return res.status(200).json({ note: 'No active proposal/pursuing opps' });
-    var opp = null;
-    for (var oi = 0; oi < opps.length; oi++) { if ((opps[oi].staffing_plan||'').length >= 200) { opp = opps[oi]; break; } }
-    if (!opp) return res.status(200).json({ note: 'No opp with draft', opps: opps.map(function(o){return o.title;}) });
-    R.opp = opp.title;
-    R.draft = (opp.staffing_plan||'').length;
+async function runOpp(opp, R) {
+  var oppR = { opp: opp.title, draft: (opp.staffing_plan||'').length, agents: [], errors: [] };
 
     // Load organism memory for this opp
     var mems = await (await fetch(SB + '/rest/v1/organism_memory?opportunity_id=eq.' + encodeURIComponent(opp.id) + '&memory_type=neq.decision_point&order=created_at.desc&limit=20&select=agent,observation,memory_type', { headers: H })).json();
