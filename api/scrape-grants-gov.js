@@ -1,20 +1,9 @@
 export const config = { maxDuration: 60 };
+import { HGI_KEYWORDS } from './hgi-master-context.js';
 var INTAKE_URL = 'https://hgi-capture-system.vercel.app/api/intake';
 var GRANTS_API = 'https://api.grants.gov/v1/api/search2';
 var INTAKE_SECRET = process.env.INTAKE_SECRET;
-var KEYWORDS = [
-  'disaster recovery',
-  'CDBG-DR',
-  'FEMA public assistance',
-  'hazard mitigation',
-  'housing recovery',
-  'claims administration',
-  'grant management',
-  'program administration',
-  'workforce development',
-  'housing authority',
-  'community development'
-];
+var KEYWORDS = HGI_KEYWORDS;
 async function searchGrants(kw, debug) {
   try {
     var r = await fetch(GRANTS_API, {
