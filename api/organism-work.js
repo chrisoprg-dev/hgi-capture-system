@@ -4,6 +4,8 @@ const SK = process.env.SUPABASE_SERVICE_KEY;
 const AK = process.env.ANTHROPIC_API_KEY;
 const H = { 'apikey': SK, 'Authorization': 'Bearer ' + SK, 'Content-Type': 'application/json' };
 function makeId() { return 'om-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); }
+function getCSTDate() { return new Date(Date.now() - 6 * 3600000); }
+function getCSTDateStr() { return getCSTDate().toISOString().slice(0, 10); }
 async function sbGet(path) { try { const r = await fetch(SB + path, { headers: H }); if (!r.ok) return []; return await r.json(); } catch(e) { return []; } }
 async function storeMemory(agent, oppId, tags, observation, memType) {
   try { await fetch(SB + '/rest/v1/organism_memory', { method: 'POST', headers: Object.assign({}, H, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ id: makeId(), agent: agent, opportunity_id: oppId || null, entity_tags: tags, observation: observation, memory_type: memType || 'analysis', created_at: new Date().toISOString() }) }); } catch(e) {}
