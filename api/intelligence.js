@@ -1,3 +1,4 @@
+import { HGI_CONTEXT } from './hgi-master-context.js';
 export const config = { maxDuration: 120 };
 
 const SB = process.env.SUPABASE_URL;
