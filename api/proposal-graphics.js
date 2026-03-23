@@ -255,7 +255,29 @@ export default async function handler(req, res) {
   if (proposal.length < 100) return res.status(400).send('No proposal content. Run orchestrator first.');
   var dueDate = o.due_date ? new Date(o.due_date).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : 'TBD';
   var vertical = o.vertical || '';
+  var agency = o.agency || '';
+  var state = o.state || 'Louisiana';
   var vertTitle = vertical.includes('disaster')?'Disaster Recovery Program Management Services':vertical.includes('grant')?'Grant Management & Administration Services':'Professional Services';
+
+  // Fetch images in parallel — Pexels for photos, DALL-E for original cover art
+  var dallePrompt = 'Professional architectural illustration for a government proposal cover. '
+    + 'Depict: ' + agency + ' in ' + state + ', related to ' + vertTitle + '. '
+    + 'Style: cinematic aerial photography, golden hour lighting, photorealistic, high detail. '
+    + 'No text, no logos, no people in foreground. Wide landscape orientation.';
+
+  var pexelsQuery1 = agency + ' ' + state + ' community building';
+  var pexelsQuery2 = vertical.includes('disaster') ? 'disaster recovery community rebuilding' : vertical.includes('housing') ? 'affordable housing community neighborhood' : 'government program management professional';
+  var pexelsQuery3 = 'Louisiana bayou wetlands aerial landscape';
+
+  var [coverImg, sectionImg1, sectionImg2] = await Promise.all([
+    fetchPexelsImage(pexelsQuery3),
+    fetchPexelsImage(pexelsQuery2),
+    fetchPexelsImage('FEMA disaster recovery workers field assessment site')
+  ]);
+
+  // DALL-E cover — run separately, non-blocking fallback
+  var dalleImg = null;
+  try { dalleImg = await generateDalleImage(dallePrompt); } catch(e) {}
 
   // Render the FULL proposal as rich HTML — all text preserved
   var proposalHTML = markdownToHTML(proposal, vertical);
