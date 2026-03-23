@@ -308,7 +308,7 @@ async function agentExecBrief(activeOpps, memText) {
 async function agentDesign(activeOpps, memText) {
   var webCtx = ''; // cost gated — design agent uses memory + brand standards
   var a = await think('HGI design and visual agent. Every HGI output should look like it came from a firm that manages billion-dollar programs.',
-    'ACTIVE PROPOSALS:\n' + activeOpps.filter(function(o){ return (o.staffing_plan||'').length > 100; }).map(function(o){ return o.title+'|'+o.agency+'|Due:'+(o.due_date||'TBD'); }).join('\n') + '\nMEMORY:\n' + memText.slice(0,1000) + '\nAnalyze: (1) Visual structure that would impress evaluators for each active proposal (2) Sections needing tables, org charts, compliance matrices (3) Brand standards — gold/navy, professional typography (4) Visual differentiators vs CDR Maguire and Tetra Tech (5) Single highest-priority visual improvement.',
+    'ACTIVE PROPOSALS:\n' + activeOpps.filter(function(o){ return (o.staffing_plan||'').length > 100; }).map(function(o){ return o.title+'|'+o.agency+'|Due:'+(o.due_date||'TBD'); }).join('\n') + '\nMEMORY:\n' + memText.slice(0,1000) + '\nAnalyze: (1) Visual structure that would impress evaluators for each active proposal (2) Sections needing tables, org charts, compliance matrices, process diagrams (3) Brand standards — gold/navy, professional typography (4) Visual differentiators vs the specific competitors identified in organism memory for each opportunity (5) Single highest-priority visual improvement.',
     600);
   if (!a || a.length < 80) return null;
   await storeMemory('design_visual', null, 'visual,branding,format', 'DESIGN:\n'+a, 'pattern');
