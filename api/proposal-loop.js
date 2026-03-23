@@ -135,7 +135,7 @@ export default async function handler(req, res) {
       await fetch(SB + '/rest/v1/opportunities?id=eq.' + encodeURIComponent(opp.id), { method: 'PATCH', headers: H, body: JSON.stringify({ staffing_plan: improved, last_updated: new Date().toISOString() }) });
       R.action = 'APPLIED';
       R.steps.push('draft_updated');
-      await mem('proposal_loop', opp.id, opp.agency + ',proposal_loop,improvement', 'PROPOSAL LOOP APPLIED: Score ' + R.before_score + ' -> ' + R.after_score + ' (+' + R.score_delta + '). Draft updated from ' + R.draft_chars + ' to ' + R.improved_chars + ' chars. Key changes: addressed gate deficiencies in technical approach, strengthened competitive differentiation.', 'pattern');
+      await mem('proposal_loop', opp.id, opp.agency + ',proposal_loop,improvement', 'PROPOSAL LOOP APPLIED: Score ' + R.before_score + ' -> ' + R.after_score + ' (+' + R.score_delta + '). Draft updated from ' + R.draft_chars + ' to ' + R.improved_chars + ' chars. Section improved: ' + R.target_section + '.', 'pattern');
     } else {
       // Score dropped or draft shrunk — store in memory but do NOT overwrite
       R.action = 'REVERTED';
