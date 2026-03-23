@@ -231,10 +231,25 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                         const extractData = await extractRes.json();
                         extractedText = extractData.extractedText || '';
                         log('PDF extracted: ' + extractedText.length + ' chars');
-                        const firstLine = extractedText.split('\n').find(l => l.trim().length > 10);
-                        if (firstLine) extractedTitle = firstLine.trim().substring(0, 150);
-                        const deadlineMatch = extractedText.match(/(?:due date|deadline|closing date|submission deadline|proposals due)[:\s]+([^\n]{5,40})/i);
-                        if (deadlineMatch) extractedDeadline = deadlineMatch[1].trim();
+                        // Use structured parsed fields from extract-pdf when available
+                        if (extractData.parsed && extractData.parsed.title) {
+                            extractedTitle = extractData.parsed.title.substring(0, 150);
+                            log('Parsed title: ' + extractedTitle);
+                        } else {
+                            // Fallback: find first non-header line with substance
+                            const lines = extractedText.split('\n').filter(l => l.trim().length > 10 && !l.trim().startsWith('#') && !l.trim().startsWith('TITLE:') && !l.trim().startsWith('AGENCY:'));
+                            if (lines.length > 0) extractedTitle = lines[0].trim().substring(0, 150);
+                        }
+                        if (extractData.parsed && extractData.parsed.deadline) {
+                            extractedDeadline = extractData.parsed.deadline;
+                        } else {
+                            const deadlineMatch = extractedText.match(/(?:due date|deadline|closing date|submission deadline|proposals due)[:\s]+([^\n]{5,40})/i);
+                            if (deadlineMatch) extractedDeadline = deadlineMatch[1].trim();
+                        }
+                        // Use parsed agency if available
+                        if (extractData.parsed && extractData.parsed.agency) {
+                            agency = extractData.parsed.agency;
+                        }
                     } else {
                         const errBody = await extractRes.text();
                         log('extract-pdf failed: ' + extractRes.status + ' body: ' + errBody.substring(0, 300));
