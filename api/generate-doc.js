@@ -71,9 +71,11 @@ export default async function handler(req, res) {
     var currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     var truncTitle = title.length > 60 ? title.substring(0, 60) + '...' : title;
     var sections = parseSections(draft);
-    var preA = draft.split('**A.')[0] || '';
-    var tStart = preA.indexOf('Dear ');
-    var transmittal = tStart > -1 ? preA.substring(tStart).trim() : '';
+    // Find transmittal letter — content before first section header, if it contains 'Dear'
+    var firstSectionIdx = sections.length > 0 ? draft.indexOf('**' + sections[0].header + '**') : -1;
+    var preSection = firstSectionIdx > 0 ? draft.slice(0, firstSectionIdx) : '';
+    var tStart = preSection.indexOf('Dear ');
+    var transmittal = tStart > -1 ? preSection.substring(tStart).trim() : '';
     var children = [];
     children.push(
       new Paragraph({ spacing: { before: 2400 }, children: [] }),
