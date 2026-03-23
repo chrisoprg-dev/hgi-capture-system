@@ -40,7 +40,7 @@ async function webResearch(agency, title, state, description, opportunity_id) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         system: 'You are a government contracting intelligence analyst. Always search the web before answering. Never rely on training data for specific agency facts, incumbents, incorporation dates, or budgets. Be precise and cite what you found.',
