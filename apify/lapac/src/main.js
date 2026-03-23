@@ -397,6 +397,7 @@ const SEARCH_KEYWORDS = [
 ];
 
 const seenUrls = new Set();
+const startTime = Date.now();
 
 for (const keyword of SEARCH_KEYWORDS) {
     log('Searching keyword: ' + keyword);
