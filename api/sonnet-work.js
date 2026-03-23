@@ -160,6 +160,7 @@ export default async function handler(req, res) {
         '\nRead the eval criteria in this RFP carefully. Identify every section that is missing, weak, or scoring below 8/10 based on the gate findings.' +
         '\nPrioritize by point weight from the actual eval criteria in this RFP — not a generic template.' +
         '\nFor each weak or missing section: write the complete, submission-ready text using all five intelligence sources. Every methodology must match what THIS client asked for, backed by web research on current best practice and HGI proof from the KB and draft.' +
+        '\nYour output MUST be the COMPLETE UPDATED PROPOSAL — every section, start to finish. Keep sections scoring 8+/10. Rebuild sections scoring below 8/10 using web research best practices and HGI KB evidence. Build every missing required section completely. Replace every [ACTION REQUIRED] for technical content with actual submission-ready text. Preserve [ACTION REQUIRED] only for physical certifications or signatures.' +
         '\nDo not include any content that is not directly responsive to THIS RFP scope and requirements.';
 
       var p = await opusProposal(proposalSystem, proposalPrompt);
