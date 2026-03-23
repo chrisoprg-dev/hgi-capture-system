@@ -137,6 +137,12 @@ function Chat() {
       React.createElement('div', { ref: messagesEndRef })
     ),
 
+    // Memory toast notification
+    toast ? React.createElement('div', { style: { position: 'fixed', bottom: 80, right: 24, background: '#1a2e1a', border: '1px solid #2d5a2d', borderLeft: '3px solid #4caf50', borderRadius: 8, padding: '10px 16px', color: '#a8d5a2', fontSize: 12, maxWidth: 340, zIndex: 999, boxShadow: '0 4px 12px rgba(0,0,0,0.4)', lineHeight: 1.5 } },
+      React.createElement('div', { style: { fontWeight: 700, color: '#4caf50', fontSize: 11, marginBottom: 3 } }, 'ORGANISM MEMORY UPDATED'),
+      toast
+    ) : null,
+
     // Input area
     React.createElement('div', { style: { display: 'flex', gap: 8, padding: '12px 0', borderTop: '1px solid ' + BORDER } },
       React.createElement('textarea', {
