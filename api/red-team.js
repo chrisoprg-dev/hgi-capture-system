@@ -74,8 +74,7 @@ export default async function handler(req, res) {
       'OUTPUT FORMAT — follow exactly:\n\n' +
       'SCORE MATRIX\n' +
       '[criterion name] ([points available]):\n' +
-      '  HGI: [score]/[max] — [1 sentence why]
-  CDR Maguire: [score]/[max] — [1 sentence why]\n' +
+      '  HGI: [score]/[max] — [1 sentence why]\n  CDR Maguire: [score]/[max] — [1 sentence why]\n' +
       '  Tetra Tech: [score]/[max] — [1 sentence why]\n' +
       '  IEM: [score]/[max] — [1 sentence why]\n\n' +
       'TOTALS:\n' +
