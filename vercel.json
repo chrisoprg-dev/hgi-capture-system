@@ -48,12 +48,14 @@
     "api/chat-context.js": { "maxDuration": 30 },
     "api/proposal-graphics.js": { "maxDuration": 60 },
     "api/scrape-alabama.js": { "maxDuration": 60 },
-    "api/scrape-georgia.js": { "maxDuration": 60 }
+    "api/scrape-georgia.js": { "maxDuration": 60 },
+    "api/scrape-sam-gov.js": { "maxDuration": 120 }
   },
   "crons": [
     { "path": "/api/hunt", "schedule": "*/6 * * * *" },
     { "path": "/api/process-kb", "schedule": "*/6 * * * *" },
     { "path": "/api/scrape-grants-gov", "schedule": "0 0,6,12,18 * * *" },
+    { "path": "/api/scrape-sam-gov", "schedule": "0 1,13 * * *" },
     { "path": "/api/scrape-alabama", "schedule": "0 7,19 * * *" },
     { "path": "/api/scrape-georgia", "schedule": "0 8,20 * * *" },
     { "path": "/api/organism-think", "schedule": "0 13 * * *" },
