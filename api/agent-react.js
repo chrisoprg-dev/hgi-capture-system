@@ -105,7 +105,7 @@ async function webSearch(query) {
 }
 
 async function claudeReact(agentConfig, eventType, action, opportunity, storeData, extraPayload, memoryContext) {
-  var webQuery = (opportunity.agency || '') + ' ' + (opportunity.vertical || 'disaster recovery') + ' ' + eventType.replace(/\./g,' ') + ' Louisiana government contract 2025 2026';
+  var webQuery = (opportunity.agency || '') + ' ' + (opportunity.vertical || 'professional services') + ' ' + (opportunity.title || '').slice(0,60) + ' ' + eventType.replace(/\./g,' ') + ' ' + (opportunity.state || 'Louisiana') + ' government contract 2025 2026';
   var webData = await webSearch(webQuery);
   var webCtx = (webData && webData.length > 30) ? ('\nLIVE WEB INTELLIGENCE:\n' + webData.slice(0,1500) + '\n\n') : '';
 
