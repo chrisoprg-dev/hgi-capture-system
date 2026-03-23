@@ -174,7 +174,7 @@ async function runOpp(opp, R) {
         await mem('proposal_agent', opp.id, opp.agency+',proposal,opus,extended_thinking', 'OPUS PROPOSAL (gate='+gateVerdict+' | web+kb+memory | rfp-specific):\n'+p, 'pattern');
         var minLen = Math.max(500, Math.floor((opp.staffing_plan||'').length * 0.4));
         if (p.length > minLen) {
-          try { await fetch(SB + '/rest/v1/opportunities?id=eq.' + encodeURIComponent(opp.id), { method: 'PATCH', headers: H, body: JSON.stringify({ staffing_plan: p, last_updated: new Date().toISOString() }) }); R.draft_written = p.length; } catch(wErr) { R.errors.push({step:'draft_write',msg:wErr.message}); }
+          try { await fetch(SB + '/rest/v1/opportunities?id=eq.' + encodeURIComponent(opp.id), { method: 'PATCH', headers: H, body: JSON.stringify({ staffing_plan: p, last_updated: new Date().toISOString() }) }); oppR.draft_written = p.length; } catch(wErr) { oppR.errors.push({step:'draft_write',msg:wErr.message}); }
         }
         oppR.agents.push({a:'proposal_opus',c:p.length,sources:['gate','winnability','web_x3','kb','memory','direct_writeback']});
         // Fire kb-enrich async — don't await, don't block proposal run
