@@ -125,7 +125,7 @@ async function runOpp(opp, R) {
       var web2 = await webSearch(agency + ' ' + state + ' ' + vertical + ' professional services procurement requirements similar contracts awarded 2023 2024 2025');
       // Search 3: Regulatory and compliance framework specific to this scope
       var web3 = await webSearch(vertical + ' government contract compliance framework regulatory requirements ' + state + ' best practices 2025 2026 ' + scopeSnippet.slice(0,100));
-      R.web_searches = 3;
+      oppR.web_searches = 3;
 
       // Step 2: KB query — built from THIS opportunity's vertical and scope
       var kbQuery = vertical + ' ' + title + ' ' + scopeSnippet.slice(0,150);
