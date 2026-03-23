@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (!target || !actors[target]) return res.status(400).json({ error: 'actor param required. Options: central-bidding, lapac' });
   var actorId = actors[target];
   try {
-    var buildUrl = 'https://api.apify.com/v2/acts/' + actorId + '/builds?token=' + APIFY_TOKEN;
+    var buildUrl = 'https://api.apify.com/v2/acts/' + actorId + '/builds?token=' + APIFY_TOKEN + '&version=0.0';
     var r = await fetch(buildUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
     var data = await r.json();
     if (data && data.data) return res.status(200).json({ success: true, actor: target, actorId: actorId, buildId: data.data.id || 'unknown', status: data.data.status || 'unknown', startedAt: data.data.startedAt || null });
