@@ -219,6 +219,7 @@ const fetchBidsByKeyword = async (keyword, browser) => {
                 let extractedText = '';
                 let extractedTitle = bidno;
                 let extractedDeadline = '';
+                let extractedAgency = '';
                 try {
                     // Pass URL directly to extract-pdf — Claude fetches PDF via URL source, no base64/token issues
                     log('Sending PDF URL to extract-pdf: ' + pdfUrl);
