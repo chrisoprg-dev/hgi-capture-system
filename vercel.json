@@ -62,6 +62,7 @@
     { "path": "/api/organism-work", "schedule": "0 18 * * *" },
     { "path": "/api/sonnet-work", "schedule": "15 18 * * *" },
     { "path": "/api/red-team", "schedule": "30 18 * * *" },
-    { "path": "/api/proposal-loop", "schedule": "45 18 * * *" }
+    { "path": "/api/proposal-loop", "schedule": "45 18 * * *" },
+    { "path": "/api/disaster-monitor", "schedule": "0 14 * * *" }
   ]
 }
