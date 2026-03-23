@@ -148,7 +148,7 @@ export default async function handler(req, res) {
     const cr = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 3000, system: 'You are the HGI autonomous intelligence engine. Return ONLY valid JSON array. No markdown. Be ruthlessly specific — name people, opportunities, deadlines, dollar amounts. Never generic advice.', messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 3000, system: 'You are the HGI autonomous intelligence engine. Return ONLY valid JSON array. No markdown. Be ruthlessly specific — name people, opportunities, deadlines, dollar amounts. Never generic advice.', messages: [{ role: 'user', content: prompt }] })
     });
     if (cr.ok) {
       const cd = await cr.json();
