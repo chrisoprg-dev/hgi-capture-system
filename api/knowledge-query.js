@@ -1,4 +1,5 @@
 // api/knowledge-query.js — Intelligent Knowledge Retrieval with Claude Reranker
+import { HGI_CONTEXT, HGI_RATES } from './hgi-master-context.js';
 export const config = { maxDuration: 30 };
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
