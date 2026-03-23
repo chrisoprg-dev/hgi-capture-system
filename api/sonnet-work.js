@@ -107,52 +107,67 @@ export default async function handler(req, res) {
       R.agents.push({a:'proposal',c:0,skipped:'gate_NO-GO'});
       await mem('proposal_agent', opp.id, opp.agency+',proposal', 'PROPOSAL BLOCKED BY GATE (NO-GO). Fix deficiencies before investing in proposal improvements. Gate output:\n'+g.slice(0,2000), 'analysis');
     } else {
-      // Step 1: Three targeted web searches (Haiku — cost efficient)
-      var vertical = opp.vertical || 'disaster recovery';
-      var agency = opp.agency || '';
-      var web1 = await webSearch('FEMA Public Assistance Technical Approach best practices 2025 2026 winning government proposals PAPPG methodology PW formulation damage assessment compliance');
-      var web2 = await webSearch(agency + ' Louisiana GOHSEP disaster recovery procurement ' + vertical + ' requirements methodology 2025 2026 successful proposals');
-      var web3 = await webSearch('CDBG-DR program management technical approach methodology HUD compliance 2 CFR 200 winning proposals government 2025 2026');
+      // Everything derived from the actual RFP — never hardcoded
+      var vertical = (opp.vertical || 'professional services').trim();
+      var agency = (opp.agency || '').trim();
+      var title = (opp.title || '').trim();
+      var state = (opp.state || 'Louisiana').trim();
+      // Extract first 300 chars of scope as topic context for queries
+      var scopeSnippet = (opp.scope_analysis || '').replace(/[^a-zA-Z0-9 .,\-]/g, ' ').slice(0, 300).trim();
+
+      // Step 1: Three web searches — 100% driven by what THIS RFP requires
+      // Search 1: Technical approach and methodology for this specific service type
+      var web1 = await webSearch(title + ' ' + vertical + ' technical approach methodology best practices winning government proposals 2025 2026 evaluation criteria');
+      // Search 2: Agency-specific intelligence and similar contracts
+      var web2 = await webSearch(agency + ' ' + state + ' ' + vertical + ' professional services procurement requirements similar contracts awarded 2023 2024 2025');
+      // Search 3: Regulatory and compliance framework specific to this scope
+      var web3 = await webSearch(vertical + ' government contract compliance framework regulatory requirements ' + state + ' best practices 2025 2026 ' + scopeSnippet.slice(0,100));
       R.web_searches = 3;
 
-      // Step 2: KB query — HGI institutional knowledge
-      var kbContent = await queryKB('disaster recovery FEMA public assistance technical approach methodology CDBG-DR compliance 2 CFR 200 program management');
+      // Step 2: KB query — built from THIS opportunity's vertical and scope
+      var kbQuery = vertical + ' ' + title + ' ' + scopeSnippet.slice(0,150);
+      var kbContent = await queryKB(kbQuery);
       R.kb_chars = kbContent.length;
 
-      // Step 3: Build full intelligence package for Opus
+      // Step 3: Assemble intelligence package — all labeled by what they contain
       var webIntel = '';
-      if (web1 && web1.length > 50) webIntel += '\n=== WEB INTEL 1 — FEMA PA METHODOLOGY ===\n' + web1.slice(0,2000);
-      if (web2 && web2.length > 50) webIntel += '\n\n=== WEB INTEL 2 — AGENCY & LOUISIANA CONTEXT ===\n' + web2.slice(0,1500);
-      if (web3 && web3.length > 50) webIntel += '\n\n=== WEB INTEL 3 — CDBG-DR & COMPLIANCE ===\n' + web3.slice(0,1500);
-      var kbIntel = kbContent.length > 100 ? '\n\n=== HGI KNOWLEDGE BASE — INSTITUTIONAL METHODOLOGY ===\n' + kbContent.slice(0,3000) : '';
-      var memIntel = memCtx.length > 100 ? '\n\n=== ORGANISM INTELLIGENCE — WHAT AGENTS KNOW ===\n' + memCtx.slice(0,2000) : '';
+      if (web1 && web1.length > 50) webIntel += '\n=== WEB RESEARCH 1 — METHODOLOGY & BEST PRACTICES FOR THIS RFP ===\n' + web1.slice(0,2000);
+      if (web2 && web2.length > 50) webIntel += '\n\n=== WEB RESEARCH 2 — AGENCY INTELLIGENCE & SIMILAR AWARDS ===\n' + web2.slice(0,1500);
+      if (web3 && web3.length > 50) webIntel += '\n\n=== WEB RESEARCH 3 — REGULATORY & COMPLIANCE FRAMEWORK ===\n' + web3.slice(0,1500);
+      var kbIntel = kbContent.length > 100 ? '\n\n=== HGI KNOWLEDGE BASE — INSTITUTIONAL KNOWLEDGE FOR THIS VERTICAL ===\n' + kbContent.slice(0,3000) : '';
+      var memIntel = memCtx.length > 100 ? '\n\n=== ORGANISM INTELLIGENCE — COMPETITIVE FINDINGS ON THIS OPPORTUNITY ===\n' + memCtx.slice(0,2000) : '';
 
+      // System prompt: built from THIS RFP — no hardcoded program types
       var proposalSystem =
-        'You are the most capable government proposal writer in the world, combining 30 years of winning FEMA PA and CDBG-DR proposals with deep knowledge of current federal methodology, agency expectations, and competitive positioning.' +
-        '\n\nYou have five intelligence sources: (1) The current RFP and draft proposal, (2) Quality gate findings showing exactly what scores low and why, (3) Live web research on current FEMA/HUD methodology and best practices, (4) HGI institutional knowledge base built over 95 years, (5) Organism memory of competitive intelligence on this specific opportunity.' +
-        '\n\nYour mission: Use ALL five sources together to produce the highest-scoring possible proposal sections. Extended thinking is enabled — use it to synthesize across all sources before writing.' +
+        'You are the most capable government proposal writer in the world with 30 years of experience winning government contracts across all service verticals.' +
+        '\n\nYou are building a proposal for: ' + title + ' | Client: ' + agency + ' | Service area: ' + vertical +
+        '\n\nYou have five intelligence sources: (1) The actual RFP requirements and current draft, (2) Quality gate findings showing what scores low and why, (3) Live web research on current methodology and best practices FOR THIS SPECIFIC SERVICE TYPE, (4) HGI institutional knowledge base, (5) Competitive intelligence on this opportunity.' +
+        '\n\nYour mission: Use ALL five sources to produce the highest-scoring possible proposal sections for THIS specific RFP. Extended thinking is enabled — use it to synthesize across all sources before writing.' +
         '\n\nCRITICAL BUILD RULES:' +
-        '\n1. MISSING SECTIONS: If a required RFP section is absent or thin relative to its eval point weight — BUILD IT COMPLETELY. Do not flag it, fill it. Use web research for current methodology, KB for HGI-specific content, RFP for structure.' +
-        '\n2. TECHNICAL APPROACH IS PRIORITY 1 (30 points). If Section D is weak: write complete methodology with FEMA PA process workflows, PW formulation standards, PAPPG citations, CDBG-DR compliance framework, agency liaison protocols, staffing mobilization model, named HGI staff with specific credentials tied to specific deliverables. Use tables and matrices where evaluators expect them.' +
-        '\n3. METHODOLOGY = CURRENT BEST PRACTICE + HGI PROOF. Web research tells you what winning proposals include. KB tells you how HGI actually does it. Combine them — do not use one without the other.' +
-        '\n4. CONFIRMED HGI REFERENCES ARE FACTS. Use exactly as written, never question: Paul Rainwater (rainwater97@gmail.com, 225-281-8176), Jeff Haley (jeff.haley@la.gov, 225-330-0036), Pat Forbes (Patrick.Forbes@la.gov, 225-342-1626), Bubba Orgeron (bubbaorgeron@tpsd.org, 985-876-7400), Gregory Harding (gregoryharding@tpsd.org, 985-688-0052).' +
-        '\n5. OUTPUT = SUBMISSION-READY TEXT. Write complete paragraphs, tables, matrices, and structured sections ready to paste directly into the proposal. Never describe what should be written — write it.' +
-        '\n6. NO FABRICATION. Do not invent past performance values, contract amounts, staff credentials, or claims not supported by the draft, KB, or web research.';
+        '\n1. THIS RFP DRIVES EVERYTHING. Every section you write, every methodology you describe, every approach you articulate must be directly responsive to what THIS client asked for in THIS RFP. Never write generic sections.' +
+        '\n2. MISSING SECTIONS: If a required RFP section is absent or thin relative to its evaluation point weight — BUILD IT COMPLETELY from the RFP requirements, web research, and HGI facts. Do not flag gaps — fill them.' +
+        '\n3. TECHNICAL APPROACH IS PRIORITY. Read the eval criteria in the scope analysis. Find the highest-weighted technical section. If it is weak, write it completely: describe the specific methodology, workflow, tools, staff, and deliverables HGI will bring to THIS scope. Use the web research to ensure the methodology reflects current best practice for this service type.' +
+        '\n4. METHODOLOGY = CURRENT BEST PRACTICE + HGI PROOF. Web research tells you what evaluators expect to see. KB and draft tell you what HGI actually does. Combine them — every claim backed by HGI evidence, every approach current with industry standards.' +
+        '\n5. CONFIRMED HGI REFERENCES ARE FACTS. Use exactly as written, never question or suggest replacing: Paul Rainwater (rainwater97@gmail.com, 225-281-8176), Jeff Haley (jeff.haley@la.gov, 225-330-0036), Pat Forbes (Patrick.Forbes@la.gov, 225-342-1626), Bubba Orgeron (bubbaorgeron@tpsd.org, 985-876-7400), Gregory Harding (gregoryharding@tpsd.org, 985-688-0052).' +
+        '\n6. OUTPUT = SUBMISSION-READY TEXT. Complete paragraphs, tables, matrices ready to paste. Never describe what to write — write it.' +
+        '\n7. NO FABRICATION. Do not invent past performance values, contract amounts, or credentials not in the draft or KB.';
 
+      // Prompt: sections prioritized by THIS RFP eval criteria, not generic templates
       var proposalPrompt =
-        '=== RFP & CURRENT DRAFT ===\n' + ctx.slice(0,14000) +
-        '\n\n=== QUALITY GATE FINDINGS (what is scoring low and why) ===\n' + g.slice(0,2000) +
+        '=== THIS RFP AND CURRENT DRAFT ===\n' + ctx.slice(0,14000) +
+        '\n\n=== QUALITY GATE FINDINGS — what is scoring low in THIS proposal ===\n' + g.slice(0,2000) +
         '\n\n=== WINNABILITY ASSESSMENT ===\n' + w.slice(0,1000) +
         webIntel + kbIntel + memIntel +
         '\n\n=== YOUR TASK ===' +
-        '\nUsing ALL intelligence sources above, produce complete submission-ready proposal text for every section that is missing, weak, or scoring below 8/10.' +
-        '\nPrioritize by evaluation point weight. Technical Approach (30 pts) first. Then Past Performance (20 pts). Then Personnel (15 pts). Then Qualifications (25 pts).' +
-        '\nFor each section: write the complete final text, not notes or suggestions. Include specific FEMA terminology, policy guide citations, HGI staff credentials tied to deliverables, and quantified evidence where web research or KB supports it.';
+        '\nRead the eval criteria in this RFP carefully. Identify every section that is missing, weak, or scoring below 8/10 based on the gate findings.' +
+        '\nPrioritize by point weight from the actual eval criteria in this RFP — not a generic template.' +
+        '\nFor each weak or missing section: write the complete, submission-ready text using all five intelligence sources. Every methodology must match what THIS client asked for, backed by web research on current best practice and HGI proof from the KB and draft.' +
+        '\nDo not include any content that is not directly responsive to THIS RFP scope and requirements.';
 
       var p = await opusProposal(proposalSystem, proposalPrompt);
 
       if (p.length > 200 && !p.startsWith('API_ERR') && !p.startsWith('ERR:')) {
-        await mem('proposal_agent', opp.id, opp.agency+',proposal,opus,extended_thinking', 'OPUS PROPOSAL (gate='+gateVerdict+' | web+kb+memory):\n'+p, 'pattern');
+        await mem('proposal_agent', opp.id, opp.agency+',proposal,opus,extended_thinking', 'OPUS PROPOSAL (gate='+gateVerdict+' | web+kb+memory | rfp-specific):\n'+p, 'pattern');
         R.agents.push({a:'proposal_opus',c:p.length,sources:['gate','winnability','web_x3','kb','memory']});
       } else {
         R.errors.push({a:'prop_opus',r:(p||'').slice(0,200)});
