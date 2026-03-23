@@ -48,7 +48,7 @@ async function claudeRerank(candidates, oppText, evalCriteria, step) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514', max_tokens: 300,
+        model: 'claude-sonnet-4-6', max_tokens: 300,
         system: 'You are an HGI knowledge base retrieval optimizer. Return ONLY the requested format — RANKED, STRONG, GAPS. No other text.',
         messages: [{ role: 'user', content: prompt }]
       })
