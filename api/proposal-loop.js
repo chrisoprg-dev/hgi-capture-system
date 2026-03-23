@@ -85,7 +85,7 @@ export default async function handler(req, res) {
     R.sections_found = headerMatches.length;
     // Ask AI to identify weakest section using actual section names from this draft
     var sectionList = headerMatches.slice(0, 20).map(function(h, i) { return i + ': ' + h.header; }).join('\n');
-    var identifyPrompt = '=== DRAFT SECTIONS IN THIS PROPOSAL ===\n' + sectionList + '\n\n=== QUALITY GATE FINDINGS ===\n' + gateText.slice(0,2000) + '\n\n=== PROPOSAL AGENT IMPROVEMENTS ===\n' + propText.slice(0,2000) + '\n\nWhich section number (from the list above) scored lowest and has the highest point impact if improved?\nFirst line MUST be: WEAKEST_INDEX: [number]\nSecond line MUST be: WEAKEST_HEADER: [exact header text from the list]';
+    var identifyPrompt = '=== DRAFT SECTIONS IN THIS PROPOSAL ===\n' + sectionList + '\n\n=== QUALITY GATE FINDINGS ===\n' + gateText.slice(0,2000) + '\n\n=== PROPOSAL AGENT IMPROVEMENTS ===\n' + propText.slice(0,2000) + '\n\n=== RED TEAM SCORE MATRIX & GAP ANALYSIS ===\n' + (redText ? redText.slice(0,1500) : '(not yet run)') + '\n\nWhich section number (from the list above) scored lowest and has the highest point impact if improved?\nFirst line MUST be: WEAKEST_INDEX: [number]\nSecond line MUST be: WEAKEST_HEADER: [exact header text from the list]';
     var weakest = await sonnet('Identify the single weakest proposal section by evaluator point impact. Use ONLY section numbers from the provided list.', identifyPrompt, 200);
     var wIdxMatch = weakest.match(/WEAKEST_INDEX:\s*(\d+)/i);
     var wHdrMatch = weakest.match(/WEAKEST_HEADER:\s*(.+)/i);
