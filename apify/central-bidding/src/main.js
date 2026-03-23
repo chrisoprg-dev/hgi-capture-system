@@ -267,10 +267,9 @@ const crawler = new PlaywrightCrawler({
                 'workforce', 'unemployment', 'WIOA', 'job training', 'labor',
                 'employment services', 'workforce commission', 'career center',
                 'job placement', 'reemployment',
-                // Health / Medicaid / Public Health
-                'health', 'medicaid', 'public health', 'human services', 'LDH',
-                'health department', 'behavioral health', 'health program',
-                'social services', 'case management', 'benefits administration',
+                // Construction Management — HGI core vertical
+                'construction management', 'capital program', 'infrastructure management',
+                'inspection services',
                 // Government / Municipal / Agency
                 'parish government', 'city of', 'mayor', 'municipal', 'police jury',
                 'council', 'planning', 'citizens',
