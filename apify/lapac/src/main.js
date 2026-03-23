@@ -431,6 +431,7 @@ if (remainingMs < 30000) {
     }
     await new Promise(r => setTimeout(r, 1000));
 }
+} // end else (time guard)
 
 await browser.close();
 log('Browser closed');
