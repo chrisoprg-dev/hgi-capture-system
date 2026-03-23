@@ -92,7 +92,7 @@ async function rerank(candidates, context) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514', max_tokens: 150,
+        model: 'claude-sonnet-4-6', max_tokens: 150,
         system: 'You are the organism memory retrieval optimizer. Select the most relevant memories. Return ONLY the format requested.',
         messages: [{ role: 'user', content: prompt }]
       })
