@@ -2,17 +2,21 @@ export const config = { maxDuration: 30 };
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  var APIFY_TOKEN = process.env.APIFY_API_TOKEN;
-  if (!APIFY_TOKEN) return res.status(500).json({ error: 'APIFY_API_TOKEN not set' });
-  var actors = { 'central-bidding': 'Qfb4C0KiRbnsuv6jo', 'lapac': 'hVmvojDyPeJ799Suf' };
-  var target = (req.query && req.query.actor) || (req.query && req.query.opp) || '';
-  if (!target || !actors[target]) return res.status(400).json({ error: 'actor param required. Options: central-bidding, lapac' });
-  var actorId = actors[target];
+  var token = process.env.APIFY_API_TOKEN;
+  if (!token) return res.status(500).json({ error: 'No APIFY_API_TOKEN env var' });
+  var actorId = req.query.actor || 'hVmvojDyPeJ799Suf';
+  var action = req.query.action || 'build';
   try {
-    var buildUrl = 'https://api.apify.com/v2/acts/' + actorId + '/builds?token=' + APIFY_TOKEN + '&version=0.0';
-    var r = await fetch(buildUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-    var data = await r.json();
-    if (data && data.data) return res.status(200).json({ success: true, actor: target, actorId: actorId, buildId: data.data.id || 'unknown', status: data.data.status || 'unknown', startedAt: data.data.startedAt || null });
-    return res.status(200).json({ success: false, actor: target, response: data });
-  } catch(e) { return res.status(500).json({ error: e.message, actor: target }); }
+    if (action === 'build') {
+      var r = await fetch('https://api.apify.com/v2/acts/' + actorId + '/builds?token=' + token + '&version=0.0&useCache=false', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      var d = await r.json();
+      return res.json({ action: 'build', ok: r.ok, status: r.status, buildId: d.data && d.data.id, buildStatus: d.data && d.data.status, tag: d.data && d.data.buildNumber });
+    } else if (action === 'run') {
+      var r2 = await fetch('https://api.apify.com/v2/acts/' + actorId + '/runs?token=' + token, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      var d2 = await r2.json();
+      return res.json({ action: 'run', ok: r2.ok, runId: d2.data && d2.data.id, runStatus: d2.data && d2.data.status });
+    } else {
+      return res.status(400).json({ error: 'action must be build or run' });
+    }
+  } catch(e) { return res.status(500).json({ error: e.message }); }
 }
