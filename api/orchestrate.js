@@ -1,3 +1,4 @@
+import { HGI_CONTEXT, HGI_CLASSIFICATION_GUIDE } from './hgi-master-context.js';
 export const config = { maxDuration: 300 };
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
