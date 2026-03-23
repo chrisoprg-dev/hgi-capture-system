@@ -56,19 +56,31 @@ export default async function handler(req, res) {
     R.target_section = targetSection;
     R.steps.push('identified_weakest');
     // Extract that section from the draft
-    // Major sections: A, B, C, D, E, F, G. Subsections: A1=A.1, D1=D.1 etc.
     var sectionMap = {'A1':'A.1','A2':'A.2','A3':'A.3','B':'B.','C':'C.','D':'D.','D1':'D.1','D2':'D.2','D3':'D.3','D4':'D.4','D5':'D.5','D6':'D.6','D7':'D.7','E':'E.','F':'F.','G':'G.'};
     var sectionLabel = sectionMap[targetSection] || 'D.';
     var sIdx = draft.indexOf('**' + sectionLabel);
     if (sIdx === -1) sIdx = draft.indexOf(sectionLabel);
     if (sIdx === -1) { R.errors.push({step:'section_not_found',section:targetSection}); return res.status(200).json(R); }
-    // Find end: next MAJOR section letter (not subsection of same letter)
-    // If targeting D or D1-D7, end at E. If targeting A or A1-A3, end at B. etc.
-    var majorLetter = targetSection.charAt(0);
-    var nextLetters = {A:'B',B:'C',C:'D',D:'E',E:'F',F:'G',G:'Required'};
-    var endMarker = nextLetters[majorLetter] || 'Required';
-    var sEnd = draft.indexOf('**' + endMarker, sIdx + 10);
-    if (sEnd === -1) sEnd = draft.indexOf(endMarker + '.', sIdx + 10);
+    // Find end marker based on whether this is a major section or subsection
+    var isSubsection = targetSection.length > 1 && targetSection.charAt(1) >= '0' && targetSection.charAt(1) <= '9';
+    var sEnd = draft.length;
+    if (isSubsection) {
+      // Subsection: D1 ends at D.2, D2 ends at D.3, etc.
+      var subNum = parseInt(targetSection.slice(1));
+      var nextSub = targetSection.charAt(0) + '.' + (subNum + 1);
+      sEnd = draft.indexOf('**' + nextSub, sIdx + 10);
+      if (sEnd === -1) {
+        // Last subsection — end at next major section
+        var nextLetters = {A:'B',B:'C',C:'D',D:'E',E:'F',F:'G',G:'Required'};
+        var endM = nextLetters[targetSection.charAt(0)] || 'Required';
+        sEnd = draft.indexOf('**' + endM, sIdx + 10);
+      }
+    } else {
+      // Major section: D ends at E, A ends at B, etc.
+      var nextLetters2 = {A:'B',B:'C',C:'D',D:'E',E:'F',F:'G',G:'Required'};
+      var endM2 = nextLetters2[targetSection] || 'Required';
+      sEnd = draft.indexOf('**' + endM2, sIdx + 10);
+    }
     if (sEnd === -1) sEnd = draft.length;
     var originalSection = draft.slice(sIdx, sEnd);
     R.original_section_chars = originalSection.length;
