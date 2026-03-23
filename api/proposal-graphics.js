@@ -407,8 +407,13 @@ export default async function handler(req, res) {
   // TOOLBAR
   html += '<div class="tb no-print"><button onclick="window.print()">Print / Save PDF</button><button onclick="document.querySelectorAll(\'.page-break\').forEach(function(e){e.style.display=\'none\'});this.textContent=\'\u2713 Done\'">Continuous View</button><div class="inf">HGI Proposal Graphics Engine v2</div></div>';
 
-  // COVER
-  html += '<div class="cover"><div class="c-badge">Proposal</div>';
+  // COVER — with DALL-E generated image or Pexels fallback
+  var coverBg = dalleImg || coverImg;
+  var coverImgStyle = coverBg ? 'background-image:url('+coverBg+');background-size:cover;background-position:center;' : '';
+  html += '<div class="cover" style="'+coverImgStyle+'">';
+  if (coverBg) html += '<div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(13,31,51,0.45) 0%,rgba(13,31,51,0.88) 60%,rgba(13,31,51,0.97) 100%);z-index:0;"></div>';
+  html += '<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:60px 40px;">';
+  html += '<div class="c-badge">Proposal</div>';
   html += '<div class="c-title">'+esc(vertTitle)+'</div>';
   html += '<div class="c-sub">'+esc(o.title||'')+'</div>';
   html += '<div class="c-div"></div>';
@@ -417,7 +422,8 @@ export default async function handler(req, res) {
   html += '<div class="c-meta">Submitted By</div>';
   html += '<div class="c-hgi">'+HGI.name+'</div>';
   html += '<div class="c-legal">'+HGI.legal+' \u2014 '+HGI.ownership+' \u2014 Est. '+HGI.founded+'</div>';
-  html += '<div class="c-date">Due: '+esc(dueDate)+'</div></div>';
+  html += '<div class="c-date">Due: '+esc(dueDate)+'</div>';
+  html += '</div></div>';
 
   // HEADER BAR
   html += '<div class="hdr"><div class="hdr-logo">HGI Global</div><div class="hdr-t">'+esc(o.agency||'')+' \u2014 '+esc(vertTitle)+'</div></div>';
