@@ -140,7 +140,11 @@ export default async function handler(req, res) {
     R.steps.push('scored_after');
     R.score_delta = R.after_score - R.before_score;
     // STEP 4: Decision — keep or revert
-    if (R.after_score > R.before_score && improved.length > draft.length * 0.7) {
+    // Use red team score as authoritative baseline when available (adversarial > self-scored)
+    var baseline = (redTeamScore !== null) ? redTeamScore : R.before_score;
+    R.baseline_used = (redTeamScore !== null) ? 'red_team' : 'self_scored';
+    R.baseline_score = baseline;
+    if (R.after_score > baseline && improved.length > draft.length * 0.7) {
       // Improved — write it back
       await fetch(SB + '/rest/v1/opportunities?id=eq.' + encodeURIComponent(opp.id), { method: 'PATCH', headers: H, body: JSON.stringify({ staffing_plan: improved, last_updated: new Date().toISOString() }) });
       R.action = 'APPLIED';
