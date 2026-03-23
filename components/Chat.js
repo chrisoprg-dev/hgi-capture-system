@@ -54,18 +54,18 @@ function Chat() {
     setLoading(true);
 
     try {
-      // Fetch complete system prompt from chat-context API (includes pipeline, organism memory, correct HGI facts)
-      var systemPrompt = 'You are the HGI AI Capture System.';
-      try {
-        var ctxR = await fetch('/api/chat-context');
-        if (ctxR.ok) {
-          var ctxD = await ctxR.json();
-          systemPrompt = ctxD.system_prompt || systemPrompt;
-        }
-      } catch(e) {}
-
-      var response = await callClaude(userMsg, systemPrompt, 2000);
+      var sendR = await fetch('/api/chat-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg, history: messages.slice(-10), opp_id: pl && pl.selectedOppId ? pl.selectedOppId : null })
+      });
+      if (!sendR.ok) throw new Error('Send failed: ' + sendR.status);
+      var sendD = await sendR.json();
+      var response = sendD.response || 'No response';
       setMessages(function(prev) { return prev.concat([{ role: 'assistant', content: response }]); });
+      if (sendD.memory_stored) {
+        showToast('Saved to organism memory: ' + (sendD.memory_summary || 'insight captured'));
+      }
     } catch(e) {
       setMessages(function(prev) { return prev.concat([{ role: 'assistant', content: 'Error: ' + e.message }]); });
     }
