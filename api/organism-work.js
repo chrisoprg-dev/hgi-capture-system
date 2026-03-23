@@ -27,6 +27,7 @@ async function webSearch(query) {
     const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1500, tools: [{ type: 'web_search_20250305', name: 'web_search' }], system: 'Intelligence analyst. Return specific verified findings with sources. Be concise.', messages: [{ role: 'user', content: query }] }) });
     if (!r.ok) return '';
     const d = await r.json();
+    if (d.usage) logCost('web_search', 'claude-haiku-4-5-20251001', d.usage.input_tokens||0, d.usage.output_tokens||0, 'organism-work-search');
     return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('\n');
   } catch(e) { return ''; }
 }
