@@ -130,7 +130,7 @@ async function runOpp(opp, R) {
       // Step 2: KB query — built from THIS opportunity's vertical and scope
       var kbQuery = vertical + ' ' + title + ' ' + scopeSnippet.slice(0,150);
       var kbContent = await queryKB(kbQuery);
-      R.kb_chars = kbContent.length;
+      oppR.kb_chars = kbContent.length;
 
       // Step 3: Assemble intelligence package — all labeled by what they contain
       var webIntel = '';
