@@ -17,7 +17,7 @@ async function sonnet(system, prompt, maxT) {
     var r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxT || 1500, system: system, messages: [{ role: 'user', content: prompt }] }) });
     if (!r.ok) return 'API_ERR_' + r.status;
     var d = await r.json();
-    if (d.usage) logCost('sonnet_work', 'claude-sonnet-4-20250514', d.usage.input_tokens||0, d.usage.output_tokens||0, 'sonnet-work');
+    if (d.usage) logCost('sonnet_work', 'claude-sonnet-4-6', d.usage.input_tokens||0, d.usage.output_tokens||0, 'sonnet-work');
     return (d.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
   } catch(e) { return 'ERR: ' + e.message; }
 }
