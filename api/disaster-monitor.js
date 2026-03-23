@@ -45,14 +45,19 @@ export default async function handler(req, res) {
     var existing = await existingR.json();
     var existingUrls = (existing||[]).map(function(o){ return o.source_url||''; });
 
-    // Filter to only new declarations not yet in pipeline
-    var newDecs = declarations.filter(function(dec) {
+    // Deduplicate by disasterNumber — API returns one row per county
+    var seenNums = {};
+    var newDecs = [];
+    for (var di = 0; di < declarations.length; di++) {
+      var dec = declarations[di];
       var num = String(dec.disasterNumber||'');
       var state = dec.state||'';
-      if (TARGET_STATES.indexOf(state) === -1) return false;
-      if (existingUrls.some(function(u){ return u.indexOf(num) !== -1; })) return false;
-      return true;
-    });
+      if (TARGET_STATES.indexOf(state) === -1) continue;
+      if (seenNums[num]) continue;
+      if (existingUrls.some(function(u){ return u.indexOf(num) !== -1; })) continue;
+      seenNums[num] = true;
+      newDecs.push(dec);
+    }
     R.checked = declarations.map(function(d){ return { id:'DR-'+(d.disasterNumber||''), state:d.state||'', title:d.declarationTitle||'', date:(d.declarationDate||'').slice(0,10) }; });
 
     if (!newDecs.length) {
