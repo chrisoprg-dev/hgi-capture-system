@@ -44,22 +44,25 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   var R = { started: new Date().toISOString(), queries: [], contracts_found: 0, analyzed: 0, pipeline_created: 0, errors: [] };
   try {
-    // Date windows: contracts ending in next 3-12 months
+    // USAspending time_period matches contracts with ANY action in the date range.
+    // Strategy: search recent FY for HGI-relevant NAICS, then filter by End Date in code.
     var now = new Date();
-    var start3mo = new Date(now.getTime() + 90 * 86400000).toISOString().slice(0,10);
-    var start6mo = new Date(now.getTime() + 180 * 86400000).toISOString().slice(0,10);
-    var end12mo = new Date(now.getTime() + 365 * 86400000).toISOString().slice(0,10);
-    // Query 1: Contracts expiring 3-12 months, HGI NAICS codes
+    var cutoff3mo = new Date(now.getTime() + 90 * 86400000).toISOString().slice(0,10);
+    var cutoff12mo = new Date(now.getTime() + 365 * 86400000).toISOString().slice(0,10);
+    // Search current FY (Oct 1 of prior year to Sep 30 of current year)
+    var fyStart = now.getMonth() >= 9 ? now.getFullYear() + '-10-01' : (now.getFullYear() - 1) + '-10-01';
+    var fyEnd = now.getMonth() >= 9 ? (now.getFullYear() + 1) + '-09-30' : now.getFullYear() + '-09-30';
+    // Query 1: Contracts in HGI NAICS codes, current FY, sorted by amount
     var body1 = JSON.stringify({
       subawards: false,
-      limit: 25,
+      limit: 50,
       page: 1,
       sort: 'Award Amount',
       order: 'desc',
       filters: {
         award_type_codes: ['A', 'B', 'C', 'D'],
         naics_codes: { require: NAICS_CODES },
-        time_period: [{ start_date: start3mo, end_date: end12mo, date_type: 'date_signed' }]
+        time_period: [{ start_date: fyStart, end_date: fyEnd }]
       },
       fields: ['Award ID', 'Recipient Name', 'Start Date', 'End Date', 'Award Amount', 'Awarding Agency', 'Awarding Sub Agency', 'Description', 'NAICS Code', 'Place of Performance State Code', 'Place of Performance City Name', 'generated_internal_id']
     });
