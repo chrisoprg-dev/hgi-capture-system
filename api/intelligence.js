@@ -417,7 +417,7 @@ export default async function handler(req, res) {
 
         // Build real-data context for market pulse
         const scraperContext = hunts.length > 0
-          ? 'Scraper last ran: ' + new Date(hunts[0].run_at).toLocaleString() + '. Batches completed today: ' + hunts.filter(h => h.source === 'apify_batch' && (now - new Date(h.run_at)) < 86400000).length
+          ? 'Scraper last ran: ' + new Date(hunts[0].run_at).toLocaleString() + '. CB batches today: ' + hunts.filter(h => (h.source === 'apify_central_bidding' || h.source === 'apify_batch') && (now - new Date(h.run_at)) < 86400000).length + '. Grants.gov runs today: ' + hunts.filter(h => h.source === 'grants_gov' && (now - new Date(h.run_at)) < 86400000).length
           : 'Scraper status unknown';
 
         const declarationContext = declarations.length > 0
