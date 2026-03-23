@@ -119,7 +119,7 @@ export default async function handler(req, res) {
         if (cl.includes('[ACTION REQUIRED]')) { children.push(new Paragraph({ spacing: { after: 80 }, shading: { fill: 'FFF3CD', type: ShadingType.CLEAR }, children: [new TextRun({ text: cl, font: 'Arial', size: 22, bold: true, color: '856404' })] })); continue; }
         children.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: cl, font: 'Arial', size: 22 })] }));
       }
-      if (sec.header.match(/^[A-G]\./)) children.push(new Paragraph({ children: [new PageBreak()] }));
+      if (sec.isTopLevel) children.push(new Paragraph({ children: [new PageBreak()] }));
     }
     var doc = new Document({
       styles: { default: { document: { run: { font: 'Arial', size: 22 } } }, paragraphStyles: [
