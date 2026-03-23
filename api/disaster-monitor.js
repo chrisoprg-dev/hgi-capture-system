@@ -49,7 +49,7 @@ export default async function handler(req, res) {
       return res.status(200).json(R);
     }
     var femaD = await femaR.json();
-    var declarations = femaD.DisasterDeclarationsSummaries || femaD.disasterDeclarationsSummaries || [];
+    var declarations = femaD.DisasterDeclarationsSummaries || [];
     R.fema_results = declarations.length;
 
     // Deduplicate by disaster number — check what we already have in pipeline
