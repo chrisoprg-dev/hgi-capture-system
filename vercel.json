@@ -49,7 +49,8 @@
     "api/proposal-graphics.js": { "maxDuration": 60 },
     "api/scrape-alabama.js": { "maxDuration": 60 },
     "api/scrape-georgia.js": { "maxDuration": 60 },
-    "api/scrape-sam-gov.js": { "maxDuration": 120 }
+    "api/scrape-sam-gov.js": { "maxDuration": 120 },
+    "api/contract-expiration.js": { "maxDuration": 120 }
   },
   "crons": [
     { "path": "/api/hunt", "schedule": "*/6 * * * *" },
