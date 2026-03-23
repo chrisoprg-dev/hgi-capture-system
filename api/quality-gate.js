@@ -48,7 +48,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 3000,
         system: 'You are a senior government proposal compliance reviewer. Be thorough and specific. Flag every gap. Return only valid JSON with no markdown or preamble.',
         messages: [{ role: 'user', content: prompt }]
