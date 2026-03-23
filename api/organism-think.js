@@ -67,8 +67,8 @@ export default async function handler(req, res) {
   results.memories_loaded = memories.length;
   results.existing_decisions = existingDecisions.length;
 
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  const today = getCSTDate();
+  const todayStr = getCSTDateStr();
 
   const oppProfiles = rawOpps.map(function(opp) {
     const daysUntilDue = opp.due_date ? Math.ceil((new Date(opp.due_date) - today) / 86400000) : null;
