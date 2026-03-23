@@ -161,12 +161,12 @@ async function claudeReact(agentConfig, eventType, action, opportunity, storeDat
   prompt += webCtx;
   prompt += 'Respond in JSON only. No markdown backticks. No preamble.\n{\n  "analysis": "Your reasoning. 3-8 sentences. Be specific, cite data, make connections.",\n  "store_updates": [\n    { "store": "TABLE_NAME", "data": { ONLY use these exact field names per store... } }\n  ],\n  "downstream_insights": "What other agents should know. 1-3 sentences."\n}\n\nSTORE FIELD NAMES (use ONLY these):\n- competitive_intelligence: competitor_name, agency, contract_value, outcome, bid_price, strengths, weaknesses, strategic_notes, vertical\n- relationship_graph: contact_name, title, organization, email, phone, relationship_strength (none/cold/warm/hot/strong), last_contact, notes, connected_orgs\n- system_performance_log: agent, event_type, metric_type, metric_value, details\nAll values must be strings. Do not invent field names.';
 
-  var system = 'You are the ' + agentConfig.identity + ' You are one of 20 agents in a living organism. Your analysis compounds — what you write today will be read by other agents on future opportunities. The 50th opportunity must be smarter than the 1st because of what you contribute. Be specific. Cite data. Make connections across opportunities and agencies. Never fabricate facts about HGI. HGI confirmed past performance: Road Home ' + DOLLAR + '67M/' + DOLLAR + '13B+ zero misappropriation, Restore LA ' + DOLLAR + '42.3M, TPSD ' + DOLLAR + '2.96M (completed 2022-2025), St. John Sheriff ' + DOLLAR + '788K, Rebuild NJ ' + DOLLAR + '67.7M, BP GCCF ' + DOLLAR + '1.65M, City of NOLA WC TPA ' + DOLLAR + '283K/mo (active), SWBNO ' + DOLLAR + '200K/mo (active). HGI has NEVER had a direct federal contract — all work flows through state/local agencies.';
+  var system = 'You are the ' + agentConfig.identity + ' You are one of 20 agents in a living organism. Your analysis compounds — what you write today will be read by other agents on future opportunities. The 50th opportunity must be smarter than the 1st because of what you contribute. Be specific. Cite data. Make connections across opportunities and agencies. Never fabricate facts about HGI.\n\nHGI COMPLETE BUSINESS PROFILE:\n' + HGI_CONTEXT.slice(0, 2000) + '\n\nHGI has NEVER had a direct federal contract — all work flows through state/local agencies, housing authorities, and insurance entities.';
 
   var r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, system: system, messages: [{ role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1500, system: system, messages: [{ role: 'user', content: prompt }] })
   });
 
   if (!r.ok) {
