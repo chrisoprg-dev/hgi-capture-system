@@ -123,6 +123,7 @@ export default async function handler(req, res) {
     const opps = opportunities.status === 'fulfilled' ? opportunities.value || [] : [];
     const hunts = recentHunts.status === 'fulfilled' ? recentHunts.value || [] : [];
     const declarations = femaDeclarations.status === 'fulfilled' ? femaDeclarations.value || [] : [];
+    const lapacRun = lapacStatus && lapacStatus.status === 'fulfilled' ? lapacStatus.value : null;
 
     const now = new Date();
 
