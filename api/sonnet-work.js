@@ -78,7 +78,7 @@ async function runOpp(opp, R) {
       (opp.staffing_plan||'').slice(0,22000) + '\n---\n' +
       (opp.capture_action||'').slice(0,1000) + '\n---\n' +
       (opp.financial_analysis||'').slice(0,1500);
-    R.ctx = ctx.length;
+    oppR.ctx = ctx.length;
 
     // === AGENT 1: QUALITY GATE (Sonnet 4.6) — MEMORY-AWARE ===
     var gateResearch = (opp.research_brief||'').slice(0, 1500);
