@@ -293,49 +293,34 @@ function Dashboard({ setActive }) {
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
         <Card>
-          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:8}}>SCRAPER STATUS</div>
-          <div style={{fontSize:10,color:TEXT_D,marginBottom:10,letterSpacing:'0.04em'}}>CENTRAL BIDDING · EVERY 6 MIN · PRIORITY SORTED</div>
-          {stats.last_scraper_run ? (
-            (() => {
-              const lastRun = new Date(stats.last_scraper_run);
-              const minAgo = Math.floor((Date.now() - lastRun) / 60000);
-              const timeLabel = minAgo < 2 ? 'just now' : minAgo < 60 ? `${minAgo}m ago` : `${Math.floor(minAgo/60)}h ${minAgo%60}m ago`;
-              const isHealthy = minAgo < 20;
-              return (
-                <div>
-                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
-                    <div style={{width:7,height:7,borderRadius:'50%',background:isHealthy?GREEN:RED,flexShrink:0,animation:isHealthy?'pulse 2s infinite':'none'}}/>
-                    <span style={{fontSize:11,color:isHealthy?GREEN:RED,fontWeight:600}}>
-                      {isHealthy?'LIVE':'STALLED'} — Last run {lastRun.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} ({timeLabel})
-                    </span>
-                  </div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10}}>
-                    {[
-                      ['Batches Today', `${stats.scraper_batches_today||0} runs`],
-                      ['Listings Scanned', `${stats.scraper_rfps_reviewed_today||0} listings`],
-                      ['New This Session', `${stats.scraper_last_batch_scanned||0} found`],
-                      ['Net New Today', `${stats.scraper_net_new_today||0} new`],
-                      ['Pending Review', `${stats.opportunities_pending_review||0} in queue`],
-                      ['Next Run', `~${6-(Math.floor(Date.now()/60000)%6)} min`],
-                    ].map(([label,value])=>(
-                      <div key={label} style={{background:BG3,borderRadius:4,padding:'6px 8px'}}>
-                        <div style={{fontSize:9,color:TEXT_D,letterSpacing:'0.06em',marginBottom:2}}>{label.toUpperCase()}</div>
-                        <div style={{fontSize:13,fontWeight:700,color:GOLD}}>{value}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{height:4,background:BG3,borderRadius:2,overflow:'hidden',marginBottom:4}}>
-                    <div style={{height:'100%',width:Math.min((stats.scraper_rfps_reviewed_today||0)/50*100,100)+'%',background:isHealthy?GOLD:RED,borderRadius:2,transition:'width 0.5s'}}/>
-                  </div>
-                  <div style={{fontSize:10,color:TEXT_D,display:'flex',justifyContent:'space-between'}}>
-                    <span>Central Bidding · every 6 min</span>
-                    {stats.top_verticals_today && stats.top_verticals_today !== 'none' && <span>Top: <span style={{color:GOLD}}>{stats.top_verticals_today}</span></span>}
-                  </div>
-                </div>
-              );
-            })()
+          <div style={{color:GOLD,fontWeight:700,fontSize:13,marginBottom:10}}>SCRAPER STATUS</div>
+          {(stats.scraper_sources||[]).length > 0 ? (
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              {(stats.scraper_sources||[]).map(function(sc,i){
+                var statusColor = sc.status==='live'?GREEN:sc.status==='scheduled'?BLUE:sc.status==='setup'?ORANGE:TEXT_D;
+                var statusLabel = sc.status==='live'?'LIVE':sc.status==='scheduled'?'SCHEDULED':sc.status==='setup'?'SETUP':sc.status==='delayed'?'DELAYED':'UNKNOWN';
+                var lastRunStr = sc.last_run ? (function(){
+                  var m = Math.floor((Date.now()-new Date(sc.last_run))/60000);
+                  return m < 2 ? 'just now' : m < 60 ? m+'m ago' : Math.floor(m/60)+'h ago';
+                })() : 'never';
+                return React.createElement('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',background:BG3,borderRadius:4,border:'1px solid '+BORDER}},
+                  React.createElement('div',{style:{width:7,height:7,borderRadius:'50%',background:statusColor,flexShrink:0,animation:sc.status==='live'?'pulse 2s infinite':'none'}}),
+                  React.createElement('div',{style:{flex:1,minWidth:0}},
+                    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:6}},
+                      React.createElement('span',{style:{color:TEXT,fontSize:12,fontWeight:600}}),sc.name,
+                      React.createElement('span',{style:{color:statusColor,fontSize:10,fontWeight:700,background:statusColor+'11',padding:'1px 6px',borderRadius:3}}),statusLabel
+                    ),
+                    React.createElement('div',{style:{color:TEXT_D,fontSize:10,marginTop:2}},sc.schedule+' · last: '+lastRunStr+(sc.runs_today?' · '+sc.runs_today+' runs today':''))
+                  )
+                );
+              })}
+              <div style={{marginTop:4,display:'flex',justifyContent:'space-between',fontSize:10,color:TEXT_D}}>
+                <span>CB: {stats.scraper_batches_today||0} runs today · {stats.scraper_rfps_reviewed_today||0} listings scanned</span>
+                {stats.top_verticals_today&&stats.top_verticals_today!=='none'&&React.createElement('span',null,'Top: ',React.createElement('span',{style:{color:GOLD}},stats.top_verticals_today))}
+              </div>
+            </div>
           ) : (
-            <div style={{fontSize:11,color:TEXT_D}}>Waiting for first run...</div>
+            <div style={{fontSize:11,color:TEXT_D}}>Loading scraper status...</div>
           )}
         </Card>
         <Card>
