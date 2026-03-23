@@ -99,7 +99,7 @@ async function agentIntelligence(opp, ctx) {
 }
 
 async function agentCrm(opp, ctx) {
-  var web = await webSearch('procurement director contact ' + opp.agency + ' Louisiana professional services contracts email phone 2024 2025');
+  var web = await webSearch('procurement director contact ' + opp.agency + ' ' + (opp.state||'Louisiana') + ' professional services contracts email phone 2024 2025');
   var webCtx = (web && web.length > 30) ? ('\nWEB CONTACT DATA:\n' + web.slice(0,1500)) : '\n(No new web contact data found)';
   var a = await think(
     'HGI relationship intelligence agent. Find and verify decision-maker contacts. Flag relationship strength as cold/unknown unless there is clear evidence otherwise.',
