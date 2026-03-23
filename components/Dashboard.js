@@ -21,7 +21,7 @@ function Dashboard({ setActive }) {
       try { const sa=await fetch('/api/self-assess?latest=1'); if(sa.ok){const sd=await sa.json(); if(sd.status==='ok') setSelfAssess(sd);} } catch(e){}
       try { const rg=await fetch('/api/agent-registry'); if(rg.ok){const rd=await rg.json(); setRegistry(rd);} } catch(e){}
       try { const dr=await fetch('/api/organism-decisions'); if(dr.ok){const dd=await dr.json(); setDecisions(dd.decisions||[]); setLastThink(dd.last_think_run||null);} } catch(e){}
-      try { const mr=await fetch('/api/organism-view'); if(mr.ok){const md=await mr.json(); setRecentMemory(md.memories||[]);} } catch(e){}
+      try { const mr=await fetch('/api/organism-decisions'); if(mr.ok){const md=await mr.json(); setRecentMemory((md.decisions||[]).slice(0,5));} } catch(e){}
       setLoading(false);
     };
     load();
