@@ -58,7 +58,7 @@ export default async function handler(req, res) {
       if (m.agent === 'winnability_agent' && !winText) winText = (m.observation||'').slice(0,2000);
       if (m.agent === 'red_team' && !redText) redText = (m.observation||'').slice(0,2500);
     }
-    if (!gateText && !propText) return res.status(200).json({ note: 'No Sonnet findings yet', opp: opp.title });
+    if (!gateText && !propText && !redText) return res.status(200).json({ note: 'No Sonnet findings yet', opp: opp.title });
     R.gate_chars = gateText.length;
     R.prop_chars = propText.length;
     // STEP 1: Score current draft
