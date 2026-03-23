@@ -29,6 +29,16 @@ function Chat() {
   var loading = loadState[0];
   var setLoading = loadState[1];
   var messagesEndRef = useRef(null);
+  var toastState = useState(null);
+  var toast = toastState[0];
+  var setToast = toastState[1];
+  var toastTimer = useRef(null);
+
+  var showToast = function(msg) {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(function() { setToast(null); }, 4000);
+  };
 
   var scrollToBottom = function() {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
