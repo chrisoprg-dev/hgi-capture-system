@@ -95,7 +95,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': AK, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 4000,
         system: 'You are a panel of senior government proposal evaluators with 20+ years experience each. You score proposals the way real evaluators do — ruthlessly, specifically, by the stated criteria. You also know the competitive landscape deeply. You produce actionable findings with exact improved text, not generic advice.',
         messages: [{ role: 'user', content: prompt }]
