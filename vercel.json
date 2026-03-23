@@ -41,6 +41,7 @@
     "api/organism-decisions.js": { "maxDuration": 30 },
     "api/organism-work.js": { "maxDuration": 300 },
     "api/sonnet-work.js": { "maxDuration": 300 },
+    "api/proposal-loop.js": { "maxDuration": 300 },
     "api/proposal-graphics.js": { "maxDuration": 60 }
   },
   "crons": [
