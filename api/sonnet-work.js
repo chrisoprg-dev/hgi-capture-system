@@ -107,8 +107,14 @@ export default async function handler(req, res) {
     } else { R.errors.push({a:'gate',r:g.slice(0,200)}); }
     R.gate_verdict = gateVerdict;
 
-    // === AGENT 2: WINNABILITY (Sonnet 4.6) ===
-    var w = await sonnet('Senior BD director making a real bid/no-bid decision. Quality gate verdict: ' + gateVerdict + '. Everything in your assessment must be specific to THIS opportunity, THIS agency, THIS scope, and THIS competitive field — derived from the research brief and organism memory. Never generic.', ctx + '\n\nQUALITY GATE SAYS: ' + gateVerdict + '\n\nUsing the competitive intelligence in the research brief and organism memory above: who specifically will bid on this, what are their strengths against each eval criterion, where is HGI stronger, where is HGI weaker? Score per criterion vs named competitors. PWIN X% | GO/NO-BID. All actions that would increase PWIN, ranked by point impact.', 1500);
+    // === AGENT 2: WINNABILITY (Sonnet 4.6) — MEMORY-AWARE ===
+    var winSystem = 'Senior BD director making a real bid/no-bid decision with full competitive context. You have: (1) the RFP scope and proposal draft, (2) the quality gate verdict and findings, (3) competitive intelligence and research from prior agent analysis — named competitors, pricing benchmarks, agency patterns, red team scores. Use ALL of it. Your PWIN must be based on real competitive findings, not generic assessment. Never say "likely competitors" when memory tells you exactly who they are.';
+    var winPrompt = ctx +
+      (gateResearch.length > 50 ? '\n\n=== COMPETITIVE RESEARCH & STRATEGIC INTEL ===\n' + gateResearch : '') +
+      (gateMemCtx.length > 50 ? '\n\n=== ORGANISM MEMORY — COMPETITIVE INTEL, RED TEAM SCORES, ANALYSIS ===\n' + gateMemCtx : '') +
+      '\n\nQUALITY GATE VERDICT: ' + gateVerdict + '\n\nGATE FINDINGS SUMMARY:\n' + g.slice(0,800) +
+      '\n\nUsing all competitive context above — named competitors from memory, their strengths vs each eval criterion, gate findings, research brief, red team scores — deliver a rigorous bid decision. Score HGI vs each named competitor per eval criterion. State PWIN X% | GO/NO-BID. List every action that would raise PWIN, ranked by point impact, with the specific proposal section each action targets.';
+    var w = await sonnet(winSystem, winPrompt, 1500);
     if (w.length > 80 && !w.startsWith('API_ERR') && !w.startsWith('ERR:')) { await mem('winnability_agent', opp.id, opp.agency+',winnability', 'SONNET WIN (gate='+gateVerdict+'):\n'+w, 'winnability'); R.agents.push({a:'winnability',c:w.length}); } else { R.errors.push({a:'win',r:w.slice(0,200)}); }
 
     // === AGENT 3: PROPOSAL BUILDER (Opus 4.6 + Extended Thinking + Web + KB) ===
