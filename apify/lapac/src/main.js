@@ -411,7 +411,14 @@ for (const keyword of SEARCH_KEYWORDS) {
     await new Promise(r => setTimeout(r, 1000));
 }
 
-for (const dept of TARGET_DEPARTMENTS) {
+// Time guard: skip department scan if keywords took too long
+const elapsedMs = Date.now() - startTime;
+const remainingMs = 270000 - elapsedMs; // 270s safety margin on 300s timeout
+if (remainingMs < 30000) {
+    log('Time guard: ' + Math.round(elapsedMs/1000) + 's elapsed, skipping department scan');
+} else {
+  log('Time remaining: ' + Math.round(remainingMs/1000) + 's — scanning departments');
+  for (const dept of TARGET_DEPARTMENTS) {
     log('Scanning department: ' + dept);
     const bids = await fetchBidsByDepartment(dept, browser);
     stats.departments_searched++;
