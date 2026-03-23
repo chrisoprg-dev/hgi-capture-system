@@ -176,16 +176,16 @@ async function runOpp(opp, R) {
         if (p.length > minLen) {
           try { await fetch(SB + '/rest/v1/opportunities?id=eq.' + encodeURIComponent(opp.id), { method: 'PATCH', headers: H, body: JSON.stringify({ staffing_plan: p, last_updated: new Date().toISOString() }) }); R.draft_written = p.length; } catch(wErr) { R.errors.push({step:'draft_write',msg:wErr.message}); }
         }
-        R.agents.push({a:'proposal_opus',c:p.length,sources:['gate','winnability','web_x3','kb','memory','direct_writeback']});
+        oppR.agents.push({a:'proposal_opus',c:p.length,sources:['gate','winnability','web_x3','kb','memory','direct_writeback']});
         // Fire kb-enrich async — don't await, don't block proposal run
         fetch('https://hgi-capture-system.vercel.app/api/kb-enrich', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ proposal: p, gate_output: g, vertical: vertical, opp_title: title, agency: agency })
         }).catch(function() {});
-        R.kb_enrich_triggered = true;
+        oppR.kb_enrich_triggered = true;
       } else {
-        R.errors.push({a:'prop_opus',r:(p||'').slice(0,200)});
+        oppR.errors.push({a:'prop_opus',r:(p||'').slice(0,200)});
       }
     }
 
