@@ -56,6 +56,7 @@ export default async function handler(req, res) {
       if (m.agent === 'quality_gate' && !gateText) gateText = (m.observation||'').slice(0,3000);
       if (m.agent === 'proposal_agent' && !propText) propText = (m.observation||'').slice(0,3000);
       if (m.agent === 'winnability_agent' && !winText) winText = (m.observation||'').slice(0,2000);
+      if (m.agent === 'red_team' && !redText) redText = (m.observation||'').slice(0,2500);
     }
     if (!gateText && !propText) return res.status(200).json({ note: 'No Sonnet findings yet', opp: opp.title });
     R.gate_chars = gateText.length;
