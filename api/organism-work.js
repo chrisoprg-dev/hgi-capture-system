@@ -350,12 +350,8 @@ export default async function handler(req, res) {
       var memCompact = oppMem(opp, 'compact');
       var ctxFull = buildCtx(opp, memFull, 'full');
       var ctxCompact = buildCtx(opp, memCompact, 'compact');
-      // Sonnet critical agents — full context
-      perOppPromises.push(safe(function(){ return agentIntelligence(opp, ctxFull); }));
-      perOppPromises.push(safe(function(){ return agentResearch(opp, ctxFull); }));
-      perOppPromises.push(safe(function(){ return agentWinnability(opp, ctxFull); }));
-      perOppPromises.push(safe(function(){ return agentQualityGate(opp, ctxFull); }));
-      perOppPromises.push(safe(function(){ return agentProposal(opp, ctxFull); }));
+      // Sonnet agents (intel, research, winnability, quality_gate, proposal) moved to sonnet-work.js
+      // They silently fail here from rate limiting — sonnet-work runs them sequentially at 12:15 CST
       perOppPromises.push(safe(function(){ return agentOppBrief(opp, ctxFull); }));
       // Haiku routine agents — compact context
       perOppPromises.push(safe(function(){ return agentCrm(opp, ctxCompact); }));
