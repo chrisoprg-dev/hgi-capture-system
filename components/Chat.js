@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePipeline } from '../contexts/PipelineContext';
-import { callClaude } from '../utils/claude';
 import { Btn } from './ui';
 import { COLORS } from '../utils/constants';
 
