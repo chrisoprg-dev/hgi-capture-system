@@ -522,7 +522,7 @@ Return ONLY this exact JSON with no markdown:
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2500,
         system: "You are a government contracting analyst. Return ONLY valid JSON. No markdown. No explanation.",
         messages: [{ role: "user", content: analysisPrompt }],
