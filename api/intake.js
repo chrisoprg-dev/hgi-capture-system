@@ -3,20 +3,7 @@
 // Validates, deduplicates, analyzes with Claude, stores in Supabase
 export const config = { maxDuration: 60 };
 
-const HGI_CONTEXT = `Hammerman & Gainer LLC (HGI) — 95 years in business.
-Core capabilities:
-- Disaster Recovery: CDBG-DR, FEMA PA, HMGP, BRIC, Housing Recovery. Past performance: Road Home Program $12B, Restore Louisiana, BP GCCF 1M+ claims processed
-- TPA/Claims Administration: Workers Comp TPA, Property & Casualty TPA, Insurance Guaranty Associations. Past: TPCIGA 20+ years Texas, LIGA Louisiana
-- Property Tax Appeals: 10+ year history City of New Orleans. Proven recurring-revenue model replicable to any city/parish/county
-- Workforce & Social Services: Louisiana Workforce Commission, unemployment adjudication, case management, benefits administration
-- Housing/HUD: Housing authority program management, HUD compliance, HMGP housing recovery
-- Grant Management: Federal/state grant administration, financial compliance, reporting
-- Infrastructure & Capital Programs: Transit authorities, construction management, financial oversight, HUD/DOT/FTA program admin
-- Federal Programs: PBGC 34M beneficiaries, HUD, FEMA, Treasury ERAP-type programs, federal claims administration
-NOT HGI: Medicaid, health insurance, behavioral health, substance abuse treatment, public health, clinical services, eating disorders, cancer programs
-Geography: Louisiana (ALL parishes + municipal), Texas, Florida, Mississippi, Alabama, Georgia, Federal
-Key NAICS: 541611, 541690, 561110, 561990, 524291, 923120, 921190
-Small/mid contracts: HGI actively pursues contracts under $500K if recurring or strategic`;
+import { HGI_CONTEXT, HGI_KEYWORDS, HGI_CLASSIFICATION_GUIDE } from './hgi-master-context.js';
 
 function safeId(s) {
   return (s || "").toString().replace(/[^a-zA-Z0-9\-_]/g, "-").slice(0, 80);
