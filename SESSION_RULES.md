@@ -82,6 +82,15 @@ No agent, red team, quality gate, or proposal reviewer may flag, question, or su
 - Gregory Harding, TPSD: gregoryharding@tpsd.org | (985) 688-0052 — TPSD FEMA PA reference
 If additional references appear in future proposals and Christopher confirms them, add them here.
 
+## IRON RULE — EVERYTHING IS RFP-SPECIFIC. ALWAYS.
+HGI has 8 verticals: Disaster Recovery, TPA/Claims, Property Tax Appeals, Workforce/WIOA, Construction Management, Program Administration, Housing/HUD, Grant Management.
+Every proposal agent, web search, KB query, quality gate, winnability assessment, red team, and system prompt MUST be derived from the actual RFP — its scope, eval criteria, vertical, agency, and requirements.
+NEVER hardcode program types (FEMA PA, CDBG-DR, PAPPG, HUD, WIOA, etc.) into any agent instruction.
+NEVER hardcode competitor names (CDR Maguire, Tetra Tech, Sedgwick, etc.) — derive from organism memory and research brief.
+NEVER assume section labels (Section D, Technical Approach, etc.) — read what THIS RFP calls its sections.
+If you find yourself writing FEMA or CDBG or any specific program name in an agent system prompt without reading it from the RFP data — STOP. You are hardcoding. Fix it.
+Violation: system producing FEMA PA methodology for a Workers Comp TPA bid, or disaster recovery competitor names for a Property Tax Appeals SOQ.
+
 ## PROPOSAL AGENT PRIME DIRECTIVE
 The system has a KB, scope analysis, organism memory, and confirmed HGI facts for a reason.
 The proposal agent must BUILD complete sections — not patch sentences.
