@@ -5,6 +5,37 @@ var H = { 'apikey': SK, 'Authorization': 'Bearer ' + SK, 'Content-Type': 'applic
 var D = String.fromCharCode(36);
 var HGI = { name:'HGI Global, Inc.', legal:'Hammerman & Gainer LLC', founded:'~1929', years:'96', address:'2400 Veterans Memorial Blvd, Suite 510, Kenner, LA 70062', phone:'504-982-5030', uei:'DL4SJEVKZ6H4', ownership:'100% Minority-Owned', staff:'67 FT + 43 Contract Professionals', offices:'Kenner (HQ), Shreveport, Alexandria, New Orleans', insurance:D+'5M Fidelity Bond, '+D+'5M E&O, '+D+'2M GL' };
 var GOLD='#C9A84C',NAVY='#1B3A5C',LIGHT='#F8F6F0';
+var PEXELS_KEY = process.env.PEXELS_API_KEY || '';
+var OPENAI_KEY = process.env.OPENAI_API_KEY || '';
+
+async function fetchPexelsImage(query) {
+  if (!PEXELS_KEY) return null;
+  try {
+    var r = await fetch('https://api.pexels.com/v1/search?query='+encodeURIComponent(query)+'&per_page=1&orientation=landscape',{headers:{Authorization:PEXELS_KEY}});
+    var d = await r.json();
+    return (d.photos && d.photos[0]) ? d.photos[0].src.large2x || d.photos[0].src.large : null;
+  } catch(e) { return null; }
+}
+
+async function generateDalleImage(prompt) {
+  if (!OPENAI_KEY) return null;
+  try {
+    var r = await fetch('https://api.openai.com/v1/images/generations',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+OPENAI_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({model:'dall-e-3',prompt:prompt,n:1,size:'1792x1024',quality:'standard'})
+    });
+    var d = await r.json();
+    return (d.data && d.data[0]) ? d.data[0].url : null;
+  } catch(e) { return null; }
+}
+
+function imgTag(url, alt, height, caption) {
+  if (!url) return '';
+  var h = height || 220;
+  var cap = caption ? '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(13,31,51,0.85));padding:20px 16px 10px;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#C9A84C;font-weight:600;">'+caption+'</div>' : '';
+  return '<div style="position:relative;border-radius:6px;overflow:hidden;margin:20px 0;"><img src="'+url+'" alt="'+(alt||'')+'" style="width:100%;height:'+h+'px;object-fit:cover;display:block;opacity:0.9;">'+cap+'</div>';
+}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 // Convert full markdown to rich HTML — ALL text preserved, visuals injected inline
