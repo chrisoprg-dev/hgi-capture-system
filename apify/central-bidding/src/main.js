@@ -40,10 +40,9 @@ const HGI_KEYWORDS = [
     'workforce development', 'workforce services', 'workforce commission',
     'unemployment', 'job training', 'WIOA', 'employment services',
     'career services', 'reemployment', 'labor exchange',
-    // Health / Medicaid / Human Services
-    'public health', 'health services', 'Medicaid', 'health program',
-    'behavioral health', 'human services', 'social services',
-    'case management', 'benefits administration', 'health department',
+    // Human Services (NOT health/Medicaid — HGI excluded vertical)
+    'human services', 'social services',
+    'case management', 'benefits administration',
     // Federal Program Admin
     'program administration', 'federal program', 'grant compliance',
     'compliance monitoring', 'audit services', 'financial management',
