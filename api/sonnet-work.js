@@ -103,10 +103,8 @@ export default async function handler(req, res) {
     if (w.length > 80 && !w.startsWith('API_ERR') && !w.startsWith('ERR:')) { await mem('winnability_agent', opp.id, opp.agency+',winnability', 'SONNET WIN (gate='+gateVerdict+'):\n'+w, 'winnability'); R.agents.push({a:'winnability',c:w.length}); } else { R.errors.push({a:'win',r:w.slice(0,200)}); }
 
     // === AGENT 3: PROPOSAL BUILDER (Opus 4.6 + Extended Thinking + Web + KB) ===
-    if (gateVerdict === 'NO-GO') {
-      R.agents.push({a:'proposal',c:0,skipped:'gate_NO-GO'});
-      await mem('proposal_agent', opp.id, opp.agency+',proposal', 'PROPOSAL BLOCKED BY GATE (NO-GO). Fix deficiencies before investing in proposal improvements. Gate output:\n'+g.slice(0,2000), 'analysis');
-    } else {
+    {
+      // Gate verdict is INPUT not a blocker. NO-GO = build the missing sections immediately.
       // Everything derived from the actual RFP — never hardcoded
       var vertical = (opp.vertical || 'professional services').trim();
       var agency = (opp.agency || '').trim();
