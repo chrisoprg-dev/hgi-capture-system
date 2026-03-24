@@ -15,7 +15,7 @@ export var HGI_CONTEXT =
   'Insurance: ' + d + '5M fidelity bond, ' + d + '5M E&O, ' + d + '2M GL (' + d + '1M per occurrence/' + d + '2M aggregate).\n' +
   'NAICS: 541611, 541690, 561110, 561990, 524291, 923120, 921190.\n' +
   'Geography: Louisiana, Texas, Florida, Mississippi, Alabama, Georgia, Federal programs.\n' +
-  'CRITICAL: HGI has NEVER had a direct federal contract. All work flows through state/local agencies, housing authorities, and insurance entities.\n' +
+  'FEDERAL MARKET: HGI has one direct federal contract (PBGC — Pension Benefits Guaranty Corp). Actively pursuing federal market penetration. Most work historically flows through state/local agencies, housing authorities, and insurance entities, but federal direct contracts are a strategic growth target.\n' +
   '\n4 PRIMARY BUSINESS LINES (from official Corporate Profile):\n' +
   '(1) Disaster Recovery / Grants & Program Management\n' +
   '(2) Construction / Construction Management\n' +
