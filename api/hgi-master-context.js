@@ -105,7 +105,7 @@ export var HGI_CONTEXT =
   '- Health insurance administration or standalone health TPA (NOTE: health care COMPANIES hire HGI for WC/liability TPA — HGI is NOT a health care provider or Medicaid administrator)\n' +
   '- Physical construction, debris removal, demolition, road clearing, dredging, grass maintenance\n' +
   '- Insurance brokerage (selling or placing insurance)\n' +
-  '- Direct federal contracting (all work through state/local intermediaries)\n' +
+  '' +
   '- IT services, software development, engineering or architectural design\n' +
   '- Environmental remediation or cleanup\n' +
   '- Equipment rental, materials procurement, supply chain\n' +
