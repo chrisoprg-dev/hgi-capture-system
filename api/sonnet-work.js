@@ -209,9 +209,18 @@ export default async function handler(req, res) {
       R.opps_processed.push(oppResult);
     }
   } catch(e) { R.errors.push({fatal:e.message}); }
+  // Always log run result — success or failure
   try {
     var totalAgents = R.opps_processed.reduce(function(s,o){ return s+(o.agents||[]).length; }, 0);
-    await fetch(SB+'/rest/v1/hunt_runs', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({id:'hr-sonnet-'+Date.now(), source:'sonnet_work', status: totalAgents+' agents | '+R.opps_processed.length+' opps | '+R.errors.length+' errors', run_at: new Date().toISOString(), opportunities_found: 0}) });
+    var totalErrors = R.opps_processed.reduce(function(s,o){ return s+(o.errors||[]).length; }, 0) + R.errors.length;
+    var statusMsg = totalAgents+' agents | '+R.opps_processed.length+' opps | '+totalErrors+' errors';
+    await fetch(SB+'/rest/v1/hunt_runs', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({id:'hr-sonnet-'+Date.now(), source:'sonnet_work', status: statusMsg, run_at: new Date().toISOString(), opportunities_found: 0}) });
+    // If errors occurred, write alert to organism_memory so health monitor and self_awareness see it
+    if (totalErrors > 0) {
+      var errDetails = R.opps_processed.map(function(o) { return (o.opp||'?') + ': ' + (o.errors||[]).map(function(e){ return JSON.stringify(e).slice(0,200); }).join('; '); }).filter(function(s){ return s.indexOf('[]') === -1; }).join(' | ');
+      if (R.errors.length) errDetails += ' | FATAL: ' + R.errors.map(function(e){ return JSON.stringify(e).slice(0,200); }).join('; ');
+      await fetch(SB+'/rest/v1/organism_memory', { method:'POST', headers: Object.assign({},H,{'Prefer':'return=minimal'}), body: JSON.stringify({ id: 'om-sw-err-'+Date.now()+'-'+Math.random().toString(36).slice(2,6), agent: 'sonnet_work', opportunity_id: null, entity_tags: 'system,error,sonnet_work', observation: 'SONNET-WORK ERROR: '+statusMsg+'. Details: '+errDetails.slice(0,2000), memory_type: 'system_alert', created_at: new Date().toISOString() }) });
+    }
   } catch(e) {}
   R.completed = new Date().toISOString();
   return res.status(200).json(R);
