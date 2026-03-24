@@ -198,7 +198,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   var R = { started: new Date().toISOString(), opps_processed: [], errors: [] };
   try {
-    var allOpps = await (await fetch(SB + '/rest/v1/opportunities?status=eq.active&stage=in.(proposal,pursuing)&opi_score=gte.65&select=id,title,agency,vertical,opi_score,scope_analysis,financial_analysis,research_brief,staffing_plan,capture_action&order=opi_score.desc&limit=5', { headers: H })).json();
+    // Limit to 1 opp per run — each opp takes 2-4 min with Opus+web+KB.
+    // Multiple opps timeout at Vercel's 300s limit. Highest OPI gets priority.
+    var allOpps = await (await fetch(SB + '/rest/v1/opportunities?status=eq.active&stage=in.(proposal,pursuing)&opi_score=gte.65&select=id,title,agency,vertical,opi_score,scope_analysis,financial_analysis,research_brief,staffing_plan,capture_action&order=opi_score.desc&limit=1', { headers: H })).json();
     if (!allOpps || !allOpps.length) return res.status(200).json({ note: 'No active proposal/pursuing opps' });
     var oppsWithDraft = allOpps.filter(function(o) { return (o.staffing_plan||'').length >= 200; });
     if (!oppsWithDraft.length) return res.status(200).json({ note: 'No opps with draft', titles: allOpps.map(function(o){return o.title;}) });
