@@ -123,23 +123,19 @@ export default async function handler(req, res) {
     }
   }
 
-  // === CHECK 4: Scraper health ===
-  try {
-    var recentHunts = await (await fetch(SB + '/rest/v1/hunt_runs?source=in.(apify_central_bidding,grants_gov,sam_gov)&run_at=gte.' + today + 'T00:00:00&order=run_at.desc&limit=10', { headers: H })).json();
-    var scrapersToday = {};
-    for (var si = 0; si < (recentHunts||[]).length; si++) {
-      scrapersToday[recentHunts[si].source] = true;
-    }
-    var scraperNames = ['apify_central_bidding', 'grants_gov', 'sam_gov'];
-    for (var sn = 0; sn < scraperNames.length; sn++) {
-      if (scrapersToday[scraperNames[sn]]) {
+  // === CHECK 4: Scraper health — check each individually ===
+  var scraperNames = ['apify_central_bidding', 'grants_gov', 'sam_gov'];
+  for (var sn = 0; sn < scraperNames.length; sn++) {
+    try {
+      var sRuns = await (await fetch(SB + '/rest/v1/hunt_runs?source=eq.' + scraperNames[sn] + '&run_at=gte.' + today + 'T00:00:00&order=run_at.desc&limit=1', { headers: H })).json();
+      if (sRuns && sRuns.length > 0) {
         R.checks.push({ name: 'scraper_' + scraperNames[sn], status: 'OK', detail: 'Ran today' });
       } else {
         R.checks.push({ name: 'scraper_' + scraperNames[sn], status: 'WARNING', detail: 'No runs logged today' });
         R.alerts.push('WARNING: ' + scraperNames[sn] + ' has not run today');
       }
-    }
-  } catch(e) { R.checks.push({ name: 'scrapers', status: 'ERROR', detail: e.message }); }
+    } catch(e) { R.checks.push({ name: 'scraper_' + scraperNames[sn], status: 'ERROR', detail: e.message }); }
+  }
 
   // === SUMMARY ===
   var criticals = R.alerts.filter(function(a) { return a.indexOf('CRITICAL') !== -1; }).length;
