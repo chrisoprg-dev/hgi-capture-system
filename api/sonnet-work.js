@@ -65,7 +65,9 @@ async function opusProposal(system, prompt) {
 
 async function runOpp(opp, R) {
   var oppR = { opp: opp.title, draft: (opp.staffing_plan||'').length, agents: [], errors: [] };
-
+  // CHECKPOINT: log start immediately so we know the function ran
+  await mem('sonnet_work', opp.id, 'checkpoint,start', 'SONNET-WORK STARTED: '+opp.title+' | OPI '+opp.opi_score+' | draft='+((opp.staffing_plan||'').length)+'chars | '+new Date().toISOString(), 'system_alert');
+  try {
     // Load organism memory for this opp
     var mems = await (await fetch(SB + '/rest/v1/organism_memory?opportunity_id=eq.' + encodeURIComponent(opp.id) + '&memory_type=neq.decision_point&order=created_at.desc&limit=20&select=agent,observation,memory_type', { headers: H })).json();
     var memCtx = (mems||[]).map(function(m) { return '[' + m.agent + ']: ' + (m.observation||'').slice(0, 350); }).join('\n\n');
