@@ -4,6 +4,24 @@ var INTAKE_URL = 'https://hgi-capture-system.vercel.app/api/intake';
 var GRANTS_API = 'https://api.grants.gov/v1/api/search2';
 var INTAKE_SECRET = process.env.INTAKE_SECRET;
 var KEYWORDS = HGI_GRANTS_KEYWORDS;
+
+// Title-level pre-filter — drop obvious non-HGI grants before burning Claude tokens
+var JUNK_WORDS = [
+  'opioid','substance abuse','substance use disorder','hiv','aids','ryan white',
+  'mental health','clinical trial','treatment program','treatment capacity',
+  'treatment for pregnant','treatment for youth','treatment drug court',
+  'exchange alumni','nuclear','geological','fellowship','deaf','blind',
+  'interpreter','tribal energy','juvenile','family-based alternative',
+  'postpartum','pregnant','cancer','vaccine','immunization','behavioral health',
+  'sierra leone','venezuela','indonesia','egypt','cambodia','tunisia',
+  'amphibian','species','university research','graduate research',
+  'opioid stimulant','second chance act','americorps','osers','rsا'
+];
+function isTitleJunk(title) {
+  var t = (title || '').toLowerCase();
+  return JUNK_WORDS.some(function(w) { return t.indexOf(w) !== -1; });
+}
+
 async function searchGrants(kw, debug) {
   try {
     var r = await fetch(GRANTS_API, {
@@ -20,6 +38,7 @@ async function searchGrants(kw, debug) {
     return [];
   }
 }
+
 async function sendToIntake(opp) {
   try {
     var title = opp.title || opp.oppTitle || 'Untitled Grant';
@@ -46,28 +65,49 @@ async function sendToIntake(opp) {
     });
     var res2 = await r.json();
     return { title: title, status: res2.success ? 'ingested' : (res2.skipped ? 'skipped' : 'failed'), opi: res2.opi_score };
-  } catch(e) { return { title: 'error', status: 'error', error: e.message }; }
+  } catch(e) {
+    return { title: 'error', status: 'error', error: e.message };
+  }
 }
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  var results = { source: 'grants.gov', started: new Date().toISOString(), keywords_searched: 0, found: 0, ingested: 0, skipped: 0, errors: 0, details: [] };
+
+  var results = {
+    source: 'grants.gov',
+    started: new Date().toISOString(),
+    keywords_searched: 0,
+    found: 0,
+    pre_filtered: 0,
+    ingested: 0,
+    skipped: 0,
+    errors: 0,
+    details: []
+  };
+
   var seenIds = new Set();
   var allOpps = [];
+
   var isDebug = req.query && req.query.debug === '1';
   if (isDebug) {
     var debugResult = await searchGrants(KEYWORDS[0], true);
     return res.status(200).json({ debug: true, keyword: KEYWORDS[0], api_url: GRANTS_API, result: debugResult });
   }
+
   for (var i = 0; i < KEYWORDS.length; i++) {
     results.keywords_searched++;
     var hits = await searchGrants(KEYWORDS[i]);
     for (var j = 0; j < hits.length; j++) {
       var id = hits[j].id || hits[j].oppId || hits[j].number || '';
-      if (id && !seenIds.has(id)) { seenIds.add(id); allOpps.push(hits[j]); }
+      if (!id || seenIds.has(id)) continue;
+      if (isTitleJunk(hits[j].title)) { results.pre_filtered++; continue; }
+      seenIds.add(id);
+      allOpps.push(hits[j]);
     }
   }
+
   results.found = allOpps.length;
   var batch = allOpps.slice(0, 20);
   for (var k = 0; k < batch.length; k++) {
@@ -77,6 +117,7 @@ export default async function handler(req, res) {
     else if (ir.status === 'skipped') results.skipped++;
     else results.errors++;
   }
+
   results.completed = new Date().toISOString();
   try {
     var SB = process.env.SUPABASE_URL;
@@ -84,8 +125,9 @@ export default async function handler(req, res) {
     await fetch(SB + '/rest/v1/hunt_runs', {
       method: 'POST',
       headers: { 'apikey': SK, 'Authorization': 'Bearer ' + SK, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ source: 'grants_gov', status: 'found:' + results.found + '|in:' + results.ingested + '|skip:' + results.skipped, run_at: new Date().toISOString(), opportunities_found: results.ingested })
+      body: JSON.stringify({ source: 'grants_gov', status: 'found:' + results.found + '|filtered:' + results.pre_filtered + '|in:' + results.ingested + '|skip:' + results.skipped, run_at: new Date().toISOString(), opportunities_found: results.ingested })
     });
   } catch(e) {}
+
   return res.status(200).json(results);
 }
