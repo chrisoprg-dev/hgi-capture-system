@@ -222,6 +222,32 @@ export var HGI_KEYWORDS = [
   'corporate consulting services'
 ];
 
+// === GRANTS.GOV KEYWORDS — focused federal grant terms only ===
+// Grants.gov is a federal grants portal — only disaster/housing/workforce grants apply.
+// Keep tight (15 terms) to avoid embassy grants, geological surveys, etc.
+export var HGI_GRANTS_KEYWORDS = [
+  // Disaster / Recovery grants
+  'CDBG-DR disaster recovery',
+  'FEMA hazard mitigation grant',
+  'disaster recovery program administration',
+  'community development block grant disaster',
+  'flood recovery program management',
+  // Housing / HUD grants
+  'HUD housing program administration',
+  'housing authority grant management',
+  'homeowner assistance program administration',
+  // Workforce grants
+  'WIOA workforce development administration',
+  'workforce innovation opportunity act',
+  // TPA / Claims grants
+  'insurance guaranty fund administration',
+  'workers compensation program administration',
+  // Program Management
+  'federal grant program management',
+  'disaster grant administration services',
+  'sub-recipient monitoring compliance'
+];
+
 // ═══ SUB-VERTICAL CLASSIFICATION GUIDE — for scope analysis and OPI scoring ═══
 // Use this to determine if an opportunity is HGI core, adjacent, or excluded
 export var HGI_CLASSIFICATION_GUIDE =
