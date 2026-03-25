@@ -15,7 +15,11 @@ var JUNK_WORDS = [
   'postpartum','pregnant','cancer','vaccine','immunization','behavioral health',
   'sierra leone','venezuela','indonesia','egypt','cambodia','tunisia',
   'amphibian','species','university research','graduate research',
-  'opioid stimulant','second chance act','americorps','osers','rsا'
+  'opioid stimulant','second chance act','americorps','osers',
+  'ecosystem studies','geologic','geological','vau pds','alumni engagement',
+  'mentoring resource','neglect','exploitation of older','cooperative geologic',
+  'recovery and workforce','recovery services','treatment recovery',
+  'national cooperative','building resilient infrastructure'
 ];
 function isTitleJunk(title) {
   var t = (title || '').toLowerCase();
