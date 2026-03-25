@@ -20,7 +20,8 @@
     "api/run.js": { "maxDuration": 300 },
     "api/red-team.js": { "maxDuration": 300 },
     "api/scrape-sam-gov.js": { "maxDuration": 120 },
-    "api/contract-expiration.js": { "maxDuration": 120 }
+    "api/contract-expiration.js": { "maxDuration": 120 },
+    "api/opus-build.js": { "maxDuration": 300 }
   },
   "crons": [
     { "path": "/api/hunt", "schedule": "*/6 * * * *" },
