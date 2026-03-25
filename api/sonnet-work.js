@@ -108,7 +108,8 @@ async function runOpp(opp, R) {
       '\n\nQUALITY GATE VERDICT: ' + gateVerdict + '\n\nGATE FINDINGS SUMMARY:\n' + g.slice(0,800) +
       '\n\nUsing all competitive context above — named competitors from memory, their strengths vs each eval criterion, gate findings, research brief, red team scores — deliver a rigorous bid decision. Score HGI vs each named competitor per eval criterion. State PWIN X% | GO/NO-BID. List every action that would raise PWIN, ranked by point impact, with the specific proposal section each action targets.';
     var w = await sonnet(winSystem, winPrompt, 1500);
-    if (w.length > 80 && !w.startsWith('API_ERR') && !w.startsWith('ERR:')) { await mem('winnability_agent', opp.id, opp.agency+',winnability', 'SONNET WIN (gate='+gateVerdict+'):\n'+w, 'winnability'); oppR.agents.push({a:'winnability',c:w.length}); } else { oppR.errors.push({a:'win',r:w.slice(0,200)}); }
+    if (w.length > 80 && !w.startsWith('API_ERR') && !w.startsWith('ERR:')) { await mem('winnability_agent', opp.id, opp.agency+',winnability', 'SONNET WIN (gate='+gateVerdict+'):\n'+w, 'winnability'); oppR.agents.push({a:'winnability',c:w.length}); } else { oppR.errors.push({a:'win',r:w.slice(0,200)}); await mem('sonnet_work', opp.id, 'checkpoint,win_error', 'WINNABILITY FAILED: '+w.slice(0,300), 'system_alert'); }
+    await mem('sonnet_work', opp.id, 'checkpoint,win_done', 'CHECKPOINT winnability done: len='+w.length+' | elapsed='+(Date.now()-new Date(R.started).getTime())+'ms | '+new Date().toISOString(), 'system_alert');
 
     // === AGENT 3: PROPOSAL BUILDER (Opus 4.6 + Extended Thinking + Web + KB) ===
     {
