@@ -122,14 +122,16 @@ async function runOpp(opp, R) {
       // Extract first 300 chars of scope as topic context for queries
       var scopeSnippet = (opp.scope_analysis || '').replace(/[^a-zA-Z0-9 .,\-]/g, ' ').slice(0, 300).trim();
 
-      // Step 1: Three web searches — 100% driven by what THIS RFP requires
-      // Search 1: Technical approach and methodology for this specific service type
-      var web1 = await webSearch(title + ' ' + vertical + ' technical approach methodology best practices winning government proposals 2025 2026 evaluation criteria');
-      // Search 2: Agency-specific intelligence and similar contracts
-      var web2 = await webSearch(agency + ' ' + state + ' ' + vertical + ' professional services procurement requirements similar contracts awarded 2023 2024 2025');
-      // Search 3: Regulatory and compliance framework specific to this scope
-      var web3 = await webSearch(vertical + ' government contract compliance framework regulatory requirements ' + state + ' best practices 2025 2026 ' + scopeSnippet.slice(0,100));
-      oppR.web_searches = 3;
+      // Step 1: Two web searches in PARALLEL — saves ~15s vs sequential
+      // Search 1: Methodology specific to THIS RFP scope (not generic PM methodology)
+      var searchQ1 = scopeSnippet.slice(0,100) + ' ' + vertical + ' methodology best practices 2025 2026';
+      // Search 2: Agency-specific intel — council minutes, contracts, competitors
+      var searchQ2 = agency + ' ' + state + ' contracts awarded consultant ' + vertical + ' 2024 2025 2026';
+      var webResults = await Promise.all([webSearch(searchQ1), webSearch(searchQ2)]);
+      var web1 = webResults[0];
+      var web2 = webResults[1];
+      var web3 = '';
+      oppR.web_searches = 2;
 
       // Step 2: KB query — built from THIS opportunity's vertical and scope
       var kbQuery = vertical + ' ' + title + ' ' + scopeSnippet.slice(0,150);
