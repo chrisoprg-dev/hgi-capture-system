@@ -317,7 +317,7 @@ async function agentProposalWriter(opp, ctx) {
     '\n\nCURRENT PROPOSAL DRAFT:\n' + (opp.staffing_plan||'').slice(0,20000) +
     '\n\nQUALITY GATE AND INTEL CONTEXT:\n' + ctx.memText.slice(0,600) +
     '\n\nMISSION: (1) Score each section 1-10 against eval criterion - where are we losing points (2) For EVERY section scoring below 8: write the actual improved paragraph not a description (3) Does technical approach use best available domain terminology - what specific upgrades needed (4) Does each section show why HGI wins over likely competitors (5) Rewrite executive summary optimized for this specific evaluator and agency (6) Single highest-point-value improvement.';
-  var out = await claudeCall('You are HGI Proposal Writer, agent 15 of 37. You produce submission-ready proposal language. You write to win. Best language wins.', prompt, 2000);
+  var out = await claudeCall('You are HGI Proposal Writer, agent 15 of 37. You produce submission-ready proposal language. You write to win. Best language wins.', prompt, 8000);
   if (!out || out.length < 100) return null;
   log('PROPOSAL WRITER complete: ' + out.length + ' chars');
   await storeMemory('proposal_agent', opp.id, (opp.agency||'') + ',proposal_improvement', 'PROPOSAL WRITER - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'pattern');
