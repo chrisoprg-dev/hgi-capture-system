@@ -1074,7 +1074,7 @@ async function agentStaffingPlan(opp, ctx) {
   if (!out || out.length < 100) return null;
   log('STAFFING PLAN complete: ' + out.length + ' chars');
   await storeMemory('staffing_plan_agent', opp.id, (opp.agency||'') + ',staffing,personnel', 'STAFFING PLAN - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'analysis');
-  await supabase.from('opportunities').update({ staffing_plan: out.slice(0,8000), last_updated: new Date().toISOString() }).eq('id', opp.id);
+  await supabase.from('opportunities').update({ staffing_plan: out.slice(0,60000), last_updated: new Date().toISOString() }).eq('id', opp.id);
   return { agent: 'staffing_plan_agent', opp: opp.title, chars: out.length };
 }
 
