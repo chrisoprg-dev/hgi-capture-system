@@ -1525,13 +1525,13 @@ async function runSession(trigger) {
 
     var ctx = buildCtx(state);
     var activeOpps = state.pipeline.filter(function(o) { return (o.opi_score||0) >= 65; });
+    var allResults = [];
+
     // HUNTING AGENT fires first — finds and adds new opportunities before analysis runs
     log('HUNTING for new opportunities across all portals...');
     try { var rHunt = await agentHunting(state, ctx); if (rHunt) { allResults.push(rHunt); if (rHunt.new_opps > 0) { log('HUNTING added ' + rHunt.new_opps + ' new opportunities — refreshing pipeline...'); var freshPipeline = await supabase.from('opportunities').select('*').eq('status','active').order('opi_score', { ascending: false }).limit(10); if (freshPipeline.data) { state.pipeline = freshPipeline.data; activeOpps = state.pipeline.filter(function(o) { return (o.opi_score||0) >= 65; }); } } } } catch(e) { log('Hunting error: ' + e.message); }
 
-    log('Firing 5 agents on ' + activeOpps.length + ' opportunities OPI 65+...');
-
-    var allResults = [];
+    log('Firing agents on ' + activeOpps.length + ' opportunities OPI 65+...');
 
     for (var i = 0; i < activeOpps.length; i++) {
       var opp = activeOpps[i];
