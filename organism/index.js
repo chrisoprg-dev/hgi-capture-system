@@ -1273,7 +1273,7 @@ async function agentFinancialV2(opp, ctx) {
     '(4) STAFFING-BASED MODEL: build from the ground up using HGI rate card. Show hours per position per month, rates, total annual cost, overhead, fee, and grand total for base year. ' +
     '(5) THREE METHODS with visible math: (a) staffing-based bottom-up, (b) comparable contract top-down, (c) percentage of total program funding. Show all three calculations. ' +
     '(6) FINAL RECOMMENDATION: LOW/MID/HIGH range with rationale. Recommended bid price. Option year pricing. Any pricing risks specific to this agency.';
-  var out = await claudeCall('You are HGI Financial V2 Agent, agent 47. You build the complete financial picture. USAspending benchmarks. Agency patterns. Three independent methods. Visible math. The pricing model that wins.', prompt, 2000);
+  var out = await claudeCall('You are HGI Financial V2 Agent, agent 47. You build the complete financial picture. USAspending benchmarks. Agency patterns. Three independent methods. Visible math. The pricing model that wins.', prompt, 6000);
   if (!out || out.length < 100) return null;
   log('FINANCIAL V2 complete: ' + out.length + ' chars');
   await storeMemory('financial_v2', opp.id, (opp.agency||'') + ',financial_v2,pricing_model', 'FINANCIAL V2 - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'pricing_benchmark');
