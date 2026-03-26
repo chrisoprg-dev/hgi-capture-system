@@ -1073,7 +1073,7 @@ async function agentStaffingPlan(opp, ctx) {
     '(4) Calculate total annual staffing cost at proposed hours for base year ' +
     '(5) Write the personnel qualifications narrative for each named position - specific to THIS RFP requirements not generic ' +
     '(6) Flag any position where a TBD or placeholder would cost points and recommend how to address it before submission.';
-  var out = await claudeCall('You are HGI Staffing Plan Agent, agent 39. You match real HGI people to real RFP positions. You write personnel narratives that score. Named people with real qualifications beat TBD every time.', prompt, 2000);
+  var out = await claudeCall('You are HGI Staffing Plan Agent, agent 39. You match real HGI people to real RFP positions. You write personnel narratives that score. Named people with real qualifications beat TBD every time.', prompt, 8000);
   if (!out || out.length < 100) return null;
   log('STAFFING PLAN complete: ' + out.length + ' chars');
   await storeMemory('staffing_plan_agent', opp.id, (opp.agency||'') + ',staffing,personnel', 'STAFFING PLAN - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'analysis');
