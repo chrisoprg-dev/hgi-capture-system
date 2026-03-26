@@ -330,7 +330,7 @@ async function agentRedTeam(opp, ctx) {
   if ((opp.staffing_plan||'').length < 300) return null;
   log('RED TEAM: ' + (opp.title||'?').slice(0,50));
   var prompt = HGI + '\n\n' + oppBase(opp) +
-    '\n\nPROPOSAL DRAFT TO ATTACK:\n' + (opp.staffing_plan||'').slice(0,3000) +
+    '\n\nPROPOSAL DRAFT TO ATTACK:\n' + (opp.staffing_plan||'').slice(0,20000) +
     '\n\nCOMPETITOR CONTEXT:\n' + ctx.memText.slice(0,600) +
     '\n\nMISSION: You are the evaluation committee for a competitor firm. Your job is to find every reason NOT to select HGI. ' +
     '(1) Score each section as a skeptical evaluator would - where do you find weaknesses, vague claims, unsubstantiated assertions ' +
