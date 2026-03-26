@@ -321,6 +321,158 @@ async function agentProposalWriter(opp, ctx) {
   return { agent: 'proposal_agent', opp: opp.title, chars: out.length };
 }
 
+
+// ── AGENT 16: RED TEAM ────────────────────────────────────────────
+async function agentRedTeam(opp, ctx) {
+  if ((opp.staffing_plan||'').length < 300) return null;
+  log('RED TEAM: ' + (opp.title||'?').slice(0,50));
+  var prompt = HGI + '\n\n' + oppBase(opp) +
+    '\n\nPROPOSAL DRAFT TO ATTACK:\n' + (opp.staffing_plan||'').slice(0,3000) +
+    '\n\nCOMPETITOR CONTEXT:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: You are the evaluation committee for a competitor firm. Your job is to find every reason NOT to select HGI. ' +
+    '(1) Score each section as a skeptical evaluator would - where do you find weaknesses, vague claims, unsubstantiated assertions ' +
+    '(2) Where does the proposal make claims it cannot back up with evidence ' +
+    '(3) What questions would you ask in an oral presentation to expose weaknesses ' +
+    '(4) Where does the technical approach feel generic or copied vs tailored to this specific agency ' +
+    '(5) What would CDR Maguire or Tetra Tech write in their proposal that would score higher on each criterion ' +
+    '(6) The three most fatal weaknesses that would cause an evaluator to rank HGI below a competitor.';
+  var out = await claudeCall('You are HGI Red Team Agent, agent 16 of 37. You attack HGI proposals from the evaluator perspective. You find weaknesses before competitors do. Ruthless. Specific. No mercy.', prompt, 1500);
+  if (!out || out.length < 100) return null;
+  log('RED TEAM complete: ' + out.length + ' chars');
+  await storeMemory('red_team', opp.id, (opp.agency||'') + ',red_team,adversarial', 'RED TEAM - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'analysis');
+  return { agent: 'red_team', opp: opp.title, chars: out.length };
+}
+
+// ── AGENT 17: BRIEF AGENT ─────────────────────────────────────────
+async function agentBrief(opp, ctx) {
+  if ((opp.stage||'') !== 'proposal' && (opp.stage||'') !== 'pursuing') return null;
+  log('BRIEF: ' + (opp.title||'?').slice(0,50));
+  var prompt = HGI + '\n\n' + oppBase(opp) +
+    '\n\nCURRENT INTEL AND WINNABILITY:\n' + (opp.research_brief||'').slice(0,600) + '\n' + (opp.capture_action||'').slice(0,400) +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: Team briefing for the HGI pursuit team. Functional roles only, never personal names in the brief. ' +
+    '(1) Where we stand - proposal status, key gaps still open right now ' +
+    '(2) What changed since last brief based on new intelligence ' +
+    '(3) Open items that must be resolved before submission with owner role and deadline ' +
+    '(4) What each functional role must do THIS WEEK - Program Director, PA SME, Financial Specialist, Documentation Manager, HM Specialist ' +
+    '(5) Win confidence and why - honest assessment ' +
+    '(6) Single most important thing the team must get right to win.';
+  var out = await claudeCall('You are HGI Brief Agent, agent 17 of 37. You produce clear team briefings. Functional. Actionable. Every bullet drives a specific action by a specific role.', prompt, 800);
+  if (!out || out.length < 100) return null;
+  log('BRIEF complete: ' + out.length + ' chars');
+  await storeMemory('brief_agent', opp.id, (opp.agency||'') + ',briefing,team', 'BRIEF - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'analysis');
+  return { agent: 'brief_agent', opp: opp.title, chars: out.length };
+}
+
+// ── AGENT 18: OPPORTUNITY BRIEF (deep single-opp dossier) ─────────
+async function agentOppBrief(opp, ctx) {
+  log('OPP BRIEF: ' + (opp.title||'?').slice(0,50));
+  var prompt = HGI + '\n\n' + oppBase(opp) +
+    '\n\nFINANCIAL ANALYSIS:\n' + (opp.financial_analysis||'').slice(0,400) +
+    '\n\nWINNABILITY:\n' + (opp.capture_action||'').slice(0,400) +
+    '\n\nFULL ORGANISM INTELLIGENCE ON THIS OPPORTUNITY:\n' + ctx.memText.slice(0,1500) +
+    '\n\nMISSION: Produce the deepest possible single-opportunity dossier. This is the complete picture of everything the organism knows. ' +
+    '(1) Everything known about this agency - budget, leadership, procurement history, relationships, past awards ' +
+    '(2) Full competitive field with specific threat levels - who will beat us and exactly how ' +
+    '(3) HGI strengths and vulnerabilities mapped to each eval criterion with point values ' +
+    '(4) Financial picture - are we priced to win, what is market range ' +
+    '(5) Relationship map - who we know, who we need to know, who could help ' +
+    '(6) Critical path to submission - every remaining milestone, owner role, deadline ' +
+    '(7) Honest probability of winning and what would change it.';
+  var out = await claudeCall('You are HGI Opportunity Brief Agent, agent 18 of 37. You produce the complete dossier on a single opportunity. Everything the organism knows synthesized into one coherent picture.', prompt, 1500);
+  if (!out || out.length < 100) return null;
+  log('OPP BRIEF complete: ' + out.length + ' chars');
+  await storeMemory('opportunity_brief_agent', opp.id, (opp.agency||'') + ',opportunity_brief,dossier', 'OPP BRIEF - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'analysis');
+  return { agent: 'opportunity_brief_agent', opp: opp.title, chars: out.length };
+}
+
+// ── AGENT 19: DISASTER DECLARATION MONITOR ────────────────────────
+async function agentDisasterMonitor(state, ctx) {
+  log('DISASTER MONITOR: scanning for FEMA declarations...');
+  var prompt = HGI +
+    '\n\nACTIVE PIPELINE:\n' + state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | ' + (o.vertical||'') + ' | OPI:' + o.opi_score; }).join('\n') +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: HGI is a disaster recovery firm with $13B+ in program management experience. FEMA disaster declarations are our top lead source. ' +
+    '(1) Any new FEMA major disaster declarations in LA/TX/FL/MS/AL/GA in the last 30 days - DR number, state, declaration date, disaster type, estimated damage ' +
+    '(2) For each declaration - timeline for when recovery procurement will be issued (typically 90-180 days after declaration) ' +
+    '(3) Which HGI services would be needed - FEMA PA Cat A-G, HMGP 404/406, IA, CDBG-DR, financial compliance ' +
+    '(4) Who is the state recovery office contact for each declaration ' +
+    '(5) Any incumbent contractors likely to be in place that HGI must displace ' +
+    '(6) Priority ranking of declarations by HGI opportunity value - which should we pursue first and why.';
+  var out = await claudeCall('You are HGI Disaster Declaration Monitor, agent 19 of 37. FEMA declarations are your primary signal. You track them in real time and brief HGI immediately when recovery procurement is approaching.', prompt, 1200);
+  if (!out || out.length < 100) return null;
+  log('DISASTER MONITOR complete: ' + out.length + ' chars');
+  await storeMemory('disaster_monitor', null, 'fema,disaster_declaration,recovery_procurement', 'DISASTER MONITOR:\n' + out, 'pattern');
+  return { agent: 'disaster_monitor', chars: out.length };
+}
+
+// ── AGENT 20: DASHBOARD AGENT (morning briefing) ──────────────────
+async function agentDashboard(state, ctx) {
+  log('DASHBOARD: morning briefing for Christopher...');
+  var pipelineHealth = state.pipeline.map(function(o) {
+    return (o.title||'?').slice(0,50) + ' | OPI:' + o.opi_score + ' | Stage:' + (o.stage||'?') + ' | Due:' + (o.due_date||'?');
+  }).join('\n');
+  var prompt = HGI +
+    '\n\nPIPELINE (' + state.pipeline.length + ' opportunities):\n' + pipelineHealth +
+    '\n\nORGANISM BRAIN (' + state.memories.length + ' accumulated memories):\n' + ctx.memText.slice(0,1500) +
+    '\n\nMISSION: Morning briefing for Christopher Oney (President). He reviews this first thing each day. Give him exactly what he needs to make decisions - nothing more. ' +
+    '(1) Organism health - is everything running, any agent failures, any data quality issues ' +
+    '(2) Which opportunities need Christopher today vs running fine autonomously ' +
+    '(3) Single most important thing Christopher must do today for the pipeline ' +
+    '(4) Biggest competitive threat that emerged overnight ' +
+    '(5) Any opportunity where the organism recommends changing stage or priority ' +
+    '(6) What the organism learned today that changes our strategy.';
+  var out = await claudeCall('You are HGI Dashboard Agent, agent 20 of 37. You write the morning briefing for Christopher. Crisp. Prioritized. Only what requires his attention. Everything else runs itself.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('DASHBOARD complete: ' + out.length + ' chars');
+  await storeMemory('dashboard_agent', null, 'dashboard,morning_brief,christopher', 'DASHBOARD:\n' + out, 'analysis');
+  return { agent: 'dashboard_agent', chars: out.length };
+}
+
+// ── AGENT 21: DESIGN VISUAL ───────────────────────────────────────
+async function agentDesignVisual(state, ctx) {
+  log('DESIGN VISUAL: format recommendations...');
+  var proposalOpps = state.pipeline.filter(function(o) { return (o.staffing_plan||'').length > 200; });
+  if (proposalOpps.length === 0) { log('DESIGN VISUAL: no proposals to review'); return null; }
+  var oppList = proposalOpps.map(function(o) { return (o.title||'?').slice(0,50) + ' | Due:' + (o.due_date||'TBD') + ' | Agency:' + (o.agency||''); }).join('\n');
+  var prompt = HGI +
+    '\n\nACTIVE PROPOSALS:\n' + oppList +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,800) +
+    '\n\nHGI BRAND: Gold and navy color scheme. Professional typography. Must look like a firm that manages billion-dollar programs. ' +
+    '\n\nMISSION: (1) For each active proposal - specific visual structure that would impress evaluators: tables, org charts, compliance matrices, process diagrams, timeline graphics ' +
+    '(2) Where in each proposal would a visual element replace 300+ words of text and score higher ' +
+    '(3) Brand standards enforcement - what in the current drafts violates HGI professional standards ' +
+    '(4) Visual differentiators vs the specific competitors identified in organism memory ' +
+    '(5) Single highest-priority visual improvement that would move the most evaluation points.';
+  var out = await claudeCall('You are HGI Design Visual Agent, agent 21 of 37. You make HGI proposals look like they came from a firm that manages billion-dollar programs. Every visual choice is a scoring decision.', prompt, 800);
+  if (!out || out.length < 100) return null;
+  log('DESIGN VISUAL complete: ' + out.length + ' chars');
+  await storeMemory('design_visual', null, 'visual,branding,format', 'DESIGN VISUAL:\n' + out, 'pattern');
+  return { agent: 'design_visual', chars: out.length };
+}
+
+// ── AGENT 22: TEAMING PARTNER RADAR ──────────────────────────────
+async function agentTeaming(state, ctx) {
+  log('TEAMING: partner analysis...');
+  var oppCtx = state.pipeline.filter(function(o) { return (o.opi_score||0) >= 65; }).map(function(o) {
+    return (o.title||'?').slice(0,50) + ' | ' + (o.vertical||'') + ' | OPI:' + o.opi_score + ' | Scope:' + (o.scope_analysis||'').slice(0,150);
+  }).join('\n');
+  var prompt = HGI +
+    '\n\nACTIVE HIGH-PRIORITY PURSUITS:\n' + oppCtx +
+    '\n\nRECRUITING GAPS FROM ORGANISM MEMORY:\n' + ctx.memText.slice(0,800) +
+    '\n\nMISSION: (1) For each active pursuit - should HGI prime, sub, or team as equals? Based on scope requirements and competitive landscape. ' +
+    '(2) Specific capability gaps that require a teaming partner - name the gap, name potential firms that fill it in LA/TX/FL/MS ' +
+    '(3) Certifications HGI lacks that a teaming partner could provide - 8(a), SDVOSB, WOSB, HUBZone ' +
+    '(4) Competitors who might make better teaming partners than adversaries on specific pursuits ' +
+    '(5) Any opportunity where NOT teaming is a competitive disadvantage ' +
+    '(6) Single most valuable teaming relationship HGI should establish this quarter.';
+  var out = await claudeCall('You are HGI Teaming Partner Radar, agent 22 of 37. You identify when HGI should prime vs sub vs team, and who the right partners are. You turn competitors into force multipliers.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('TEAMING complete: ' + out.length + ' chars');
+  await storeMemory('teaming_agent', null, 'teaming,partners,certifications', 'TEAMING:\n' + out, 'pattern');
+  return { agent: 'teaming_agent', chars: out.length };
+}
+
 // ── SESSION ────────────────────────────────────────────────────────
 async function runSession(trigger) {
   var id = 'v2-' + Date.now();
