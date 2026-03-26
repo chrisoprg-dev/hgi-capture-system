@@ -1,8 +1,10 @@
 [build]
 builder = "NIXPACKS"
+buildCommand = "cd organism && npm install"
+watchPatterns = ["organism/**"]
 
 [deploy]
-startCommand = "node organism/index.js"
+startCommand = "cd organism && node index.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
