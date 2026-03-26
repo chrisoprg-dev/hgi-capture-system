@@ -696,6 +696,14 @@ async function runSession(trigger) {
     try { var rDB = await agentDashboard(state, ctx); if (rDB) allResults.push(rDB); } catch(e) { log('Dashboard error: ' + e.message); }
     try { var rDV = await agentDesignVisual(state, ctx); if (rDV) allResults.push(rDV); } catch(e) { log('DesignVisual error: ' + e.message); }
     try { var rTM = await agentTeaming(state, ctx); if (rTM) allResults.push(rTM); } catch(e) { log('Teaming error: ' + e.message); }
+    try { var rSE = await agentSourceExpansion(state, ctx); if (rSE) allResults.push(rSE); } catch(e) { log('SourceExpansion error: ' + e.message); }
+    try { var rCE2 = await agentContractExpiration(state, ctx); if (rCE2) allResults.push(rCE2); } catch(e) { log('ContractExpiration error: ' + e.message); }
+    try { var rBC = await agentBudgetCycle(state, ctx); if (rBC) allResults.push(rBC); } catch(e) { log('BudgetCycle error: ' + e.message); }
+    try { var rLA = await agentLossAnalysis(state, ctx); if (rLA) allResults.push(rLA); } catch(e) { log('LossAnalysis error: ' + e.message); }
+    try { var rWR = await agentWinRateAnalytics(state, ctx); if (rWR) allResults.push(rWR); } catch(e) { log('WinRate error: ' + e.message); }
+    try { var rRM = await agentRegulatoryMonitor(state, ctx); if (rRM) allResults.push(rRM); } catch(e) { log('RegulatoryMonitor error: ' + e.message); }
+    try { var rOA = await agentOutreachAutomation(state, ctx); if (rOA) allResults.push(rOA); } catch(e) { log('Outreach error: ' + e.message); }
+    try { var rLL = await agentLearningLoop(state, ctx); if (rLL) allResults.push(rLL); } catch(e) { log('LearningLoop error: ' + e.message); }
 
     // Proposal writer fires on proposal-stage opps
     for (var pw = 0; pw < activeOpps.length; pw++) {
