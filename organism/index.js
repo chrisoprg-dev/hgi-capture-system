@@ -90,11 +90,14 @@ function oppBase(opp) {
     '\nResearch Brief: ' + (opp.research_brief||'').slice(0,600);
 }
 
-var HGI = 'HGI Global (Hammerman and Gainer LLC). ~95 years. 100pct minority-owned. 67 FT + 43 contract. ' +
+var HGI = 'HGI Global (Hammerman and Gainer LLC). ~95 years. 100pct minority-owned. 67 FT + 43 contract professionals. SAM UEI: DL4SJEVKZ6H4. ' +
+  'Insurance: $5M fidelity bond, $5M E+O, $2M GL. ' +
   'Verticals: Disaster Recovery, TPA/Claims, Property Tax Appeals, Workforce/WIOA, Construction Management, Program Administration, Housing/HUD, Grant Management. ' +
-  'Past perf: Road Home $67M/$13B+ program, HAP $950M, Restore Louisiana $42.3M, Rebuild NJ $67.7M, TPSD $2.96M completed 2022-2025, St. John Sheriff $788K, BP GCCF $1.65M. ' +
-  'Rates (fully burdened/hr): Principal $220, Program Director $210, SME $200, Sr PM $180, PM $155, Grant Writer $145, Admin $65. ' +
-  'No current direct federal contract. All work through state/local agencies.';
+  'Past perf (use exact figures, never inflate): Road Home $67M direct/$13B+ program (2006-2015), HAP $950M, Restore Louisiana $42.3M, Rebuild NJ $67.7M, TPSD $2.96M COMPLETED 2022-2025 (PAST TENSE ONLY - never call active or current), St. John Sheriff $788K, BP GCCF $1.65M (2010-2013). ' +
+  'NO current FEMA PA contract. NO current direct federal contract. All work through state/local/housing agencies. ' +
+  'Named staff: Louis Resweber (Program Director), Berron (PA SME), April Gloston (HM Specialist), Klunk (Financial/Grant Specialist), Wiltz (Documentation Manager), Julie Lawson (PM). ' +
+  'Rates (fully burdened/hr): Principal $220, Program Director $210, SME $200, Sr Grant Mgr $180, Grant Mgr $175, Sr PM $180, PM $155, Grant Writer $145, Architect/Engineer $135, Cost Estimator $125, Appeals Specialist $145, Sr Damage Assessor $115, Damage Assessor $105, Admin Support $65. ' +
+  'CRITICAL: Never fabricate staff counts beyond what is confirmed. Never state TPSD is active or current. Never claim a federal contract exists.';
 
 // ── AGENT 1: INTELLIGENCE ENGINE ──────────────────────────────────
 async function agentIntelligence(opp, ctx) {
