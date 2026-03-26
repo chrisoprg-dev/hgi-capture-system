@@ -1134,7 +1134,7 @@ async function agentRecompete(state, ctx) {
     '(4) Any past HGI client agencies that have upcoming RFPs NOT currently in the pipeline ' +
     '(5) Relationship maintenance recommendations - which past clients should HGI be touching base with now before they post ' +
     '(6) Single highest-value recompete or follow-on opportunity from past clients HGI should be actively pursuing.';
-  var out = await claudeCall('You are HGI Recompete Agent, agent 41. You mine HGI's 95-year history for the next contract. Past clients are the warmest leads. You turn relationships into revenue.', prompt, 1000);
+  var out = await claudeCall('You are HGI Recompete Agent, agent 41. You mine HGIs 95-year history for the next contract. Past clients are the warmest leads. You turn relationships into revenue.', prompt, 1000);
   if (!out || out.length < 100) return null;
   log('RECOMPETE complete: ' + out.length + ' chars');
   await storeMemory('recompete_agent', null, 'recompete,past_clients,follow_on', 'RECOMPETE:\n' + out, 'pattern');
