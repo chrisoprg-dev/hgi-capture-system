@@ -1402,4 +1402,4 @@ setInterval(function() {
   }
 }, 60000);
 
-log('Startup complete. 6-agent session in 3s...');
+log('Startup complete. V2.9.0 — 47 agents. Session in 3s...');
