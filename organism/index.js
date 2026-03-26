@@ -167,7 +167,7 @@ async function agentQualityGate(opp, ctx) {
   if ((opp.staffing_plan||'').length < 100 && (opp.scope_analysis||'').length < 200) return null;
   log('QUALITY GATE: ' + (opp.title||'?').slice(0,50));
   var prompt = HGI + '\n\n' + oppBase(opp) +
-    '\n\nPROPOSAL DRAFT (if exists):\n' + (opp.staffing_plan||'No proposal draft yet').slice(0,2000) +
+    '\n\nPROPOSAL DRAFT (if exists):\n' + (opp.staffing_plan||'No proposal draft yet').slice(0,20000) +
     '\n\nWINNABILITY FINDINGS:\n' + (opp.capture_action||'').slice(0,400) +
     '\n\nMISSION: Score this pursuit like an evaluator. (1) For EACH eval criterion in the scope analysis, score current state 1-10 and state specifically what would raise it (2) Every RFP requirement NOT yet addressed by name (3) Required positions - named with real people and rates, or TBD placeholder? (4) Past performance - 3 refs with full contact info? Relevance to THIS RFP stated? (5) Required exhibits/forms - complete, missing, needs signature? (6) VERDICT: Estimated score out of 100 | GO/CONDITIONAL GO/NO-GO | ALL deficiencies ranked by point impact.';
   var out = await claudeCall('You are HGI Quality Gate Agent, agent 5 of 37. Senior proposal compliance reviewer. You score proposals like an evaluator would. Be ruthless. Name the section, name the gap, name the points at risk.', prompt, 1500);
