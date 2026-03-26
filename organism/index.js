@@ -316,8 +316,14 @@ async function agentProposalWriter(opp, ctx) {
   var prompt = HGI + '\n\n' + oppBase(opp) +
     '\n\nCURRENT PROPOSAL DRAFT:\n' + (opp.staffing_plan||'').slice(0,20000) +
     '\n\nQUALITY GATE AND INTEL CONTEXT:\n' + ctx.memText.slice(0,600) +
-    '\n\nMISSION: (1) Score each section 1-10 against eval criterion - where are we losing points (2) For EVERY section scoring below 8: write the actual improved paragraph not a description (3) Does technical approach use best available domain terminology - what specific upgrades needed (4) Does each section show why HGI wins over likely competitors (5) Rewrite executive summary optimized for this specific evaluator and agency (6) Single highest-point-value improvement.';
-  var out = await claudeCall('You are HGI Proposal Writer, agent 15 of 37. You produce submission-ready proposal language. You write to win. Best language wins.', prompt, 8000);
+    '\n\nCRITICAL ACCURACY RULES — VIOLATIONS DISQUALIFY THE PROPOSAL:\n' +
+    '- TPSD (Terrebonne Parish School District) contract was COMPLETED 2022-2025. Never write it as active or current.\n' +
+    '- No current direct federal contract exists. Do not claim one.\n' +
+    '- Staff counts: use only confirmed numbers (67 FT + 43 contract). Do not inflate.\n' +
+    '- All rates must match the HGI rate card exactly. Do not invent rates.\n' +
+    '- Named personnel must come from the confirmed HGI staff list. No invented names.\n' +
+    '\n\nMISSION: Rewrite the weakest sections into submission-ready language. (1) Score each section 1-10 against the eval criterion (2) For EVERY section scoring below 8: write the complete improved section — full paragraphs, not notes or descriptions (3) Use FEMA PA, CDBG-DR, HMGP domain terminology precisely (4) Every claim must reference specific HGI past performance with dollar amounts (5) Show why HGI beats the named competitors on each criterion (6) Output improved sections in order — do not just describe what should change, write it.';
+  var out = await claudeCall('You are HGI Proposal Writer, agent 15 of 37. You write complete submission-ready proposal sections. Never fabricate facts, staff, or contract values. TPSD is completed 2022-2025, never active. Write to win with verified facts.', prompt, 8000);
   if (!out || out.length < 100) return null;
   log('PROPOSAL WRITER complete: ' + out.length + ' chars');
   await storeMemory('proposal_agent', opp.id, (opp.agency||'') + ',proposal_improvement', 'PROPOSAL WRITER - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'pattern');
