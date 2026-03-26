@@ -458,6 +458,9 @@ function PipelineTracker({ goToWorkflow }) {
                       {item.notes && <div style={{fontSize:12,color:TEXT_D,fontStyle:"italic",marginTop:4}}>{item.notes}</div>}
                     </div>
                   </div>
+                  {(item.research_brief || item.financial_analysis || item.capture_action || item.scope_analysis || item.staffing_plan) && (
+                    <IntelPanel item={item} />
+                  )}
                   {(item.decomposition||item.execBrief) && (
                     <div style={{marginBottom:12,padding:"8px 12px",background:BG2,borderRadius:4,border:`1px solid ${BORDER}`}}>
                       <div style={{color:GOLD,fontSize:11,fontWeight:700,marginBottom:6}}>STORED ARTIFACTS</div>
