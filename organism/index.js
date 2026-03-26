@@ -108,7 +108,7 @@ async function agentIntelligence(opp, ctx) {
   if (!out || out.length < 100) return null;
   log('INTEL complete: ' + out.length + ' chars');
   await storeMemory('intelligence_engine', opp.id, (opp.agency||'') + ',competitive_intel', 'INTEL - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'competitive_intel');
-  await supabase.from('opportunities').update({ research_brief: out.slice(0,8000), last_updated: new Date().toISOString() }).eq('id', opp.id);
+  await supabase.from('opportunities').update({ research_brief: out.slice(0,60000), last_updated: new Date().toISOString() }).eq('id', opp.id);
   return { agent: 'intelligence_engine', opp: opp.title, chars: out.length };
 }
 
