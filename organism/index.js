@@ -1614,8 +1614,8 @@ async function runSession(trigger) {
 
 log('==========================================================');
 log('HGI LIVING ORGANISM V2 - STARTING');
-log('6 agents active. 31 more coming.');
-log('37 agents. One shared brain. All into all.');
+log('47 agents active. All into all.');
+log('V2.9.0-fortyseven-agents. One shared brain.');
 log('This server never sleeps. It never times out.');
 log('==========================================================');
 
