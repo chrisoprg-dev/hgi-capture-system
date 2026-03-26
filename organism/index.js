@@ -1273,6 +1273,239 @@ async function agentHunting(state, ctx) {
   return { agent: 'hunting_agent', chars: 300, new_opps: qualified.length };
 }
 
+
+// ── AGENT 39: STAFFING PLAN AGENT ────────────────────────────────
+// Builds the actual named personnel table — real people, real rates, real quals
+async function agentStaffingPlan(opp, ctx) {
+  if ((opp.scope_analysis||'').length < 100) return null;
+  log('STAFFING PLAN: ' + (opp.title||'?').slice(0,50));
+  var prompt = HGI +
+    '\n\nOPPORTUNITY SCOPE AND REQUIRED POSITIONS:\n' + (opp.scope_analysis||'').slice(0,1500) +
+    '\n\nHGI NAMED STAFF AVAILABLE:\n' +
+    'Louis Resweber - Program Director, 25+ years program management, FEMA PA expertise\n' +
+    'Berron - PA SME, FEMA Public Assistance Category A-G, technical specialist\n' +
+    'April Gloston - HM Specialist, Hazard Mitigation 404/406, BRIC, flood mitigation\n' +
+    'Klunk - Financial/Grant Specialist, CDBG-DR, federal financial compliance, audit\n' +
+    'Wiltz - Documentation Manager, records management, compliance documentation\n' +
+    'Julie Lawson - PM, project coordination, schedule management\n' +
+    '\n\nHGI RATE CARD (fully burdened per hour):\n' +
+    'Principal $220 | Program Director $210 | SME $200 | Sr PM $180 | PM $155 | Sr Grant Mgr $180 | Grant Mgr $175 | Grant Writer $145 | Architect/Engineer $135 | Cost Estimator $125 | Appeals Specialist $145 | Sr Damage Assessor $115 | Damage Assessor $105 | Admin Support $65\n' +
+    '\n\nMEMORY (includes recruiting gaps):\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: Build the complete staffing plan for this specific RFP. ' +
+    '(1) For each required position in the scope analysis - assign the best available named HGI staff member with their qualifications and hourly rate ' +
+    '(2) For positions HGI cannot fill with named staff - identify the gap, recommend the role type, and note teaming or recruiting needed ' +
+    '(3) Build the organizational chart structure showing reporting relationships ' +
+    '(4) Calculate total annual staffing cost at proposed hours for base year ' +
+    '(5) Write the personnel qualifications narrative for each named position - specific to THIS RFP requirements not generic ' +
+    '(6) Flag any position where a TBD or placeholder would cost points and recommend how to address it before submission.';
+  var out = await claudeCall('You are HGI Staffing Plan Agent, agent 39. You match real HGI people to real RFP positions. You write personnel narratives that score. Named people with real qualifications beat TBD every time.', prompt, 2000);
+  if (!out || out.length < 100) return null;
+  log('STAFFING PLAN complete: ' + out.length + ' chars');
+  await storeMemory('staffing_plan_agent', opp.id, (opp.agency||'') + ',staffing,personnel', 'STAFFING PLAN - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'analysis');
+  await supabase.from('opportunities').update({ staffing_plan: out.slice(0,8000), last_updated: new Date().toISOString() }).eq('id', opp.id);
+  return { agent: 'staffing_plan_agent', opp: opp.title, chars: out.length };
+}
+
+// ── AGENT 40: UNSOLICITED PROPOSAL AGENT ─────────────────────────
+// Shapes procurement before it is posted — the offensive move
+async function agentUnsolicited(state, ctx) {
+  log('UNSOLICITED: identifying pre-solicitation shaping opportunities...');
+  var pastPerf = 'Road Home $67M, HAP $950M, Restore Louisiana $42.3M, Rebuild NJ $67.7M, TPSD $2.96M completed 2022-2025, St. John Sheriff $788K, BP GCCF $1.65M';
+  var prompt = HGI +
+    '\n\nHGI PAST PERFORMANCE (agencies that know us):\n' + pastPerf +
+    '\n\nCURRENT PIPELINE:\n' + state.pipeline.map(function(o){return (o.title||'?').slice(0,50)+' | '+o.agency;}).join('\n') +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,800) +
+    '\n\nMISSION: HGI has 95 years of relationships. The best RFP is one HGI helped shape before it was written. ' +
+    '(1) Identify 3-5 agencies HGI has worked with before where current program conditions suggest upcoming procurement - budget approvals, program expansions, leadership changes, performance issues with incumbents ' +
+    '(2) For each - draft the concept of a targeted capability statement or white paper HGI should send now to shape the upcoming solicitation in HGI's favor ' +
+    '(3) Identify the specific person at each agency to send it to based on relationship graph and CRM intelligence ' +
+    '(4) Timing recommendation - when to send, what to follow up with, and how to position for pre-proposal meeting ' +
+    '(5) Any active disaster declarations or federal funding announcements where HGI should proactively reach out to state emergency management before procurement is posted ' +
+    '(6) Single highest-value unsolicited move HGI can make this month.';
+  var out = await claudeCall('You are HGI Unsolicited Proposal Agent, agent 40. You play offense. You shape procurement before it is posted. You turn HGI relationships into competitive advantage before competitors even know the RFP exists.', prompt, 1200);
+  if (!out || out.length < 100) return null;
+  log('UNSOLICITED complete: ' + out.length + ' chars');
+  await storeMemory('unsolicited_agent', null, 'unsolicited,pre_solicitation,relationship_leverage', 'UNSOLICITED:\n' + out, 'pattern');
+  return { agent: 'unsolicited_agent', chars: out.length };
+}
+
+// ── AGENT 41: RECOMPETE AGENT (HGI own contracts) ────────────────
+// Manages HGI existing contracts approaching recompete
+async function agentRecompete(state, ctx) {
+  log('RECOMPETE: monitoring HGI contract recompetes...');
+  var prompt = HGI +
+    '\n\nHGI PAST CONTRACTS:\n' +
+    'Road Home Program - completed 2015, Louisiana Office of Community Development\n' +
+    'HAP - Hurricane housing assistance, multiple states\n' +
+    'Restore Louisiana - $42.3M, GOHSEP, completed\n' +
+    'TPSD Terrebonne Parish School Board - $2.96M, completed 2022-2025\n' +
+    'St. John Sheriff - $788K\n' +
+    'BP GCCF - $1.65M, 2010-2013\n' +
+    'Rebuild NJ - $67.7M\n' +
+    '\n\nCURRENT PIPELINE:\n' + state.pipeline.map(function(o){return (o.title||'?').slice(0,50)+' | '+o.agency+' | '+o.stage;}).join('\n') +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: HGI's best opportunities are with agencies that already know and trust them. ' +
+    '(1) For each past HGI contract - what is the current status of that program? Is it still running under a new contract? Who won it after HGI? ' +
+    '(2) Which past HGI clients have new or ongoing program needs that could generate new work - follow-on contracts, program expansions, new disaster events ' +
+    '(3) TPSD completed 2025 - what is the next procurement opportunity with Terrebonne Parish School Board? ' +
+    '(4) Any past HGI client agencies that have upcoming RFPs NOT currently in the pipeline ' +
+    '(5) Relationship maintenance recommendations - which past clients should HGI be touching base with now before they post ' +
+    '(6) Single highest-value recompete or follow-on opportunity from past clients HGI should be actively pursuing.';
+  var out = await claudeCall('You are HGI Recompete Agent, agent 41. You mine HGI's 95-year history for the next contract. Past clients are the warmest leads. You turn relationships into revenue.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('RECOMPETE complete: ' + out.length + ' chars');
+  await storeMemory('recompete_agent', null, 'recompete,past_clients,follow_on', 'RECOMPETE:\n' + out, 'pattern');
+  return { agent: 'recompete_agent', chars: out.length };
+}
+
+// ── AGENT 42: COMPETITOR DEEP DIVE ───────────────────────────────
+// Builds permanent profiles on each named competitor — compounds over time
+async function agentCompetitorDeepDive(state, ctx) {
+  log('COMPETITOR DEEP DIVE: building competitor profiles...');
+  var prompt = HGI +
+    '\n\nKNOWN COMPETITORS IN HGI MARKETS:\n' +
+    'CDR Maguire - Louisiana dominant, FEMA PA specialist, primary threat\n' +
+    'Tetra Tech/AMR - national firm, deep FEMA relationships, high capacity\n' +
+    'IEM Inc - Louisiana-based, emergency management, FEMA PA\n' +
+    'Hagerty Consulting - national, FEMA PA, grant management\n' +
+    'Innovative Emergency Management - Louisiana, smaller firm\n' +
+    '\n\nACTIVE PIPELINE (these agencies will receive competitor bids):\n' + state.pipeline.map(function(o){return (o.title||'?').slice(0,50)+' | '+o.agency+' | OPI:'+o.opi_score;}).join('\n') +
+    '\n\nCOMPETITIVE INTEL STORE:\n' + ctx.compText +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,800) +
+    '\n\nMISSION: Build and update permanent competitor intelligence profiles. ' +
+    '(1) For each named competitor - current known strengths, weaknesses, key personnel, recent wins and losses, pricing patterns ' +
+    '(2) Which competitor is the primary threat on each active HGI pipeline opportunity and why ' +
+    '(3) Any recent competitor news - new hires, lost contracts, performance issues, strategic pivots that create opportunity for HGI ' +
+    '(4) Where each competitor is WEAK that HGI is STRONG - this is the wedge strategy for each pursuit ' +
+    '(5) Any new competitors entering HGI markets that are not yet on the radar ' +
+    '(6) Single most actionable competitive intelligence finding that changes HGI strategy today.';
+  var out = await claudeCall('You are HGI Competitor Deep Dive Agent, agent 42. You build permanent competitor profiles that compound over time. Every finding makes the next session smarter. You know the enemy better than they know themselves.', prompt, 1500);
+  if (!out || out.length < 100) return null;
+  log('COMPETITOR DEEP DIVE complete: ' + out.length + ' chars');
+  await storeMemory('competitor_deep_dive', null, 'competitors,CDR_Maguire,Tetra_Tech,IEM,Hagerty,competitive_profiles', 'COMPETITOR DEEP DIVE:\n' + out, 'competitive_intel');
+  return { agent: 'competitor_deep_dive', chars: out.length };
+}
+
+// ── AGENT 43: AGENCY PROFILE AGENT ───────────────────────────────
+// Deep dossier on each agency in the pipeline — compounds over sessions
+async function agentAgencyProfile(state, ctx) {
+  log('AGENCY PROFILE: building agency dossiers...');
+  var agencies = [...new Set(state.pipeline.filter(function(o){return (o.opi_score||0)>=65;}).map(function(o){return o.agency||'unknown';}))];
+  if (!agencies.length) return null;
+  var prompt = HGI +
+    '\n\nAGENCIES IN ACTIVE PIPELINE:\n' + agencies.join('\n') +
+    '\n\nCURRENT INTELLIGENCE:\n' + ctx.memText.slice(0,1200) +
+    '\n\nRELATIONSHIP GRAPH:\n' + ctx.relText +
+    '\n\nMISSION: Build deep profiles on every agency HGI is currently pursuing. This compounds over sessions. ' +
+    '(1) For each agency - budget size, annual procurement volume, organizational structure, key leadership names and titles ' +
+    '(2) Procurement patterns - do they favor best value or low price? How do they weight past performance? Do they rebid or sole source? ' +
+    '(3) Political and policy context - who are the elected officials or appointees overseeing this agency, what are their priorities ' +
+    '(4) HGI relationship history with this agency - any past work, known contacts, warm or cold ' +
+    '(5) What this agency specifically values in a contractor based on past award patterns ' +
+    '(6) Single most important agency-specific insight that should change how HGI writes its proposal for this agency.';
+  var out = await claudeCall('You are HGI Agency Profile Agent, agent 43. You build deep agency intelligence that makes every proposal more targeted. You know what each agency wants before they publish the RFP.', prompt, 1500);
+  if (!out || out.length < 100) return null;
+  log('AGENCY PROFILE complete: ' + out.length + ' chars');
+  await storeMemory('agency_profile_agent', null, agencies.join(',') + ',agency_intelligence', 'AGENCY PROFILE:\n' + out, 'analysis');
+  return { agent: 'agency_profile_agent', chars: out.length };
+}
+
+// ── AGENT 44: PRICE-TO-WIN ────────────────────────────────────────
+// Dedicated to one thing: the exact number to submit to win
+async function agentPriceToWin(opp, ctx) {
+  if ((opp.opi_score||0) < 65) return null;
+  log('PRICE-TO-WIN: ' + (opp.title||'?').slice(0,50));
+  var prompt = HGI +
+    '\n\n' + oppBase(opp) +
+    '\n\nFINANCIAL ANALYSIS ALREADY PRODUCED:\n' + (opp.financial_analysis||'not yet produced').slice(0,600) +
+    '\n\nCOMPETITOR PRICING INTEL:\n' + ctx.compText +
+    '\n\nMEMORY (includes pricing benchmarks from past sessions):\n' + ctx.memText.slice(0,800) +
+    '\n\nMISSION: Give HGI the exact number. Not a range. The price to win. ' +
+    '(1) Pull every comparable contract award for this agency type and scope from organism memory and web intelligence - name each comp with agency, amount, period, scope ' +
+    '(2) What did CDR Maguire, Tetra Tech, or IEM charge for similar work at similar agencies ' +
+    '(3) Is this agency a lowest-price-technically-acceptable buyer or best-value? What is the price premium they have historically paid for quality ' +
+    '(4) Given the competitive field for THIS specific opportunity - what is the price that beats likely competitors while maintaining margin ' +
+    '(5) Calculate from three independent methods: (a) staffing hours x rates, (b) comparable contract benchmarks, (c) percentage of total program funding ' +
+    '(6) THE NUMBER: single recommended total bid price with brief rationale. Base period only. Show option year pricing separately.';
+  var out = await claudeCall('You are HGI Price-to-Win Agent, agent 44. You give one number. The right number. The number that beats competitors and wins the contract. You are the difference between a winning bid and a losing one.', prompt, 1200);
+  if (!out || out.length < 100) return null;
+  log('PRICE-TO-WIN complete: ' + out.length + ' chars');
+  await storeMemory('price_to_win', opp.id, (opp.agency||'') + ',price_to_win,pricing_strategy', 'PRICE-TO-WIN - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'pricing_benchmark');
+  return { agent: 'price_to_win', opp: opp.title, chars: out.length };
+}
+
+// ── AGENT 45: SUBCONTRACTOR DATABASE ─────────────────────────────
+// Builds and maintains the bench of subs and teaming partners
+async function agentSubcontractorDatabase(state, ctx) {
+  log('SUBCONTRACTOR DB: building vendor bench...');
+  var gaps = state.pipeline.filter(function(o){return (o.opi_score||0)>=65;}).map(function(o){return (o.title||'?').slice(0,50)+' | vertical:'+o.vertical;}).join('\n');
+  var prompt = HGI +
+    '\n\nACTIVE PURSUITS NEEDING SUBCONTRACTORS:\n' + gaps +
+    '\n\nKNOWN CAPABILITY GAPS FROM MEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: Build and maintain a living subcontractor and teaming partner database. ' +
+    '(1) For each active pursuit - what subcontractor capabilities are needed that HGI does not have in-house: environmental compliance, historic preservation, construction cost estimation, GPC-certified grant management, SDVOSB/8(a)/WOSB certifications ' +
+    '(2) Identify specific firms by name for each gap: Louisiana-based firms in SAM.gov contractor registry, SBA certified firms, state vendor registries in LA/TX/FL/MS ' +
+    '(3) For each recommended firm - capability alignment, certifications, known past performance in HGI verticals, strategic fit score ' +
+    '(4) Any firms HGI has teamed with before that should be on retainer for future pursuits ' +
+    '(5) Any certification gaps (8a, SDVOSB, HUBZONE) where having a certified teaming partner would unlock set-aside opportunities HGI currently cannot pursue ' +
+    '(6) Single most valuable new teaming relationship HGI should establish before the next major deadline.';
+  var out = await claudeCall('You are HGI Subcontractor Database Agent, agent 45. You build the bench that fills the gaps. Every capability HGI lacks, you find someone who has it. You make HGI bigger than it is on every single bid.', prompt, 1200);
+  if (!out || out.length < 100) return null;
+  log('SUBCONTRACTOR DB complete: ' + out.length + ' chars');
+  await storeMemory('subcontractor_db', null, 'subcontractors,teaming,vendor_bench,certifications', 'SUBCONTRACTOR DB:\n' + out, 'pattern');
+  return { agent: 'subcontractor_db', chars: out.length };
+}
+
+// ── AGENT 46: ENHANCED CONTENT ENGINE ────────────────────────────
+// Full V1 content engine — active voice tracking, style guide, winning language library
+async function agentContentEngineV2(state, ctx) {
+  log('CONTENT ENGINE V2: deep language analysis...');
+  var allDrafts = state.pipeline.filter(function(o){return (o.staffing_plan||'').length>200;}).map(function(o){
+    return '=== ' + (o.title||'?').slice(0,40) + ' ===\n' + (o.staffing_plan||'').slice(0,600);
+  }).join('\n\n');
+  if (!allDrafts) { log('CONTENT ENGINE V2: no drafts'); return null; }
+  var prompt = HGI +
+    '\n\nALL CURRENT PROPOSAL DRAFTS:\n' + allDrafts +
+    '\n\nMEMORY (includes past content patterns):\n' + ctx.memText.slice(0,600) +
+    '\n\nHGI VOICE STANDARDS: Active voice 75%+ target. Lead with outcomes not activities. Quantify everything. Reference HGI specific past performance not generic claims. Every claim needs evidence.\n' +
+    '\n\nMISSION: Full content quality audit and improvement. ' +
+    '(1) ACTIVE VOICE AUDIT: scan every sentence. Flag every passive construction. Rewrite each one. Count active vs passive ratio per proposal. ' +
+    '(2) EVIDENCE AUDIT: every claim must be backed by a specific number, project, or verifiable fact. Flag every unsubstantiated assertion. Provide the specific evidence that should replace it from HGI past performance. ' +
+    '(3) DIFFERENTIATION AUDIT: where does the proposal sound like every other firm? Identify the 5 most generic sentences and rewrite them to be specifically HGI. ' +
+    '(4) TERMINOLOGY AUDIT: is the proposal using the most current domain terminology for this vertical? FEMA PA terminology, CDBG-DR language, WIOA regulatory language, housing program terms. Flag outdated or incorrect terminology. ' +
+    '(5) WINNING LANGUAGE LIBRARY: extract the 5 strongest sentences from all current drafts that should be preserved and used as templates in future proposals. ' +
+    '(6) SINGLE HIGHEST IMPACT REWRITE: take the one sentence across all drafts that is weakest and costing the most points, and show the before/after.';
+  var out = await claudeCall('You are HGI Content Engine V2, agent 46. You enforce HGI voice standards. Active voice. Evidence-backed claims. Differentiated language. You build the winning language library that makes every future proposal stronger than the last.', prompt, 2000);
+  if (!out || out.length < 100) return null;
+  log('CONTENT ENGINE V2 complete: ' + out.length + ' chars');
+  await storeMemory('content_engine_v2', null, 'voice,active_voice,winning_language,style_guide', 'CONTENT ENGINE V2:\n' + out, 'pattern');
+  return { agent: 'content_engine_v2', chars: out.length };
+}
+
+// ── AGENT 47: ENHANCED FINANCIAL + PRICING ───────────────────────
+// Full V1 financial — USAspending data, agency pricing patterns, HGI pricing history
+async function agentFinancialV2(opp, ctx) {
+  log('FINANCIAL V2: ' + (opp.title||'?').slice(0,50));
+  var prompt = HGI +
+    '\n\n' + oppBase(opp) +
+    '\n\nEXISTING FINANCIAL ANALYSIS:\n' + (opp.financial_analysis||'not yet run').slice(0,400) +
+    '\n\nCOMPETITOR PRICING INTEL:\n' + ctx.compText +
+    '\n\nMEMORY (includes past award benchmarks):\n' + ctx.memText.slice(0,1000) +
+    '\n\nMISSION: Complete financial intelligence and pricing model. ' +
+    '(1) MARKET RATE ANALYSIS: from USAspending.gov and organism memory - list every comparable contract award for this agency type, scope, and geography. Name agency, awardee, amount, period, and scope for each. Minimum 5 comps. ' +
+    '(2) AGENCY BUDGET CONTEXT: what is this agency's total annual budget? What percentage typically goes to professional services contracts of this type? ' +
+    '(3) PRICING PATTERN: does this agency historically award to lowest price technically acceptable or best value? What is the premium they have paid for quality in past awards? ' +
+    '(4) STAFFING-BASED MODEL: build from the ground up using HGI rate card. Show hours per position per month, rates, total annual cost, overhead, fee, and grand total for base year. ' +
+    '(5) THREE METHODS with visible math: (a) staffing-based bottom-up, (b) comparable contract top-down, (c) percentage of total program funding. Show all three calculations. ' +
+    '(6) FINAL RECOMMENDATION: LOW/MID/HIGH range with rationale. Recommended bid price. Option year pricing. Any pricing risks specific to this agency.';
+  var out = await claudeCall('You are HGI Financial V2 Agent, agent 47. You build the complete financial picture. USAspending benchmarks. Agency patterns. Three independent methods. Visible math. The pricing model that wins.', prompt, 2000);
+  if (!out || out.length < 100) return null;
+  log('FINANCIAL V2 complete: ' + out.length + ' chars');
+  await storeMemory('financial_v2', opp.id, (opp.agency||'') + ',financial_v2,pricing_model', 'FINANCIAL V2 - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'pricing_benchmark');
+  await supabase.from('opportunities').update({ financial_analysis: out.slice(0,8000), last_updated: new Date().toISOString() }).eq('id', opp.id);
+  return { agent: 'financial_v2', opp: opp.title, chars: out.length };
+}
+
 // ── SESSION ────────────────────────────────────────────────────────
 async function runSession(trigger) {
   var id = 'v2-' + Date.now();
