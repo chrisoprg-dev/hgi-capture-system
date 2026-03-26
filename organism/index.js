@@ -473,6 +473,176 @@ async function agentTeaming(state, ctx) {
   return { agent: 'teaming_agent', chars: out.length };
 }
 
+
+// ── AGENT 23: SOURCE EXPANSION ────────────────────────────────────
+async function agentSourceExpansion(state, ctx) {
+  log('SOURCE EXPANSION: finding new opportunity sources...');
+  var verticals = [...new Set(state.pipeline.map(function(o) { return o.vertical||'unknown'; }))].join(', ');
+  var prompt = HGI + '\n\nACTIVE PIPELINE VERTICALS: ' + verticals +
+    '\n\nCURRENT SOURCES: Central Bidding (Louisiana), LaPAC (Louisiana), SAM.gov, Grants.gov.' +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: HGI operates in LA/TX/FL/MS/AL/GA. Identify procurement portals, agency websites, and data sources that carry HGI-vertical work that we are NOT yet monitoring. ' +
+    '(1) State procurement portals in TX/FL/MS/AL/GA equivalent to LaPAC - name the portal, URL, what it carries ' +
+    '(2) Insurance regulatory bodies and guaranty associations that post TPA and claims administration work ' +
+    '(3) Housing authority networks and HUD portals for housing program administration work ' +
+    '(4) Workforce development boards posting WIOA administration contracts ' +
+    '(5) FEMA and state emergency management procurement channels beyond SAM.gov ' +
+    '(6) Top 3 new sources ranked by expected HGI opportunity yield - specific URL, registration requirements, how to access.';
+  var out = await claudeCall('You are HGI Source Expansion Agent, agent 23 of 37. You actively find new opportunity sources. You do not wait for Christopher to find them. You research, identify, and recommend.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('SOURCE EXPANSION complete: ' + out.length + ' chars');
+  await storeMemory('source_expansion', null, 'source_expansion,new_portals,market_coverage', 'SOURCE EXPANSION:\n' + out, 'pattern');
+  return { agent: 'source_expansion', chars: out.length };
+}
+
+// ── AGENT 24: CONTRACT EXPIRATION MONITOR ─────────────────────────
+async function agentContractExpiration(state, ctx) {
+  log('CONTRACT EXPIRATION: scanning for recompete opportunities...');
+  var oppAgencies = state.pipeline.map(function(o) { return o.agency||''; }).filter(Boolean).join(', ');
+  var prompt = HGI + '\n\nACTIVE PIPELINE AGENCIES: ' + oppAgencies +
+    '\n\nKNOWN COMPETITORS: CDR Maguire, Tetra Tech/AMR, IEM, Hagerty Consulting, Tetra Tech EM.' +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: Find contracts expiring in the next 6-18 months that HGI should be positioned to win. ' +
+    '(1) Known competitor contracts in LA/TX/FL/MS/AL/GA in HGI verticals expiring in next 6 months - agency, incumbent, contract value, expiration date ' +
+    '(2) Same for 6-18 month window - these are relationship-building targets now ' +
+    '(3) HGI past performance contracts that could be recompeted - agencies that have worked with HGI before ' +
+    '(4) Recompete strategy for highest-value expiring contracts - what relationship moves to make now ' +
+    '(5) Single highest-value recompete target HGI should begin pursuing immediately.';
+  var out = await claudeCall('You are HGI Contract Expiration Monitor, agent 24 of 37. You watch competitor contracts expiring and position HGI to win recompetes before they are posted.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('CONTRACT EXPIRATION complete: ' + out.length + ' chars');
+  await storeMemory('contract_expiration', null, 'recompete,expiring_contracts,competitive_positioning', 'CONTRACT EXPIRATION:\n' + out, 'pattern');
+  return { agent: 'contract_expiration', chars: out.length };
+}
+
+// ── AGENT 25: BUDGET CYCLE INTELLIGENCE ──────────────────────────
+async function agentBudgetCycle(state, ctx) {
+  log('BUDGET CYCLE: pre-solicitation signal analysis...');
+  var prompt = HGI + '\n\nACTIVE PIPELINE:\n' + state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | ' + (o.vertical||'') + ' | ' + (o.agency||''); }).join('\n') +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: Budget cycles and appropriations predict procurement 6-18 months ahead. ' +
+    '(1) Federal appropriations relevant to HGI verticals - CDBG-DR allocations, FEMA PA funding, BRIC grants, HUD allocations - what has been appropriated and not yet procured ' +
+    '(2) State budget cycles in LA/TX/FL/MS/AL/GA - which states are in active budget season, what is funded for HGI vertical work ' +
+    '(3) Disaster supplemental appropriations in Congress - any pending legislation that would generate HGI work ' +
+    '(4) FEMA BRIC and HMGP funding announcements that predict hazard mitigation procurement ' +
+    '(5) Timeline - for each identified funding signal, when will procurement likely be issued ' +
+    '(6) Single highest-value budget signal that HGI should be positioning for right now.';
+  var out = await claudeCall('You are HGI Budget Cycle Intelligence Agent, agent 25 of 37. You read budget signals 6-18 months ahead of procurement. You brief HGI before opportunities are posted.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('BUDGET CYCLE complete: ' + out.length + ' chars');
+  await storeMemory('budget_cycle', null, 'budget_cycle,appropriations,pre_solicitation', 'BUDGET CYCLE:\n' + out, 'pattern');
+  return { agent: 'budget_cycle', chars: out.length };
+}
+
+// ── AGENT 26: LOSS ANALYSIS ENGINE ───────────────────────────────
+async function agentLossAnalysis(state, ctx) {
+  log('LOSS ANALYSIS: studying outcomes...');
+  var prompt = HGI +
+    '\n\nHGI KNOWN PAST PERFORMANCE (wins): Road Home $67M, HAP $950M, Restore Louisiana $42.3M, Rebuild NJ $67.7M, TPSD $2.96M, St. John Sheriff $788K, BP GCCF $1.65M.' +
+    '\n\nMEMORY (includes competitive intel and winnability findings):\n' + ctx.memText.slice(0,1200) +
+    '\n\nACTIVE PIPELINE:\n' + state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | OPI:' + o.opi_score + ' | Stage:' + (o.stage||'?'); }).join('\n') +
+    '\n\nMISSION: Build a competitive pricing and win pattern database from everything the organism knows. ' +
+    '(1) Based on organism intelligence - what patterns predict wins vs losses for HGI in its verticals ' +
+    '(2) Pricing patterns - where does HGI typically price vs market and how does that affect outcomes ' +
+    '(3) Evaluation criterion patterns - which criteria does HGI consistently score well or poorly on ' +
+    '(4) Competitor patterns - which competitors has HGI faced and what are their winning strategies ' +
+    '(5) Relationship patterns - how much does pre-existing agency relationship predict win probability ' +
+    '(6) Single most important pattern finding that should change how HGI pursues opportunities.';
+  var out = await claudeCall('You are HGI Loss Analysis Engine, agent 26 of 37. You extract patterns from wins and losses to make every future bid smarter. Every outcome teaches the organism.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('LOSS ANALYSIS complete: ' + out.length + ' chars');
+  await storeMemory('loss_analysis', null, 'win_loss_patterns,pricing_patterns,competitive_patterns', 'LOSS ANALYSIS:\n' + out, 'pattern');
+  return { agent: 'loss_analysis', chars: out.length };
+}
+
+// ── AGENT 27: WIN RATE ANALYTICS ──────────────────────────────────
+async function agentWinRateAnalytics(state, ctx) {
+  log('WIN RATE ANALYTICS: OPI calibration from patterns...');
+  var oppScores = state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | OPI:' + o.opi_score + ' | PWIN from winnability:' + ((o.capture_action||'').match(/PWIN[:s]+(d+)/i)||['','unknown'])[1] + 'pct'; }).join('\n');
+  var prompt = HGI +
+    '\n\nCURRENT PIPELINE WITH OPI AND PWIN:\n' + oppScores +
+    '\n\nMEMORY (includes loss analysis and competitive patterns):\n' + ctx.memText.slice(0,1200) +
+    '\n\nMISSION: Calibrate the organism scoring models against reality. ' +
+    '(1) Compare OPI scores to Winnability Agent PWIN estimates - are they aligned or contradictory? Where is the biggest gap? ' +
+    '(2) Which OPI factors are most predictive of actual win probability based on everything the organism knows ' +
+    '(3) What OPI score threshold should reliably trigger GO vs NO-BID for HGI given its specific strengths ' +
+    '(4) Recommended adjustments to OPI weights for HGI specific context - disaster recovery firm, minority-owned, Louisiana base ' +
+    '(5) Confidence interval on each active opportunity PWIN - what is realistic best case vs worst case ' +
+    '(6) Expected win rate this quarter based on current pipeline - number of wins, estimated revenue.';
+  var out = await claudeCall('You are HGI Win Rate Analytics Agent, agent 27 of 37. You calibrate the organism scoring models. Your findings make OPI and PWIN increasingly accurate over time.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('WIN RATE ANALYTICS complete: ' + out.length + ' chars');
+  await storeMemory('win_rate_analytics', null, 'win_rate,opi_calibration,pwin_accuracy', 'WIN RATE ANALYTICS:\n' + out, 'pattern');
+  return { agent: 'win_rate_analytics', chars: out.length };
+}
+
+// ── AGENT 28: REGULATORY CHANGE MONITOR ──────────────────────────
+async function agentRegulatoryMonitor(state, ctx) {
+  log('REGULATORY MONITOR: scanning for rule changes...');
+  var prompt = HGI +
+    '\n\nACTIVE PIPELINE VERTICALS: Disaster Recovery, TPA/Claims, Workforce/WIOA, Housing/HUD, Grant Management.' +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: Regulatory and policy changes reshape procurement requirements and create competitive advantages for firms that adapt first. ' +
+    '(1) FEMA PA and HMGP regulation changes in the last 90 days that affect how disaster recovery contracts are structured or evaluated ' +
+    '(2) CDBG-DR policy updates from HUD that change program administration requirements ' +
+    '(3) WIOA reauthorization status and any changes to workforce program administration requirements ' +
+    '(4) State insurance regulatory changes in LA/TX/FL/MS that affect TPA and claims administration contracts ' +
+    '(5) Any new federal requirements (Davis-Bacon, Build America Buy America, equity requirements) that affect HGI proposal content ' +
+    '(6) Single regulatory change that most significantly affects HGI competitive positioning right now.';
+  var out = await claudeCall('You are HGI Regulatory Change Monitor, agent 28 of 37. You watch FEMA, HUD, DOL, and state regulations. You brief HGI before competitors adapt.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('REGULATORY MONITOR complete: ' + out.length + ' chars');
+  await storeMemory('regulatory_monitor', null, 'regulatory_changes,fema,hud,wioa,compliance', 'REGULATORY MONITOR:\n' + out, 'pattern');
+  return { agent: 'regulatory_monitor', chars: out.length };
+}
+
+// ── AGENT 29: OUTREACH AUTOMATION ─────────────────────────────────
+async function agentOutreachAutomation(state, ctx) {
+  log('OUTREACH AUTOMATION: drafting targeted outreach...');
+  var activeHighOPI = state.pipeline.filter(function(o) { return (o.opi_score||0) >= 72; });
+  if (activeHighOPI.length === 0) return null;
+  var oppCtx = activeHighOPI.map(function(o) { return (o.title||'?').slice(0,50) + ' | Agency:' + (o.agency||'') + ' | Due:' + (o.due_date||'TBD') + ' | Stage:' + (o.stage||'?'); }).join('\n');
+  var prompt = HGI +
+    '\n\nHIGH-PRIORITY OPPORTUNITIES (OPI 72+):\n' + oppCtx +
+    '\n\nRELATIONSHIP GRAPH:\n' + ctx.relText +
+    '\n\nCRM INTELLIGENCE FROM MEMORY:\n' + ctx.memText.slice(0,800) +
+    '\n\nMISSION: Draft specific outreach for each high-priority opportunity. Not templates - actual ready-to-send messages. ' +
+    '(1) For each opportunity - who to contact, their role, their email if known from relationship graph ' +
+    '(2) Specific email or call script for each contact - reference something specific about their agency, not generic ' +
+    '(3) Timing recommendation - when to reach out relative to submission deadline ' +
+    '(4) What to ask for or offer in the outreach - site visit, pre-proposal meeting, past performance references ' +
+    '(5) Follow-up sequence if no response - 3-touch approach with specific messaging ' +
+    '(6) Single highest-leverage outreach that would most improve competitive position this week.';
+  var out = await claudeCall('You are HGI Outreach Automation Agent, agent 29 of 37. You draft specific ready-to-send outreach for every high-priority opportunity. No templates. Real messages to real people.', prompt, 1200);
+  if (!out || out.length < 100) return null;
+  log('OUTREACH AUTOMATION complete: ' + out.length + ' chars');
+  await storeMemory('outreach_automation', null, 'outreach,contact_strategy,relationship_building', 'OUTREACH AUTOMATION:\n' + out, 'pattern');
+  return { agent: 'outreach_automation', chars: out.length };
+}
+
+// ── AGENT 30: LEARNING LOOP ───────────────────────────────────────
+async function agentLearningLoop(state, ctx) {
+  log('LEARNING LOOP: encoding session learnings...');
+  var sessionSummary = state.memories.slice(0,20).map(function(m) {
+    return '[' + (m.agent||'?') + ']: ' + (m.observation||'').slice(0,150);
+  }).join('\n\n');
+  var prompt = HGI +
+    '\n\nSESSION INTELLIGENCE PRODUCED TODAY:\n' + sessionSummary +
+    '\n\nPIPELINE STATUS:\n' + state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | OPI:' + o.opi_score + ' | Stage:' + (o.stage||'?'); }).join('\n') +
+    '\n\nMISSION: Encode the most important learnings from this session into permanent organism memory. ' +
+    '(1) What are the 3-5 most important facts the organism learned today that should permanently change how it operates ' +
+    '(2) Which agent produced the single most valuable insight and what was it ' +
+    '(3) What should every agent read before the next session to be smarter ' +
+    '(4) Any finding that contradicts previous organism beliefs - what needs to be unlearned ' +
+    '(5) Recommended changes to agent prompts or behavior based on today session quality ' +
+    '(6) One-sentence summary of the organism state today vs where it needs to be - how far to $100M capture capability.';
+  var out = await claudeCall('You are HGI Learning Loop Agent, agent 30 of 37. You make the organism smarter after every session. Your encodings compound. The 50th session must be fundamentally smarter than the first.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('LEARNING LOOP complete: ' + out.length + ' chars');
+  await storeMemory('learning_loop', null, 'learning,session_summary,organism_improvement', 'LEARNING LOOP:\n' + out, 'pattern');
+  return { agent: 'learning_loop', chars: out.length };
+}
+
 // ── SESSION ────────────────────────────────────────────────────────
 async function runSession(trigger) {
   var id = 'v2-' + Date.now();
