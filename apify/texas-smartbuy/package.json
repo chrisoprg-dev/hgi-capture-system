@@ -1,17 +1,7 @@
-Create a new file with the following content exactly:
-
 {
   "name": "hgi-texas-smartbuy-scraper",
   "version": "1.0.0",
-  "description": "HGI Texas SmartBuy (ESBD) procurement scraper",
+  "description": "HGI Texas SmartBuy procurement scraper",
   "type": "module",
-  "main": "src/main.js",
-  "scripts": {
-    "start": "node src/main.js"
-  },
-  "dependencies": {
-    "apify": "^3.0.0",
-    "crawlee": "^3.0.0",
-    "playwright": "^1.40.0"
-  }
+  "dependencies": {}
 }
