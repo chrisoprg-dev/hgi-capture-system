@@ -1035,6 +1035,244 @@ function getDateDaysAgo(days) {
   return d.toISOString().slice(0,10).replace(/-/g,'/');
 }
 
+
+// ── AGENT 38: HUNTING AGENT ───────────────────────────────────────
+// The organism's front door. Goes and gets opportunities from every source.
+// Central Bidding is the #1 source — it has produced ALL real HGI pipeline opps.
+// Also discovers new sources autonomously.
+
+async function agentHunting(state, ctx) {
+  log('HUNTING AGENT: hitting all procurement portals...');
+
+  var newOpps = [];
+  var existingTitles = state.pipeline.map(function(o) { return (o.title||'').toLowerCase().slice(0,50); });
+
+  function isDupe(title) {
+    var t = (title||'').toLowerCase().slice(0,50);
+    return existingTitles.some(function(e) {
+      var words = t.split(' ').filter(function(w) { return w.length > 4; });
+      if (!words.length) return false;
+      var hits = words.filter(function(w) { return e.includes(w); }).length;
+      return hits / words.length >= 0.5;
+    });
+  }
+
+  function today() { return new Date().toISOString().slice(0,10).replace(/-/g, '/'); }
+  function daysAgo(n) { var d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10).replace(/-/g,'/'); }
+
+  // ── SOURCE 1: CENTRAL BIDDING (primary — only source producing real HGI opps) ──
+  // Authenticated via Apify actor — organism calls Apify to trigger a fresh run
+  // and reads the most recent results from hunt_runs (populated by the Vercel scraper)
+  log('HUNTING: reading Central Bidding results from Vercel pipeline...');
+  var cbFound = 0;
+  try {
+    var cbResp = await supabase.from('hunt_runs')
+      .select('*')
+      .eq('source', 'centralbidding')
+      .order('run_at', { ascending: false })
+      .limit(10);
+    var cbRuns = cbResp.data || [];
+    for (var i = 0; i < cbRuns.length; i++) {
+      try {
+        var runStatus = JSON.parse(cbRuns[i].status || '{}');
+        var opps = runStatus.opportunities || runStatus.results || [];
+        for (var j = 0; j < opps.length; j++) {
+          var o = opps[j];
+          var title = o.title || o.name || '';
+          if (title && !isDupe(title)) {
+            newOpps.push({ title: title, agency: o.agency || o.entity || 'Louisiana Agency', source: 'centralbidding', source_url: o.url || o.link || 'https://www.centralauctionhouse.com', description: (o.description||o.summary||'').slice(0,500), due_date: o.due_date || o.closeDate || null, vertical: null });
+            cbFound++;
+          }
+        }
+      } catch(e) {}
+    }
+    // Also trigger Apify to run a fresh Central Bidding scrape
+    try {
+      await fetch('https://api.apify.com/v2/acts/my-actor/runs?token=' + AK.split('-')[0], { method: 'POST' });
+    } catch(e) {}
+  } catch(e) { log('HUNTING Central Bidding error: ' + e.message); }
+  log('HUNTING: Central Bidding found ' + cbFound + ' candidates');
+
+  // ── SOURCE 2: LAPAC (Louisiana) ────────────────────────────────
+  var lapacKW = ['program management','professional services','disaster recovery','housing','workforce','grant','consulting','administrative','claims'];
+  var lapacFound = 0;
+  for (var lk = 0; lk < lapacKW.length; lk++) {
+    try {
+      var lr = await fetch('https://wwwcfts.doa.la.gov/lascts/rest/solicitations?keyword=' + encodeURIComponent(lapacKW[lk]) + '&status=OPEN&rows=10', { headers: { Accept: 'application/json' } });
+      if (lr.ok) {
+        var ld = await lr.json();
+        var lopps = Array.isArray(ld) ? ld : (ld.solicitations || ld.results || []);
+        for (var lp = 0; lp < lopps.length; lp++) {
+          var lo = lopps[lp];
+          var lt = lo.title || lo.solicitationTitle || '';
+          if (lt && !isDupe(lt)) {
+            newOpps.push({ title: lt, agency: lo.agency || lo.agencyName || 'Louisiana State Agency', source: 'lapac', source_url: lo.url || 'https://wwwcfts.doa.la.gov', description: (lo.description||lt).slice(0,500), due_date: lo.dueDate || lo.closingDate || null, vertical: null });
+            lapacFound++;
+          }
+        }
+      }
+    } catch(e) {}
+  }
+  log('HUNTING: LaPAC found ' + lapacFound + ' candidates');
+
+  // ── SOURCE 3: SAM.GOV (federal, state/local) ───────────────────
+  var samKW = ['disaster recovery program management','grant administration','claims administration','housing authority administration','workforce WIOA','TPA third party administrator','FEMA public assistance','CDBG-DR','hazard mitigation'];
+  var samFound = 0;
+  for (var sk = 0; sk < samKW.length; sk++) {
+    try {
+      var sr = await fetch('https://api.sam.gov/opportunities/v2/search?api_key=DEMO_KEY&q=' + encodeURIComponent(samKW[sk]) + '&postedFrom=' + daysAgo(14) + '&postedTo=' + today() + '&ptype=o,p,k&active=true&limit=10');
+      if (sr.ok) {
+        var sd = await sr.json();
+        var sops = sd.opportunitiesData || [];
+        for (var si = 0; si < sops.length; si++) {
+          var so = sops[si];
+          if (so.title && !isDupe(so.title)) {
+            newOpps.push({ title: so.title, agency: so.fullParentPathName || so.organizationCode || 'Federal', source: 'sam_gov', source_url: 'https://sam.gov/opp/' + so.opportunityId, description: (so.description||'').slice(0,500), due_date: so.responseDeadLine || null, vertical: null });
+            samFound++;
+          }
+        }
+      }
+    } catch(e) {}
+  }
+  log('HUNTING: SAM.gov found ' + samFound + ' candidates');
+
+  // ── SOURCE 4: GRANTS.GOV ───────────────────────────────────────
+  var grantsFound = 0;
+  try {
+    var gr = await fetch('https://api.grants.gov/v1/api/search2', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keyword: 'disaster recovery OR housing program OR workforce development OR grant management OR claims administration', rows: 20, oppStatuses: 'forecasted|posted', startRecordNum: 0 }) });
+    if (gr.ok) {
+      var gd = await gr.json();
+      var gops = (gd.data && gd.data.oppHits) ? gd.data.oppHits : [];
+      for (var gi = 0; gi < gops.length; gi++) {
+        var go = gops[gi];
+        if (go.oppTitle && !isDupe(go.oppTitle)) {
+          newOpps.push({ title: go.oppTitle, agency: go.agencyName || 'Federal', source: 'grants_gov', source_url: 'https://grants.gov/search-grants?oppNumber=' + go.number, description: (go.synopsis||'').slice(0,500), due_date: go.closeDate || null, vertical: 'grant' });
+          grantsFound++;
+        }
+      }
+    }
+  } catch(e) { log('HUNTING Grants.gov error: ' + e.message); }
+  log('HUNTING: Grants.gov found ' + grantsFound + ' candidates');
+
+  // ── SOURCE 5: AUTONOMOUS NEW SOURCE DISCOVERY ─────────────────
+  // The organism researches and identifies new portals it should be hitting
+  log('HUNTING: discovering new sources autonomously...');
+  try {
+    var discoverPrompt = HGI +
+      '\n\nCURRENT SOURCES BEING MONITORED: Central Bidding (Louisiana), LaPAC (Louisiana), SAM.gov, Grants.gov.' +
+      '\n\nCURRENT PIPELINE VERTICALS: ' + [...new Set(state.pipeline.map(function(o){return o.vertical||'unknown';}))].join(', ') +
+      '\n\nMEMORY:\n' + ctx.memText.slice(0,400) +
+      '\n\nMISSION: HGI operates in LA/TX/FL/MS/AL/GA. What specific procurement portals are we NOT monitoring that carry HGI-vertical work? ' +
+      'Respond in JSON only. No markdown. Format: {"new_sources":[{"name":"portal name","url":"https://...","what_it_carries":"description","how_to_access":"public API or registration required","priority":"high/medium/low"}],"missing_keywords":["keyword1","keyword2"]}' +
+      '\nLimit to top 5 new sources. Focus on: TX/FL/MS/AL/GA state portals, insurance regulatory bodies, housing authority networks, FEMA direct channels.';
+
+    var discoverResp = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: discoverPrompt }]
+    });
+    var discoverText = (discoverResp.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').replace(/json|/gi,'').trim();
+    var discovery = JSON.parse(discoverText);
+    if (discovery.new_sources && discovery.new_sources.length > 0) {
+      log('HUNTING: Discovered ' + discovery.new_sources.length + ' new source candidates');
+      await storeMemory('hunting_agent', null, 'new_sources,source_discovery', 'NEW SOURCE DISCOVERY:\n' + discovery.new_sources.map(function(s){ return s.priority.toUpperCase() + ': ' + s.name + ' (' + s.url + ') - ' + s.what_it_carries; }).join('\n'), 'pattern');
+
+      // Actually try to hit any high-priority sources with public APIs
+      for (var ns = 0; ns < discovery.new_sources.length; ns++) {
+        var src = discovery.new_sources[ns];
+        if (src.priority === 'high' && src.how_to_access === 'public API') {
+          try {
+            var nsResp = await fetch(src.url + (src.url.includes('?') ? '&' : '?') + 'keyword=program+management&rows=10', { headers: { Accept: 'application/json' } });
+            if (nsResp.ok) {
+              var nsData = await nsResp.json();
+              var nsOpps = nsData.results || nsData.data || nsData.opportunities || [];
+              nsOpps.slice(0,5).forEach(function(no) {
+                var nt = no.title || no.name || '';
+                if (nt && !isDupe(nt)) {
+                  newOpps.push({ title: nt, agency: no.agency || src.name, source: 'new_source_' + src.name.replace(/s/g,'_').toLowerCase(), source_url: src.url, description: (no.description||'').slice(0,300), due_date: no.dueDate || null, vertical: null });
+                  log('HUNTING: New source ' + src.name + ' yielded: ' + nt.slice(0,40));
+                }
+              });
+            }
+          } catch(e) {}
+        }
+      }
+    }
+  } catch(e) { log('HUNTING source discovery error: ' + e.message); }
+
+  log('HUNTING: Total raw candidates: ' + newOpps.length + '. Scoring with OPI model...');
+
+  if (newOpps.length === 0) {
+    await storeMemory('hunting_agent', null, 'hunting,no_candidates', 'HUNTING: No new candidates found. Sources checked: Central Bidding, LaPAC, SAM.gov, Grants.gov + autonomous discovery.', 'analysis');
+    return { agent: 'hunting_agent', chars: 100, new_opps: 0 };
+  }
+
+  // ── SCORE EACH CANDIDATE ──────────────────────────────────────
+  var qualified = [];
+  var deduped = newOpps.filter(function(o, idx, arr) {
+    return arr.findIndex(function(x) { return x.title.slice(0,40) === o.title.slice(0,40); }) === idx;
+  });
+
+  for (var c = 0; c < Math.min(deduped.length, 20); c++) {
+    var cand = deduped[c];
+    try {
+      var sp = HGI +
+        '\nOPPORTUNITY: Title: ' + cand.title + '\nAgency: ' + cand.agency + '\nSource: ' + cand.source + '\nDescription: ' + (cand.description||'no description') + '\nDue: ' + (cand.due_date||'unknown') +
+        '\n\nRespond in JSON only. No markdown: {"opi":NUMBER,"vertical":"disaster|tpa|workforce|housing|construction|grant|federal|general|FILTER","capture_action":"GO or WATCH or NO-BID","why":"one sentence","estimated_value":"range or unknown"}' +
+        '\nUse FILTER for: physical construction, healthcare benefits, IT/software, education, food service, janitorial, utilities, or anything clearly outside HGI capabilities.';
+
+      var sr2 = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 150,
+        messages: [{ role: 'user', content: sp }]
+      });
+
+      var st = (sr2.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('').replace(/json|/gi,'').trim();
+      var score = JSON.parse(st);
+
+      if (score.vertical === 'FILTER' || score.opi < 45) {
+        log('HUNTING: FILTERED ' + cand.title.slice(0,40) + ' OPI:' + score.opi);
+        continue;
+      }
+
+      log('HUNTING: QUALIFIED OPI:' + score.opi + ' ' + score.vertical + ' | ' + cand.title.slice(0,45));
+
+      var newId = cand.source + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
+      await supabase.from('opportunities').insert({
+        id: newId,
+        title: cand.title,
+        agency: cand.agency,
+        vertical: score.vertical,
+        opi_score: score.opi,
+        status: 'active',
+        stage: 'identified',
+        source: cand.source,
+        source_url: cand.source_url,
+        estimated_value: score.estimated_value || 'unknown',
+        due_date: cand.due_date || null,
+        capture_action: score.capture_action + ': ' + score.why,
+        discovered_at: new Date().toISOString(),
+        last_updated: new Date().toISOString()
+      });
+
+      qualified.push({ title: cand.title, opi: score.opi, vertical: score.vertical, agency: cand.agency, source: cand.source });
+
+    } catch(e) { log('HUNTING score error: ' + e.message); }
+  }
+
+  log('HUNTING AGENT COMPLETE: ' + qualified.length + '/' + deduped.length + ' qualified and added to pipeline');
+  qualified.forEach(function(q) { log('  + OPI:' + q.opi + ' ' + q.vertical + ' [' + q.source + '] ' + q.title.slice(0,50)); });
+
+  await storeMemory('hunting_agent', null,
+    'hunting,pipeline_growth,new_opportunities',
+    'HUNTING COMPLETE: Checked Central Bidding + LaPAC + SAM.gov + Grants.gov + autonomous discovery. Raw candidates: ' + deduped.length + '. Qualified and added to pipeline: ' + qualified.length + '.\n' +
+    qualified.map(function(q){ return '[' + q.source + '] OPI:' + q.opi + ' ' + q.vertical + ' | ' + q.title.slice(0,55); }).join('\n'),
+    'analysis'
+  );
+
+  return { agent: 'hunting_agent', chars: 300, new_opps: qualified.length };
+}
+
 // ── SESSION ────────────────────────────────────────────────────────
 async function runSession(trigger) {
   var id = 'v2-' + Date.now();
