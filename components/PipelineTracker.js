@@ -9,6 +9,49 @@ const STAGES = [
   {id:"lost", label:"Lost", color:RED},
 ];
 
+function IntelPanel({ item }) {
+  const [activeTab, setActiveTab] = React.useState('winnability');
+  const tabs = [
+    { id: 'winnability', label: 'Winnability', field: 'capture_action' },
+    { id: 'intel', label: 'Competitive Intel', field: 'research_brief' },
+    { id: 'financial', label: 'Financial', field: 'financial_analysis' },
+    { id: 'proposal', label: 'Proposal Draft', field: 'staffing_plan' },
+    { id: 'scope', label: 'Scope Analysis', field: 'scope_analysis' },
+  ].filter(t => item[t.field] && item[t.field].length > 50);
+
+  if (!tabs.length) return null;
+  const active = tabs.find(t => t.id === activeTab) || tabs[0];
+  const content = item[active.field] || '';
+
+  return (
+    React.createElement('div', { style: { marginBottom: 16, border: '1px solid ' + GOLD + '44', borderRadius: 6, overflow: 'hidden' } },
+      React.createElement('div', { style: { background: GOLD + '11', borderBottom: '1px solid ' + GOLD + '33', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
+        React.createElement('span', { style: { color: GOLD, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', marginRight: 8 } }, 'ORGANISM INTELLIGENCE'),
+        tabs.map(t =>
+          React.createElement('button', {
+            key: t.id,
+            onClick: () => setActiveTab(t.id),
+            style: {
+              padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: t.id === (active.id) ? 700 : 400,
+              background: t.id === active.id ? GOLD + '33' : 'transparent',
+              color: t.id === active.id ? GOLD : TEXT_D,
+              border: '1px solid ' + (t.id === active.id ? GOLD + '66' : BORDER),
+              cursor: 'pointer', fontFamily: 'inherit'
+            }
+          }, t.label)
+        )
+      ),
+      React.createElement('div', {
+        style: {
+          padding: 16, maxHeight: 500, overflowY: 'auto',
+          fontSize: 12, lineHeight: 1.7, color: TEXT,
+          whiteSpace: 'pre-wrap', fontFamily: 'monospace', background: BG3
+        }
+      }, content)
+    )
+  );
+}
+
 function PipelineTracker({ goToWorkflow }) {
   const [items, setItems] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
