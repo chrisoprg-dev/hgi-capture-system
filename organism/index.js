@@ -21,7 +21,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
   if (req.url === '/health') {
     res.writeHead(200);
-    res.end(JSON.stringify({ status: 'alive', uptime_seconds: Math.floor(process.uptime()), timestamp: new Date().toISOString(), version: 'V2.8.0-thirtyeight-agents', agents_active: 38 }));
+    res.end(JSON.stringify({ status: 'alive', uptime_seconds: Math.floor(process.uptime()), timestamp: new Date().toISOString(), version: 'V2.9.0-fortyseven-agents', agents_active: 47 }));
     return;
   }
   if (req.url === '/run-session' && req.method === 'POST') {
