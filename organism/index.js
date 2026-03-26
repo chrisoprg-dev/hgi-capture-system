@@ -1583,6 +1583,9 @@ async function runSession(trigger) {
       try { var rBr = await agentBrief(activeOpps[pw], ctx); if (rBr) allResults.push(rBr); } catch(e) { log('Brief error: ' + e.message); }
       try { var rOB = await agentOppBrief(activeOpps[pw], ctx); if (rOB) allResults.push(rOB); } catch(e) { log('OppBrief error: ' + e.message); }
       try { var rPA = await agentProposalAssembly(activeOpps[pw], ctx); if (rPA) allResults.push(rPA); } catch(e) { log('ProposalAssembly error: ' + e.message); }
+      try { var rSP = await agentStaffingPlan(activeOpps[pw], ctx); if (rSP) allResults.push(rSP); } catch(e) { log('StaffingPlan error: ' + e.message); }
+      try { var rPTW = await agentPriceToWin(activeOpps[pw], ctx); if (rPTW) allResults.push(rPTW); } catch(e) { log('PriceToWin error: ' + e.message); }
+      try { var rFV2 = await agentFinancialV2(activeOpps[pw], ctx); if (rFV2) allResults.push(rFV2); } catch(e) { log('FinancialV2 error: ' + e.message); }
       try { var rPO = await agentPostAward(state, ctx); if (rPO) allResults.push(rPO); } catch(e) { log('PostAward error: ' + e.message); }
       try { var rOP = await agentOralPrep(state, ctx); if (rOP) allResults.push(rOP); } catch(e) { log('OralPrep error: ' + e.message); }
     }
