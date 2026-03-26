@@ -1575,6 +1575,12 @@ async function runSession(trigger) {
     try { var rMN = await agentMobileNotifications(state, ctx); if (rMN) allResults.push(rMN); } catch(e) { log('MobileNotifications error: ' + e.message); }
     try { var rEI = await agentEntrepreneurial(state, ctx); if (rEI) allResults.push(rEI); } catch(e) { log('Entrepreneurial error: ' + e.message); }
     try { var rEM = await agentExecBriefingMode(state, ctx); if (rEM) allResults.push(rEM); } catch(e) { log('ExecBriefingMode error: ' + e.message); }
+    try { var rUn = await agentUnsolicited(state, ctx); if (rUn) allResults.push(rUn); } catch(e) { log('Unsolicited error: ' + e.message); }
+    try { var rRC = await agentRecompete(state, ctx); if (rRC) allResults.push(rRC); } catch(e) { log('Recompete error: ' + e.message); }
+    try { var rCD = await agentCompetitorDeepDive(state, ctx); if (rCD) allResults.push(rCD); } catch(e) { log('CompetitorDeepDive error: ' + e.message); }
+    try { var rAP = await agentAgencyProfile(state, ctx); if (rAP) allResults.push(rAP); } catch(e) { log('AgencyProfile error: ' + e.message); }
+    try { var rSD = await agentSubcontractorDatabase(state, ctx); if (rSD) allResults.push(rSD); } catch(e) { log('SubcontractorDB error: ' + e.message); }
+    try { var rCEV2 = await agentContentEngineV2(state, ctx); if (rCEV2) allResults.push(rCEV2); } catch(e) { log('ContentEngineV2 error: ' + e.message); }
 
     // Proposal writer fires on proposal-stage opps
     for (var pw = 0; pw < activeOpps.length; pw++) {
