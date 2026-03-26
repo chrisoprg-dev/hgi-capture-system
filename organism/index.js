@@ -530,6 +530,9 @@ async function runSession(trigger) {
     // Proposal writer fires on proposal-stage opps
     for (var pw = 0; pw < activeOpps.length; pw++) {
       try { var rPW = await agentProposalWriter(activeOpps[pw], ctx); if (rPW) allResults.push(rPW); } catch(e) { log('ProposalWriter error: ' + e.message); }
+      try { var rRT = await agentRedTeam(activeOpps[pw], ctx); if (rRT) allResults.push(rRT); } catch(e) { log('RedTeam error: ' + e.message); }
+      try { var rBr = await agentBrief(activeOpps[pw], ctx); if (rBr) allResults.push(rBr); } catch(e) { log('Brief error: ' + e.message); }
+      try { var rOB = await agentOppBrief(activeOpps[pw], ctx); if (rOB) allResults.push(rOB); } catch(e) { log('OppBrief error: ' + e.message); }
     }
 
     // Self-awareness runs last — sees everything
