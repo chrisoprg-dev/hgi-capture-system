@@ -879,6 +879,9 @@ async function runSession(trigger) {
       try { var rRT = await agentRedTeam(activeOpps[pw], ctx); if (rRT) allResults.push(rRT); } catch(e) { log('RedTeam error: ' + e.message); }
       try { var rBr = await agentBrief(activeOpps[pw], ctx); if (rBr) allResults.push(rBr); } catch(e) { log('Brief error: ' + e.message); }
       try { var rOB = await agentOppBrief(activeOpps[pw], ctx); if (rOB) allResults.push(rOB); } catch(e) { log('OppBrief error: ' + e.message); }
+      try { var rPA = await agentProposalAssembly(activeOpps[pw], ctx); if (rPA) allResults.push(rPA); } catch(e) { log('ProposalAssembly error: ' + e.message); }
+      try { var rPO = await agentPostAward(state, ctx); if (rPO) allResults.push(rPO); } catch(e) { log('PostAward error: ' + e.message); }
+      try { var rOP = await agentOralPrep(state, ctx); if (rOP) allResults.push(rOP); } catch(e) { log('OralPrep error: ' + e.message); }
     }
 
     // Self-awareness runs last — sees everything
