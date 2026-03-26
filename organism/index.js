@@ -190,6 +190,137 @@ async function agentSelfAwareness(state, sessionResults, ctx) {
   return { agent: 'self_awareness', chars: out.length };
 }
 
+
+// ── AGENT 7: DISCOVERY AGENT ──────────────────────────────────────
+async function agentDiscovery(state, ctx) {
+  log('DISCOVERY: scanning for pre-solicitation signals...');
+  var oppSummary = state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | ' + (o.vertical||'') + ' | OPI:' + o.opi_score; }).join('\n');
+  var prompt = HGI + '\n\nACTIVE PIPELINE:\n' + oppSummary + '\n\nMEMORY:\n' + ctx.memText.slice(0,800) +
+    '\n\nMISSION: (1) Pre-solicitation signals - budget appropriations, agency announcements suggesting upcoming RFPs in HGI verticals (2) Sources HGI is NOT monitoring that carry procurement in disaster recovery, TPA/claims, workforce, housing, grant management (3) Agencies in LA/TX/FL/MS/AL/GA with expiring contracts in HGI verticals - prime recompete targets (4) FEMA disaster declarations in last 30 days that will generate recovery procurement (5) Market signals - budget cycles, legislative action, federal funding announcements that predict future HGI opportunities (6) Single highest-value new opportunity source HGI should add right now.';
+  var out = await claudeCall('You are HGI Discovery Agent, agent 7 of 37. You find what is coming before it is posted. Your findings feed every other agent.', prompt, 1200);
+  if (!out || out.length < 100) return null;
+  log('DISCOVERY complete: ' + out.length + ' chars');
+  await storeMemory('discovery_agent', null, 'discovery,pre_solicitation,market_signals', 'DISCOVERY:\n' + out, 'pattern');
+  return { agent: 'discovery_agent', chars: out.length };
+}
+
+// ── AGENT 8: PIPELINE SCANNER ─────────────────────────────────────
+async function agentPipelineScanner(state, ctx) {
+  log('PIPELINE SCANNER: health check...');
+  var today = new Date();
+  var health = state.pipeline.map(function(o) {
+    var daysLeft = o.due_date ? Math.ceil((new Date(o.due_date) - today) / 86400000) : null;
+    return (o.title||'?').slice(0,50) + ' | Stage:' + (o.stage||'?') + ' | Days:' + (daysLeft !== null ? daysLeft : 'unknown') + ' | OPI:' + o.opi_score + ' | Proposal:' + (o.staffing_plan||'').length + 'chars';
+  }).join('\n');
+  var prompt = HGI + '\n\nPIPELINE STATUS:\n' + health + '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: (1) Flag any opportunity within 14 days of deadline without complete proposal (2) Flag any GO opportunity stuck in same stage 7+ days (3) OPI scores inconsistent with what organism now knows (4) Deadline conflicts where two opportunities require simultaneous proposal work (5) Pipeline health score 1-10 with reasoning (6) Single most urgent action to prevent missed deadline or lost opportunity.';
+  var out = await claudeCall('You are HGI Pipeline Scanner, agent 8 of 37. You watch deadlines and anomalies. You flag everything needing immediate action.', prompt, 800);
+  if (!out || out.length < 100) return null;
+  log('PIPELINE SCANNER complete: ' + out.length + ' chars');
+  await storeMemory('pipeline_scanner', null, 'pipeline_health,deadlines', 'PIPELINE SCANNER:\n' + out, 'analysis');
+  return { agent: 'pipeline_scanner', chars: out.length };
+}
+
+// ── AGENT 9: OPI CALIBRATION ──────────────────────────────────────
+async function agentOPICalibration(state, ctx) {
+  log('OPI CALIBRATION: reviewing scores...');
+  var oppList = state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | OPI:' + o.opi_score + ' | ' + (o.vertical||'') + ' | Stage:' + (o.stage||'?') + ' | Proposal:' + (o.staffing_plan||'').length + 'chars'; }).join('\n');
+  var prompt = HGI + '\n\nOPPORTUNITIES WITH CURRENT OPI SCORES:\n' + oppList + '\n\nINTELLIGENCE AND WINNABILITY FINDINGS:\n' + ctx.memText.slice(0,1500) +
+    '\n\nMISSION: Based on everything the organism now knows, (1) For each opportunity - does current OPI reflect full competitive picture? Recommend adjustment with specific reasoning (2) Which OPI factors are consistently over/under-weighted (3) Single addition to OPI scoring model that would most improve accuracy (4) Any opportunity that should be escalated to NO-BID based on what agents found today.';
+  var out = await claudeCall('You are HGI OPI Calibration Agent, agent 9 of 37. You refine scoring accuracy. Every recalibration makes future scoring smarter.', prompt, 800);
+  if (!out || out.length < 100) return null;
+  log('OPI CALIBRATION complete: ' + out.length + ' chars');
+  await storeMemory('scanner_opi', null, 'opi_calibration,scoring', 'OPI CALIBRATION:\n' + out, 'pattern');
+  return { agent: 'scanner_opi', chars: out.length };
+}
+
+// ── AGENT 10: CONTENT ENGINE ──────────────────────────────────────
+async function agentContentEngine(state, ctx) {
+  log('CONTENT ENGINE: analyzing proposal language...');
+  var drafts = state.pipeline.filter(function(o) { return (o.staffing_plan||'').length > 200; }).map(function(o) { return (o.title||'?').slice(0,40) + ':\n' + (o.staffing_plan||'').slice(0,400); }).join('\n\n---\n\n');
+  if (!drafts) { log('CONTENT ENGINE: no drafts to review'); return null; }
+  var prompt = HGI + '\n\nPROPOSAL DRAFT EXCERPTS:\n' + drafts +
+    '\n\nMISSION: (1) Which sections have strongest evaluator-ready language and why (2) Which sections read like generic AI output - rewrite them specifically (3) Domain-specific terminology each proposal should be using but is not (4) Before/after rewrites for every passage needing improvement (5) Flag every passive voice sentence and rewrite it (6) Single highest-impact language improvement across all drafts.';
+  var out = await claudeCall('You are HGI Content Engine, agent 10 of 37. You make every sentence the most persuasive evaluator-friendly language possible. You optimize for scores not style.', prompt, 1500);
+  if (!out || out.length < 100) return null;
+  log('CONTENT ENGINE complete: ' + out.length + ' chars');
+  await storeMemory('content_engine', null, 'voice,style,proposal_language', 'CONTENT ENGINE:\n' + out, 'pattern');
+  return { agent: 'content_engine', chars: out.length };
+}
+
+// ── AGENT 11: RECRUITING AND BENCH ───────────────────────────────
+async function agentRecruiting(state, ctx) {
+  log('RECRUITING: staffing gap analysis...');
+  var oppCtx = state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | ' + (o.vertical||'') + ' | Stage:' + (o.stage||'') + ' | Due:' + (o.due_date||'TBD'); }).join('\n');
+  var prompt = HGI + '\n\nACTIVE PURSUITS:\n' + oppCtx +
+    '\n\nHGI NAMED STAFF: Louis Resweber (Program Director), Berron (PA SME), April Gloston (HM Specialist), Klunk (Financial/Grant), Wiltz (Documentation Manager).' +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: (1) For each pursuit - required positions vs available named staff, identify gaps (2) Where teaming is needed (3) Recurring gaps across multiple pursuits simultaneously (4) Certifications or qualifications HGI lacks that cost points (5) Single recruiting or teaming action before next deadline (6) Any pursuit where staffing gap alone should trigger NO-BID.';
+  var out = await claudeCall('You are HGI Recruiting and Bench Agent, agent 11 of 37. You track staffing gaps before they block bids. You flag before it is too late.', prompt, 800);
+  if (!out || out.length < 100) return null;
+  log('RECRUITING complete: ' + out.length + ' chars');
+  await storeMemory('recruiting_bench', null, 'staffing,bench,gaps', 'RECRUITING:\n' + out, 'analysis');
+  return { agent: 'recruiting_bench', chars: out.length };
+}
+
+// ── AGENT 12: KNOWLEDGE BASE AGENT ───────────────────────────────
+async function agentKnowledgeBase(state, ctx) {
+  log('KB AGENT: gap analysis...');
+  var verticals = state.pipeline.map(function(o) { return o.vertical || 'unknown'; }).join(', ');
+  var prompt = HGI + '\n\nACTIVE PIPELINE VERTICALS: ' + verticals +
+    '\n\nKB STATUS: 21 docs, 350+ chunks. Strong: GOHSEP(149), TPCIGA(94), HTHA v4(22). Weak: 6 image-PDFs minimal extraction, 2 docx zero chunks.' +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,800) +
+    '\n\nMISSION: (1) Which pursuits are weakest on KB-supported past performance (2) HGI business lines with NO KB coverage - mediation, settlement admin, staff aug, call centers, DEI (3) Critical past performance documentation missing across verticals (4) Technical methodology gaps hurting proposal quality now (5) Single document Lou Resweber should send next and exactly what gap it fills (6) KB health score 1-10 for each active pursuit vertical.';
+  var out = await claudeCall('You are HGI Knowledge Base Agent, agent 12 of 37. You identify missing institutional knowledge. Every gap you find and fill makes future proposals stronger.', prompt, 800);
+  if (!out || out.length < 100) return null;
+  log('KB AGENT complete: ' + out.length + ' chars');
+  await storeMemory('knowledge_base_agent', null, 'kb_gaps,kb_health', 'KB AGENT:\n' + out, 'pattern');
+  return { agent: 'knowledge_base_agent', chars: out.length };
+}
+
+// ── AGENT 13: SCRAPER INSIGHTS ────────────────────────────────────
+async function agentScraperInsights(state, ctx) {
+  log('SCRAPER INSIGHTS: source analysis...');
+  var sourceBreakdown = state.pipeline.map(function(o) { return (o.title||'?').slice(0,40) + ' | Source:' + (o.source||'unknown') + ' | OPI:' + o.opi_score; }).join('\n');
+  var prompt = HGI + '\n\nPIPELINE BY SOURCE:\n' + sourceBreakdown +
+    '\n\nACTIVE SOURCES: Central Bidding (8AM+8PM CST), LaPAC (every 6min), SAM.gov (every 12hr), Grants.gov (4x daily).' +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,500) +
+    '\n\nMISSION: (1) Which sources produce GO-quality vs noise (2) Source gaps - portals in LA/TX/FL/MS/AL/GA carrying HGI vertical work not currently monitored (3) Keyword gaps causing HGI business lines to generate zero results (4) Any source showing degradation signs (5) Single highest-ROI new source to add given active pipeline verticals.';
+  var out = await claudeCall('You are HGI Scraper Insights Agent, agent 13 of 37. You track source yield and identify where opportunities are being missed.', prompt, 800);
+  if (!out || out.length < 100) return null;
+  log('SCRAPER INSIGHTS complete: ' + out.length + ' chars');
+  await storeMemory('scraper_insights', null, 'scraper_health,source_roi', 'SCRAPER INSIGHTS:\n' + out, 'pattern');
+  return { agent: 'scraper_insights', chars: out.length };
+}
+
+// ── AGENT 14: EXECUTIVE BRIEF ─────────────────────────────────────
+async function agentExecutiveBrief(state, ctx) {
+  log('EXECUTIVE BRIEF: preparing for Lou and Larry...');
+  var pipelineSummary = state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | OPI:' + o.opi_score + ' | Due:' + (o.due_date||'TBD') + ' | Stage:' + (o.stage||'?'); }).join('\n');
+  var prompt = HGI + '\n\nPIPELINE:\n' + pipelineSummary + '\n\nINTELLIGENCE THIS SESSION:\n' + ctx.memText.slice(0,1500) +
+    '\n\nMISSION: Brief Lou Resweber (CEO) and Larry Oney (Chairman). Concise. No noise. Decisions not status. (1) Pipeline summary - total opps, combined estimated value, realistic win probability weighted by OPI (2) Decisions needed from Lou or Larry this week specifically - name decision, deadline, stakes (3) Opportunities needing executive-level relationship intervention (4) Where HGI is most likely to win this quarter and why (5) Single biggest risk to revenue right now (6) What needs their visibility that has not been surfaced yet.';
+  var out = await claudeCall('You are HGI Executive Brief Agent, agent 14 of 37. You brief the CEO and Chairman. Concise. Actionable. Every word earns its place.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('EXECUTIVE BRIEF complete: ' + out.length + ' chars');
+  await storeMemory('executive_brief_agent', null, 'executive_brief,digest', 'EXECUTIVE BRIEF:\n' + out, 'analysis');
+  return { agent: 'executive_brief_agent', chars: out.length };
+}
+
+// ── AGENT 15: PROPOSAL WRITER ─────────────────────────────────────
+async function agentProposalWriter(opp, ctx) {
+  if ((opp.staffing_plan||'').length < 300) return null;
+  log('PROPOSAL WRITER: ' + (opp.title||'?').slice(0,50));
+  var prompt = HGI + '\n\n' + oppBase(opp) +
+    '\n\nCURRENT PROPOSAL DRAFT:\n' + (opp.staffing_plan||'').slice(0,4000) +
+    '\n\nQUALITY GATE AND INTEL CONTEXT:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: (1) Score each section 1-10 against eval criterion - where are we losing points (2) For EVERY section scoring below 8: write the actual improved paragraph not a description (3) Does technical approach use best available domain terminology - what specific upgrades needed (4) Does each section show why HGI wins over likely competitors (5) Rewrite executive summary optimized for this specific evaluator and agency (6) Single highest-point-value improvement.';
+  var out = await claudeCall('You are HGI Proposal Writer, agent 15 of 37. You produce submission-ready proposal language. You write to win. Best language wins.', prompt, 2000);
+  if (!out || out.length < 100) return null;
+  log('PROPOSAL WRITER complete: ' + out.length + ' chars');
+  await storeMemory('proposal_agent', opp.id, (opp.agency||'') + ',proposal_improvement', 'PROPOSAL WRITER - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'pattern');
+  return { agent: 'proposal_agent', opp: opp.title, chars: out.length };
+}
+
 // ── SESSION ────────────────────────────────────────────────────────
 async function runSession(trigger) {
   var id = 'v2-' + Date.now();
