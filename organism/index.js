@@ -522,6 +522,10 @@ async function runSession(trigger) {
     try { var rKB = await agentKnowledgeBase(state, ctx); if (rKB) allResults.push(rKB); } catch(e) { log('KB error: ' + e.message); }
     try { var rSI = await agentScraperInsights(state, ctx); if (rSI) allResults.push(rSI); } catch(e) { log('ScraperInsights error: ' + e.message); }
     try { var rEB = await agentExecutiveBrief(state, ctx); if (rEB) allResults.push(rEB); } catch(e) { log('ExecBrief error: ' + e.message); }
+    try { var rDM = await agentDisasterMonitor(state, ctx); if (rDM) allResults.push(rDM); } catch(e) { log('DisasterMonitor error: ' + e.message); }
+    try { var rDB = await agentDashboard(state, ctx); if (rDB) allResults.push(rDB); } catch(e) { log('Dashboard error: ' + e.message); }
+    try { var rDV = await agentDesignVisual(state, ctx); if (rDV) allResults.push(rDV); } catch(e) { log('DesignVisual error: ' + e.message); }
+    try { var rTM = await agentTeaming(state, ctx); if (rTM) allResults.push(rTM); } catch(e) { log('Teaming error: ' + e.message); }
 
     // Proposal writer fires on proposal-stage opps
     for (var pw = 0; pw < activeOpps.length; pw++) {
