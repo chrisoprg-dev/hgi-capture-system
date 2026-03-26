@@ -1100,7 +1100,7 @@ async function agentUnsolicited(state, ctx) {
     '\n\nMEMORY:\n' + ctx.memText.slice(0,800) +
     '\n\nMISSION: HGI has 95 years of relationships. The best RFP is one HGI helped shape before it was written. ' +
     '(1) Identify 3-5 agencies HGI has worked with before where current program conditions suggest upcoming procurement - budget approvals, program expansions, leadership changes, performance issues with incumbents ' +
-    '(2) For each - draft the concept of a targeted capability statement or white paper HGI should send now to shape the upcoming solicitation in HGI's favor ' +
+    '(2) For each - draft the concept of a targeted capability statement or white paper HGI should send now to shape the upcoming solicitation in HGIs favor ' +
     '(3) Identify the specific person at each agency to send it to based on relationship graph and CRM intelligence ' +
     '(4) Timing recommendation - when to send, what to follow up with, and how to position for pre-proposal meeting ' +
     '(5) Any active disaster declarations or federal funding announcements where HGI should proactively reach out to state emergency management before procurement is posted ' +
