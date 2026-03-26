@@ -868,6 +868,10 @@ async function runSession(trigger) {
     try { var rRM = await agentRegulatoryMonitor(state, ctx); if (rRM) allResults.push(rRM); } catch(e) { log('RegulatoryMonitor error: ' + e.message); }
     try { var rOA = await agentOutreachAutomation(state, ctx); if (rOA) allResults.push(rOA); } catch(e) { log('Outreach error: ' + e.message); }
     try { var rLL = await agentLearningLoop(state, ctx); if (rLL) allResults.push(rLL); } catch(e) { log('LearningLoop error: ' + e.message); }
+    try { var rAT = await agentAmendmentTracker(state, ctx); if (rAT) allResults.push(rAT); } catch(e) { log('AmendmentTracker error: ' + e.message); }
+    try { var rMN = await agentMobileNotifications(state, ctx); if (rMN) allResults.push(rMN); } catch(e) { log('MobileNotifications error: ' + e.message); }
+    try { var rEI = await agentEntrepreneurial(state, ctx); if (rEI) allResults.push(rEI); } catch(e) { log('Entrepreneurial error: ' + e.message); }
+    try { var rEM = await agentExecBriefingMode(state, ctx); if (rEM) allResults.push(rEM); } catch(e) { log('ExecBriefingMode error: ' + e.message); }
 
     // Proposal writer fires on proposal-stage opps
     for (var pw = 0; pw < activeOpps.length; pw++) {
