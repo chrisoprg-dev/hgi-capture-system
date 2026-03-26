@@ -229,6 +229,22 @@ async function runSession(trigger) {
       try { var r5 = await agentQualityGate(opp, ctx); if (r5) allResults.push(r5); } catch(e) { log('QualityGate error: ' + e.message); }
     }
 
+    // System-wide agents (run once, see full pipeline)
+    log('--- System-wide agents ---');
+    try { var rD = await agentDiscovery(state, ctx); if (rD) allResults.push(rD); } catch(e) { log('Discovery error: ' + e.message); }
+    try { var rPS = await agentPipelineScanner(state, ctx); if (rPS) allResults.push(rPS); } catch(e) { log('PipelineScanner error: ' + e.message); }
+    try { var rOPI = await agentOPICalibration(state, ctx); if (rOPI) allResults.push(rOPI); } catch(e) { log('OPICalibration error: ' + e.message); }
+    try { var rCE = await agentContentEngine(state, ctx); if (rCE) allResults.push(rCE); } catch(e) { log('ContentEngine error: ' + e.message); }
+    try { var rRec = await agentRecruiting(state, ctx); if (rRec) allResults.push(rRec); } catch(e) { log('Recruiting error: ' + e.message); }
+    try { var rKB = await agentKnowledgeBase(state, ctx); if (rKB) allResults.push(rKB); } catch(e) { log('KB error: ' + e.message); }
+    try { var rSI = await agentScraperInsights(state, ctx); if (rSI) allResults.push(rSI); } catch(e) { log('ScraperInsights error: ' + e.message); }
+    try { var rEB = await agentExecutiveBrief(state, ctx); if (rEB) allResults.push(rEB); } catch(e) { log('ExecBrief error: ' + e.message); }
+
+    // Proposal writer fires on proposal-stage opps
+    for (var pw = 0; pw < activeOpps.length; pw++) {
+      try { var rPW = await agentProposalWriter(activeOpps[pw], ctx); if (rPW) allResults.push(rPW); } catch(e) { log('ProposalWriter error: ' + e.message); }
+    }
+
     // Self-awareness runs last — sees everything
     try { var rSA = await agentSelfAwareness(state, allResults, ctx); if (rSA) allResults.push(rSA); } catch(e) { log('SelfAwareness error: ' + e.message); }
 
