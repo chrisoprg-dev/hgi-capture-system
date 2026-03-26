@@ -1277,7 +1277,7 @@ async function agentFinancialV2(opp, ctx) {
     '\n\nMISSION: Complete financial intelligence and pricing model. ' +
     '(1) MARKET RATE ANALYSIS: from USAspending.gov and organism memory - list every comparable contract award for this agency type, scope, and geography. Name agency, awardee, amount, period, and scope for each. Minimum 5 comps. ' +
     '(2) AGENCY BUDGET CONTEXT: what is this agency total annual budget? What percentage typically goes to professional services contracts of this type? ' +
-    '(3) PRICING PATTERN: does this agency historically award to lowest price technically acceptable or best value? What is the premium they have paid for quality in past awards? ' + +
+    '(3) PRICING PATTERN: does this agency historically award to lowest price technically acceptable or best value? What is the premium they have paid for quality in past awards? ' +
     '(4) STAFFING-BASED MODEL: build from the ground up using HGI rate card. Show hours per position per month, rates, total annual cost, overhead, fee, and grand total for base year. ' +
     '(5) THREE METHODS with visible math: (a) staffing-based bottom-up, (b) comparable contract top-down, (c) percentage of total program funding. Show all three calculations. ' +
     '(6) FINAL RECOMMENDATION: LOW/MID/HIGH range with rationale. Recommended bid price. Option year pricing. Any pricing risks specific to this agency.';
