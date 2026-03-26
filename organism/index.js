@@ -123,7 +123,7 @@ async function agentFinancial(opp, ctx) {
   if (!out || out.length < 100) return null;
   log('FINANCIAL complete: ' + out.length + ' chars');
   await storeMemory('financial_agent', opp.id, (opp.agency||'') + ',pricing_benchmark', 'FINANCIAL - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'pricing_benchmark');
-  await supabase.from('opportunities').update({ financial_analysis: out.slice(0,8000), last_updated: new Date().toISOString() }).eq('id', opp.id);
+  await supabase.from('opportunities').update({ financial_analysis: out.slice(0,60000), last_updated: new Date().toISOString() }).eq('id', opp.id);
   return { agent: 'financial_agent', opp: opp.title, chars: out.length };
 }
 
