@@ -1056,13 +1056,15 @@ async function agentStaffingPlan(opp, ctx) {
   log('STAFFING PLAN: ' + (opp.title||'?').slice(0,50));
   var prompt = HGI +
     '\n\nOPPORTUNITY SCOPE AND REQUIRED POSITIONS:\n' + (opp.scope_analysis||'').slice(0,1500) +
-    '\n\nHGI NAMED STAFF AVAILABLE:\n' +
-    'Louis Resweber - Program Director, 25+ years program management, FEMA PA expertise\n' +
-    'Berron - PA SME, FEMA Public Assistance Category A-G, technical specialist\n' +
-    'April Gloston - HM Specialist, Hazard Mitigation 404/406, BRIC, flood mitigation\n' +
-    'Klunk - Financial/Grant Specialist, CDBG-DR, federal financial compliance, audit\n' +
-    'Wiltz - Documentation Manager, records management, compliance documentation\n' +
-    'Julie Lawson - PM, project coordination, schedule management\n' +
+    '\n\nHGI NAMED STAFF — ASSIGN THESE REAL PEOPLE TO REAL POSITIONS. NO TBD ALLOWED:\n' +
+    'Louis Resweber - Program Director / Senior PM, 25+ years program management, active FEMA PA experience, TPSD Hurricane Ida recovery lead\n' +
+    'Berron - PA SME, FEMA Public Assistance Category A-G technical specialist, PW development, Grants Portal, GOHSEP coordination\n' +
+    'April Gloston - HM Specialist, Hazard Mitigation 404/406, BRIC applications, BCA analysis, flood mitigation\n' +
+    'Klunk - Financial/Grant Specialist, CDBG-DR compliance, 2 CFR Part 200, federal financial management, audit support\n' +
+    'Wiltz - Documentation Manager, federal records management, compliance documentation, closeout files\n' +
+    'Julie Lawson - PM, project coordination, schedule management, stakeholder reporting\n' +
+    'Christopher J. Oney - President/Principal, executive sponsor, available for escalation, GOHSEP/FEMA Region VI relationships\n' +
+    'RULE: Assign named staff above to required RFP positions first. Only use TBD for positions where NO named staff can fill the role, and explain the gap.\n' +
     '\n\nHGI RATE CARD (fully burdened per hour):\n' +
     'Principal $220 | Program Director $210 | SME $200 | Sr PM $180 | PM $155 | Sr Grant Mgr $180 | Grant Mgr $175 | Grant Writer $145 | Architect/Engineer $135 | Cost Estimator $125 | Appeals Specialist $145 | Sr Damage Assessor $115 | Damage Assessor $105 | Admin Support $65\n' +
     '\n\nMEMORY (includes recruiting gaps):\n' + ctx.memText.slice(0,600) +
