@@ -81,6 +81,11 @@ function PipelineTracker({ goToWorkflow }) {
             award_notification_date: item.award_notification_date,
             outcome: item.outcome,
             outcome_notes: item.outcome_notes,
+            research_brief: item.research_brief,
+            financial_analysis: item.financial_analysis,
+            capture_action: item.capture_action,
+            scope_analysis: item.scope_analysis,
+            staffing_plan: item.staffing_plan,
           }));
           setItems(mappedData);
         }
