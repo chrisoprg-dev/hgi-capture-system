@@ -53,7 +53,7 @@ async function storeMemory(agent, oppId, tags, observation, memType) {
 async function loadState() {
   log('Loading system state...');
   const [r1, r2, r3, r4] = await Promise.all([
-    supabase.from('opportunities').select('*').neq('status','filtered').neq('outcome','cancelled').order('opi_score', { ascending: false }).limit(10),
+    supabase.from('opportunities').select('*').eq('status','active').order('opi_score', { ascending: false }).limit(10),
     supabase.from('organism_memory').select('*').neq('memory_type','decision_point').order('created_at', { ascending: false }).limit(100),
     supabase.from('competitive_intelligence').select('*').order('created_at', { ascending: false }).limit(50),
     supabase.from('relationship_graph').select('*').order('updated_at', { ascending: false }).limit(50),
