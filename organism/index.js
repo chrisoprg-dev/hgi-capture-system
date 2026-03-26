@@ -643,6 +643,170 @@ async function agentLearningLoop(state, ctx) {
   return { agent: 'learning_loop', chars: out.length };
 }
 
+
+// ── AGENT 31: PROPOSAL ASSEMBLY ───────────────────────────────────
+async function agentProposalAssembly(opp, ctx) {
+  if ((opp.staffing_plan||'').length < 300) return null;
+  log('PROPOSAL ASSEMBLY: ' + (opp.title||'?').slice(0,50));
+  var prompt = HGI + '\n\n' + oppBase(opp) +
+    '\n\nCURRENT PROPOSAL DRAFT:\n' + (opp.staffing_plan||'').slice(0,2000) +
+    '\n\nFINANCIAL ANALYSIS:\n' + (opp.financial_analysis||'').slice(0,400) +
+    '\n\nQUALITY GATE FINDINGS:\n' + ctx.memText.slice(0,400) +
+    '\n\nMISSION: Build the complete submission checklist and package structure. ' +
+    '(1) Complete section-by-section table of contents with page number targets for this specific RFP ' +
+    '(2) Exhibits checklist - for each required exhibit (A through J or as specified), current status: complete, needs signature, needs notarization, missing entirely ' +
+    '(3) Cover letter requirements - who signs, what it must contain, format requirements ' +
+    '(4) Submission format requirements - electronic via Central Bidding, hard copies count and deadline, binding requirements ' +
+    '(5) Final review checklist - the 10 things to verify before Dillon Truax submits ' +
+    '(6) Critical path to submission - tasks, owners by role, deadlines in reverse order from due date.';
+  var out = await claudeCall('You are HGI Proposal Assembly Agent, agent 31 of 37. You build the complete submission package checklist. Nothing gets missed. Dillon Truax gets a complete, organized package ready to submit.', prompt, 1200);
+  if (!out || out.length < 100) return null;
+  log('PROPOSAL ASSEMBLY complete: ' + out.length + ' chars');
+  await storeMemory('proposal_assembly', opp.id, (opp.agency||'') + ',proposal_assembly,submission', 'PROPOSAL ASSEMBLY - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'analysis');
+  return { agent: 'proposal_assembly', opp: opp.title, chars: out.length };
+}
+
+// ── AGENT 32: AMENDMENT TRACKER ───────────────────────────────────
+async function agentAmendmentTracker(state, ctx) {
+  log('AMENDMENT TRACKER: monitoring for RFP changes...');
+  var activeOpps = state.pipeline.filter(function(o) { return (o.opi_score||0) >= 65 && (o.stage||'') !== 'submitted'; });
+  if (activeOpps.length === 0) return null;
+  var oppList = activeOpps.map(function(o) { return (o.title||'?').slice(0,50) + ' | Due:' + (o.due_date||'TBD') + ' | Source:' + (o.source||'unknown') + ' | Posted:' + (o.discovered_at||'unknown').slice(0,10); }).join('\n');
+  var prompt = HGI + '\n\nACTIVE RFPS BEING MONITORED:\n' + oppList +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: RFP amendments and addenda change proposal requirements after posting. Missing them is a disqualification risk. ' +
+    '(1) For each active RFP - what is the addendum/amendment check process for that portal (Central Bidding, LaPAC, agency website) ' +
+    '(2) Common amendment types that affect HGI proposals - scope clarifications, deadline extensions, evaluation criterion changes, exhibit revisions ' +
+    '(3) How frequently to check each source for amendments before the deadline ' +
+    '(4) What to do when an amendment is found - who gets notified, what sections of the proposal must be updated ' +
+    '(5) Any known amendments or clarifications to current active RFPs based on organism intelligence ' +
+    '(6) Amendment monitoring protocol recommendation for HGI capture team.';
+  var out = await claudeCall('You are HGI Amendment Tracker Agent, agent 32 of 37. You monitor active RFPs for changes after posting. A missed amendment is a missed win. You catch everything.', prompt, 800);
+  if (!out || out.length < 100) return null;
+  log('AMENDMENT TRACKER complete: ' + out.length + ' chars');
+  await storeMemory('amendment_tracker', null, 'amendments,rfp_changes,addenda', 'AMENDMENT TRACKER:\n' + out, 'analysis');
+  return { agent: 'amendment_tracker', chars: out.length };
+}
+
+// ── AGENT 33: POST-AWARD AGENT ────────────────────────────────────
+async function agentPostAward(state, ctx) {
+  log('POST-AWARD: checking for mobilization needs...');
+  var submittedOpps = state.pipeline.filter(function(o) { return (o.stage||'') === 'submitted' || (o.outcome||'') === 'won'; });
+  if (submittedOpps.length === 0) { log('POST-AWARD: no submitted or won opportunities'); return null; }
+  var oppList = submittedOpps.map(function(o) { return (o.title||'?').slice(0,50) + ' | Stage:' + (o.stage||'?') + ' | Outcome:' + (o.outcome||'pending'); }).join('\n');
+  var prompt = HGI + '\n\nSUBMITTED OR WON OPPORTUNITIES:\n' + oppList +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: Post-award work determines whether HGI gets paid and builds past performance. ' +
+    '(1) For any won opportunity - 30-day mobilization checklist: key personnel confirmation, insurance certificates, bonding if required, contract execution steps ' +
+    '(2) CPARS/PPQ setup - who is the contracting officer, when does first evaluation occur, what metrics matter ' +
+    '(3) Subcontractor agreements if teaming was used - what needs to be executed before work starts ' +
+    '(4) Past performance documentation plan - how to capture this contract for future proposals ' +
+    '(5) For submitted but not yet awarded - award timeline expectations, protest risk assessment, debriefing request strategy if lost ' +
+    '(6) Any outstanding items from the submission that could affect award (Best and Final Offer likelihood, oral presentation request).';
+  var out = await claudeCall('You are HGI Post-Award Agent, agent 33 of 37. You make sure wins become revenue and past performance. You activate the moment a contract is awarded.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('POST-AWARD complete: ' + out.length + ' chars');
+  await storeMemory('post_award', null, 'post_award,mobilization,cpars,past_performance', 'POST-AWARD:\n' + out, 'analysis');
+  return { agent: 'post_award', chars: out.length };
+}
+
+// ── AGENT 34: ORAL PREP AGENT ─────────────────────────────────────
+async function agentOralPrep(state, ctx) {
+  log('ORAL PREP: checking for presentation needs...');
+  var proposalOpps = state.pipeline.filter(function(o) { return (o.opi_score||0) >= 72 && ((o.staffing_plan||'').length > 300 || (o.stage||'') === 'proposal'); });
+  if (proposalOpps.length === 0) return null;
+  var oppList = proposalOpps.map(function(o) { return (o.title||'?').slice(0,50) + ' | OPI:' + o.opi_score + ' | Due:' + (o.due_date||'TBD'); }).join('\n');
+  var prompt = HGI + '\n\nHIGH-PRIORITY PROPOSAL OPPORTUNITIES:\n' + oppList +
+    '\n\nINTEL AND COMPETITIVE CONTEXT:\n' + ctx.memText.slice(0,800) +
+    '\n\nMISSION: Many government contracts include oral presentations after written proposals. Prepare HGI now. ' +
+    '(1) Which of these opportunities is likely to include an oral presentation round based on agency patterns and contract value ' +
+    '(2) For each likely oral - the 5 questions the evaluation committee will almost certainly ask ' +
+    '(3) HGI strongest talking points that should be woven into every answer ' +
+    '(4) The weakness or concern the evaluators will probe - how to address it confidently without dwelling ' +
+    '(5) Who from HGI should present for each opportunity and what role each person plays ' +
+    '(6) Preparation timeline - how many practice sessions, what format, who plays evaluator.';
+  var out = await claudeCall('You are HGI Oral Prep Agent, agent 34 of 37. You prepare HGI for oral presentations before they are requested. The team that rehearses wins.', prompt, 1000);
+  if (!out || out.length < 100) return null;
+  log('ORAL PREP complete: ' + out.length + ' chars');
+  await storeMemory('oral_prep', null, 'oral_presentation,interview_prep,evaluation_committee', 'ORAL PREP:\n' + out, 'pattern');
+  return { agent: 'oral_prep', chars: out.length };
+}
+
+// ── AGENT 35: MOBILE NOTIFICATIONS ───────────────────────────────
+async function agentMobileNotifications(state, ctx) {
+  log('MOBILE NOTIFICATIONS: identifying urgent alerts...');
+  var today = new Date();
+  var urgentOpps = state.pipeline.filter(function(o) {
+    var days = o.due_date ? Math.ceil((new Date(o.due_date) - today) / 86400000) : null;
+    return days !== null && days <= 14 && (o.opi_score||0) >= 65;
+  });
+  var prompt = HGI +
+    '\n\nOPPORTUNITIES WITHIN 14 DAYS:\n' + urgentOpps.map(function(o) {
+      var days = Math.ceil((new Date(o.due_date) - today) / 86400000);
+      return (o.title||'?').slice(0,50) + ' | ' + days + ' DAYS | OPI:' + o.opi_score + ' | Stage:' + (o.stage||'?') + ' | Proposal:' + (o.staffing_plan||'').length + 'chars';
+    }).join('\n') +
+    '\n\nSESSION INTELLIGENCE:\n' + ctx.memText.slice(0,800) +
+    '\n\nMISSION: Determine what requires immediate notification to Christopher vs what can wait for morning briefing. ' +
+    '(1) IMMEDIATE ALERT (notify now, not tomorrow): any finding that requires action within 24 hours ' +
+    '(2) URGENT (morning briefing priority): findings that require action within 72 hours ' +
+    '(3) For each immediate alert - exact message to send Christopher on his phone, 2 sentences max, what to do and why now ' +
+    '(4) Any competitor intelligence that changes HGI strategy and must be acted on today ' +
+    '(5) Deadline risk - any opportunity where current proposal completeness vs days remaining is a red flag ' +
+    '(6) Is anything mission-critical enough to wake someone up for right now.';
+  var out = await claudeCall('You are HGI Mobile Notifications Agent, agent 35 of 37. You decide what cannot wait until morning. You protect HGI from missing deadlines and critical intelligence.', prompt, 800);
+  if (!out || out.length < 100) return null;
+  log('MOBILE NOTIFICATIONS complete: ' + out.length + ' chars');
+  await storeMemory('mobile_notifications', null, 'alerts,urgent,deadline_risk', 'MOBILE NOTIFICATIONS:\n' + out, 'analysis');
+  return { agent: 'mobile_notifications', chars: out.length };
+}
+
+// ── AGENT 36: ENTREPRENEURIAL INTELLIGENCE ────────────────────────
+async function agentEntrepreneurial(state, ctx) {
+  log('ENTREPRENEURIAL: scanning for venture signals...');
+  var prompt = HGI +
+    '\n\nHGI CURRENT PIPELINE AND CAPABILITIES:\n' + state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | ' + (o.vertical||'') + ' | OPI:' + o.opi_score; }).join('\n') +
+    '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
+    '\n\nMISSION: HGI has 95 years of program management expertise and a $100M growth vision. Beyond government contracts, what business opportunities does HGI have? ' +
+    '(1) Adjacent commercial markets where HGI disaster recovery and claims expertise creates competitive advantage - insurance tech, climate resilience consulting, private sector risk management ' +
+    '(2) IP and product opportunities - proprietary methodologies HGI could package and license, software tools built from capture system that could be productized ' +
+    '(3) Geographic expansion signals - markets outside LA/TX/FL/MS/AL/GA where HGI capabilities are undersupplied ' +
+    '(4) Partnership or acquisition opportunities - firms that would extend HGI capabilities and be accretive to revenue ' +
+    '(5) Federal market penetration - HGI has had ONE direct federal contract (PBGC). What is the pathway to more direct federal work? ' +
+    '(6) Single highest-ROI entrepreneurial opportunity for HGI to pursue this year outside of government capture.';
+  var out = await claudeCall('You are HGI Entrepreneurial Intelligence Agent, agent 36 of 37. You see HGI not just as a government contractor but as a platform for a $100M enterprise. You find the opportunities beyond the pipeline.', prompt, 1200);
+  if (!out || out.length < 100) return null;
+  log('ENTREPRENEURIAL complete: ' + out.length + ' chars');
+  await storeMemory('entrepreneurial_agent', null, 'entrepreneurial,commercial_markets,federal_expansion,growth', 'ENTREPRENEURIAL:\n' + out, 'pattern');
+  return { agent: 'entrepreneurial_agent', chars: out.length };
+}
+
+// ── AGENT 37: EXEC BRIEFING MODE (Lou + Larry formatted) ──────────
+async function agentExecBriefingMode(state, ctx) {
+  log('EXEC BRIEFING MODE: Lou and Larry formatted report...');
+  var pipelineValue = state.pipeline.filter(function(o) { return (o.opi_score||0) >= 65; }).reduce(function(sum, o) {
+    var val = parseFloat((o.estimated_value||'0').replace(/[^0-9.]/g,'')) || 0;
+    return sum + val;
+  }, 0);
+  var prompt = HGI +
+    '\n\nPIPELINE SUMMARY:\n' + state.pipeline.map(function(o) { return (o.title||'?').slice(0,50) + ' | OPI:' + o.opi_score + ' | Due:' + (o.due_date||'TBD') + ' | Stage:' + (o.stage||'?') + ' | Value:' + (o.estimated_value||'unknown'); }).join('\n') +
+    '\n\nTOTAL ADDRESSABLE PIPELINE: approximately ' + pipelineValue.toLocaleString() + ' in estimated values' +
+    '\n\nSESSION INTELLIGENCE SUMMARY:\n' + ctx.memText.slice(0,1200) +
+    '\n\nMISSION: Produce a clean, executive-ready briefing for Lou Resweber (CEO) and Larry Oney (Chairman). They are not involved in daily capture operations. They need the business picture. ' +
+    '(1) PIPELINE SNAPSHOT: total opportunities, realistic revenue at risk this quarter, expected wins based on PWIN ' +
+    '(2) STRATEGIC WINS: what is going well in the capture program - strengths emerging ' +
+    '(3) STRATEGIC RISKS: what could derail revenue targets - honest assessment ' +
+    '(4) DECISIONS REQUIRED: exactly what Lou or Larry need to decide or act on this week with full context ' +
+    '(5) COMPETITIVE LANDSCAPE: major shifts in competitive environment they should know ' +
+    '(6) PATH TO $100M: current trajectory vs $100M enterprise goal - are we on track, what needs to change.' +
+    '\n\nFormat this as a clean executive brief - headers, no jargon, no technical details. They read this on their phone.';
+  var out = await claudeCall('You are HGI Exec Briefing Mode Agent, agent 37 of 37. THE FINAL AGENT. You produce the executive report for the CEO and Chairman. Clean. Strategic. Decision-ready. This is what the entire organism produces for leadership.', prompt, 1500);
+  if (!out || out.length < 100) return null;
+  log('EXEC BRIEFING MODE complete: ' + out.length + ' chars');
+  log('ALL 37 AGENTS COMPLETE. THE ORGANISM IS FULLY ALIVE.');
+  await storeMemory('exec_briefing_mode', null, 'executive_brief,ceo,chairman,strategic_summary', 'EXEC BRIEFING MODE - FULL ORGANISM SESSION COMPLETE:\n' + out, 'analysis');
+  return { agent: 'exec_briefing_mode', chars: out.length };
+}
+
 // ── SESSION ────────────────────────────────────────────────────────
 async function runSession(trigger) {
   var id = 'v2-' + Date.now();
