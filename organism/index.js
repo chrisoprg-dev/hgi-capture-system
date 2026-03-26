@@ -138,7 +138,7 @@ async function agentWinnability(opp, ctx) {
   if (!out || out.length < 100) return null;
   log('WINNABILITY complete: ' + out.length + ' chars');
   await storeMemory('winnability_agent', opp.id, (opp.agency||'') + ',winnability,pwin', 'WINNABILITY - ' + (opp.title||'').slice(0,50) + ':\n' + out, 'winnability');
-  await supabase.from('opportunities').update({ capture_action: out.slice(0,8000), last_updated: new Date().toISOString() }).eq('id', opp.id);
+  await supabase.from('opportunities').update({ capture_action: out.slice(0,60000), last_updated: new Date().toISOString() }).eq('id', opp.id);
   return { agent: 'winnability_agent', opp: opp.title, chars: out.length };
 }
 
