@@ -1127,7 +1127,7 @@ async function agentRecompete(state, ctx) {
     'Rebuild NJ - $67.7M\n' +
     '\n\nCURRENT PIPELINE:\n' + state.pipeline.map(function(o){return (o.title||'?').slice(0,50)+' | '+o.agency+' | '+o.stage;}).join('\n') +
     '\n\nMEMORY:\n' + ctx.memText.slice(0,600) +
-    '\n\nMISSION: HGI's best opportunities are with agencies that already know and trust them. ' +
+    '\n\nMISSION: HGIs best opportunities are with agencies that already know and trust them. ' +
     '(1) For each past HGI contract - what is the current status of that program? Is it still running under a new contract? Who won it after HGI? ' +
     '(2) Which past HGI clients have new or ongoing program needs that could generate new work - follow-on contracts, program expansions, new disaster events ' +
     '(3) TPSD completed 2025 - what is the next procurement opportunity with Terrebonne Parish School Board? ' +
