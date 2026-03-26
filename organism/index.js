@@ -807,6 +807,61 @@ async function agentExecBriefingMode(state, ctx) {
   return { agent: 'exec_briefing_mode', chars: out.length };
 }
 
+
+// ── AGENT 38: HUNTING AGENT (the front door — finds new opportunities) ──
+async function agentHunting(state, ctx) {
+  log('HUNTING AGENT: scanning for new opportunities...');
+
+  // Get recent scraper results from hunt_runs that have not been processed
+  var scraperResults = [];
+  try {
+    var r = await supabase.from('hunt_runs')
+      .select('*')
+      .order('run_at', { ascending: false })
+      .limit(50);
+    scraperResults = r.data || [];
+  } catch(e) { log('HUNTING: error reading hunt_runs: ' + e.message); }
+
+  // Get existing pipeline titles to avoid duplicates
+  var existingTitles = state.pipeline.map(function(o) { return (o.title||'').toLowerCase(); });
+
+  log('HUNTING: ' + scraperResults.length + ' recent scraper runs, ' + state.pipeline.length + ' existing pipeline records');
+
+  var prompt = HGI +
+    '\n\nEXISTING PIPELINE (do not re-evaluate these):\n' + state.pipeline.map(function(o) { return (o.title||'?').slice(0,60) + ' | OPI:' + o.opi_score; }).join('\n') +
+    '\n\nCURRENT ORGANISM INTELLIGENCE:\n' + ctx.memText.slice(0,600) +
+    '\n\nHUNTING MISSION: You are the organism front door. You find what HGI should pursue. ' +
+    '\n\nPART 1 - PIPELINE HEALTH HUNT: Based on everything the organism knows, what types of opportunities are most likely to be posted in the next 30 days in HGI verticals that are NOT already in the pipeline? ' +
+    '(1) Identify 3-5 specific agency types or program types likely to post in next 30 days based on budget cycles, disaster declarations, and program timelines ' +
+    '(2) For each - what portal would it appear on, what keywords to watch, estimated OPI range ' +
+    '(3) Are there active disasters (FEMA declarations) that should have generated procurement but have NOT appeared in the pipeline yet - these are misses ' +
+    '(4) Any state or local agencies in HGI geography that regularly procure HGI services but are absent from the pipeline ' +
+    '\n\nPART 2 - SOURCE QUALITY ASSESSMENT: Based on organism intelligence and pipeline diversity, ' +
+    '(5) Which current sources (Central Bidding, LaPAC, SAM.gov, Grants.gov) are producing the best HGI-relevant opportunities ' +
+    '(6) What is missing from current coverage - specific portal names, agency websites, insurance regulatory portals that should be added ' +
+    '(7) Any keywords currently producing false positives (noise) that should be removed from scraper config ' +
+    '\n\nPART 3 - ACTIVE HUNT RECOMMENDATIONS: ' +
+    '(8) Single most valuable new opportunity HGI should be looking for right now that is not in the pipeline ' +
+    '(9) Specific search query Christopher or the team should run today to find it ' +
+    '(10) Estimated value and OPI if found.';
+
+  var out = await claudeCall(
+    'You are HGI Hunting Agent, the organism front door. You find new opportunities. You assess source quality. You identify what is missing from the pipeline. Without you, the organism starves. You are the most important agent for revenue growth.',
+    prompt, 1500
+  );
+
+  if (!out || out.length < 100) return null;
+  log('HUNTING AGENT complete: ' + out.length + ' chars');
+
+  await storeMemory('hunting_agent', null,
+    'hunting,pipeline_gaps,source_quality,new_opportunities',
+    'HUNTING AGENT:\n' + out,
+    'pattern'
+  );
+
+  return { agent: 'hunting_agent', chars: out.length };
+}
+
 // ── SESSION ────────────────────────────────────────────────────────
 async function runSession(trigger) {
   var id = 'v2-' + Date.now();
