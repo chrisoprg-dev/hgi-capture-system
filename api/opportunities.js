@@ -138,6 +138,21 @@ export default async function handler(req, res) {
       return res.status(200).json({ batch });
     }
 
+    // Handle needs_rfp query — returns opps needing PDF download
+    const needs_rfp = req.query.needs_rfp;
+    if (needs_rfp === 'true') {
+      const rfpNeeded = await supabaseGet('?status=eq.active&source_url=like.*centralauctionhouse*&select=id,title,agency,source_url,due_date,opi_score&order=opi_score.desc&limit=10');
+      // Filter to only those with no/short rfp_text by checking each record
+      const results = [];
+      for (const opp of rfpNeeded) {
+        const detail = await supabaseGet('?id=eq.' + encodeURIComponent(opp.id) + '&select=rfp_text');
+        if (detail.length > 0 && (!detail[0].rfp_text || detail[0].rfp_text.trim().length < 500)) {
+          results.push(opp);
+        }
+      }
+      return res.status(200).json(results);
+    }
+
     // Handle source_url check
     if (source_url) {
       const res2 = await fetch(`${SUPABASE_URL}/rest/v1/opportunities?source_url=eq.${encodeURIComponent(source_url)}&select=id&limit=1`, {
