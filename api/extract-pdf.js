@@ -92,7 +92,7 @@ export default async function handler(req, res) {
     if (deadlineM && deadlineM[1].trim().toUpperCase() !== 'NONE') parsed.deadline = deadlineM[1].trim();
     if (scopeM) parsed.scope = scopeM[1].trim();
 
-    return res.json({ success: true, url, extractedText, parsed, charCount: extractedText.length, pdfSizeBytes, rawTextChars: rawText.length });
+    return res.json({ success: true, url, extractedText, parsed, charCount: extractedText.length, pdfSizeBytes, rawTextChars: rawText.length, rawText: rawText });
 
   } catch (e) {
     console.error('[extract-pdf] catch error:', e.message);
