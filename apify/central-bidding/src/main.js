@@ -558,6 +558,51 @@ const crawler = new PlaywrightCrawler({
                 await new Promise(r => setTimeout(r, 500));
             }
             
+            // === PDF RE-FETCH PASS: Download PDFs for existing opps that are missing them ===
+            try {
+                log.info('=== PDF RE-FETCH PASS ===');
+                const rfpCheckRes = await fetch('https://hgi-capture-system.vercel.app/api/opportunities?needs_rfp=true');
+                if (rfpCheckRes.ok) {
+                    const needsRfp = await rfpCheckRes.json();
+                    const cbOpps = (Array.isArray(needsRfp) ? needsRfp : []).filter(o => o.source_url && o.source_url.includes('centralauctionhouse.com'));
+                    log.info('Opps needing PDF re-fetch: ' + cbOpps.length);
+                    for (const opp of cbOpps.slice(0, 5)) {
+                        try {
+                            log.info('RE-FETCH: ' + opp.title + ' -> ' + opp.source_url);
+                            await page.goto(opp.source_url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+                            await page.waitForTimeout(2000);
+                            const pdfLinks = await page.evaluate(() => {
+                                return Array.from(document.querySelectorAll('a[href]')).filter(a => {
+                                    const href = (a.href || '').toLowerCase();
+                                    const text = (a.textContent || '').toLowerCase();
+                                    return href.endsWith('.pdf') || text.includes('download') || text.includes('bid document') || text.includes('view document');
+                                }).map(a => a.href).filter(href => href && href.startsWith('http'));
+                            });
+                            if (pdfLinks.length > 0) {
+                                log.info('RE-FETCH PDF found: ' + pdfLinks[0]);
+                                const pdfResponse = await page.request.get(pdfLinks[0]);
+                                const pdfBody = await pdfResponse.body();
+                                if (pdfBody && pdfBody.length > 1000) {
+                                    const base64Pdf = pdfBody.toString('base64');
+                                    log.info('RE-FETCH PDF downloaded: ' + pdfBody.length + ' bytes');
+                                    const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ base64: base64Pdf }) });
+                                    if (extractRes.ok) {
+                                        const extractData = await extractRes.json();
+                                        const fullText = extractData.rawText || extractData.extractedText || '';
+                                        log.info('RE-FETCH EXTRACTED: ' + fullText.length + ' chars for ' + opp.id);
+                                        // Send update to intake with rfp_text
+                                        await fetch(INTAKE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-intake-secret': INTAKE_SECRET }, body: JSON.stringify({ source: 'Central Bidding', source_id: opp.id.replace('centralbid-', ''), title: opp.title, agency: opp.agency || '', url: opp.source_url, rfp_text: fullText, rfp_document_url: pdfLinks[0], response_deadline: opp.due_date || '', state: 'LA' }) });
+                                        log.info('RE-FETCH UPDATED: ' + opp.title);
+                                        stats.sent_to_intake++;
+                                    } else { log.error('RE-FETCH extract failed: ' + extractRes.status); }
+                                }
+                            } else { log.info('RE-FETCH: No PDF links on page for ' + opp.title); }
+                        } catch (rfErr) { log.error('RE-FETCH error: ' + rfErr.message); }
+                    }
+                }
+            } catch (rfpPassErr) { log.error('PDF re-fetch pass error: ' + rfpPassErr.message); }
+            // === END PDF RE-FETCH PASS ===
+
             // Save next batch
             await saveBatch((batch + 1) % 96, stats, log);
             
