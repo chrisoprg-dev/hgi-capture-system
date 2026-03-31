@@ -268,9 +268,12 @@ async function agentPipelineScanner(activeOpps, memText) {
   var today = getCSTDate();
   var health = activeOpps.map(function(o) { var d = o.due_date ? Math.ceil((new Date(o.due_date)-today)/86400000) : null; return o.title+'|Stage:'+(o.stage||'?')+'|Days:'+(d!==null?d:'?')+'|OPI:'+o.opi_score+'|Proposal:'+(o.staffing_plan||'').length+'chars'; }).join('\n');
   var agencies = activeOpps.map(function(o){return o.agency||'';}).filter(function(a){return a;}).join(' OR ');
-  var web = ''; // cost gated
-  // was: await webSearch(agencies + ' RFP amendment addendum extension deadline change 2026')
-  var webCtx = (web && web.length > 30) ? ('\nWEB DEADLINE/AMENDMENT DATA:\n' + web.slice(0,1200)) : '';
+  // ENABLED: Check for amendments, deadline changes, Q&A activity on active opportunities
+  var web = await webSearch(agencies + ' RFP amendment addendum extension deadline change questions 2026');
+  var web2 = await webSearch(agencies + ' Central Bidding message board questions answers 2026');
+  var webCtx = '';
+  if (web && web.length > 30) webCtx += '\nWEB DEADLINE/AMENDMENT DATA:\n' + web.slice(0,1200);
+  if (web2 && web2.length > 30) webCtx += '\nPORTAL Q&A ACTIVITY:\n' + web2.slice(0,1200);
   var a = await think('HGI pipeline health monitor. Flag everything needing immediate action. Be direct and specific.',
     'PIPELINE:\n' + health + webCtx + '\nMEMORY:\n' + memText.slice(0,1200) + '\nFlag: (1) Within 14 days without complete proposal (2) GO stuck same stage 7+ days (3) OPI inconsistent with what organism knows (4) Deadline conflicts (5) Pipeline health score 1-10 with specific reasoning.',
     600);
