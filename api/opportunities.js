@@ -142,11 +142,13 @@ export default async function handler(req, res) {
     const needs_rfp = req.query.needs_rfp;
     if (needs_rfp === 'true') {
       const rfpNeeded = await supabaseGet('?status=eq.active&source_url=like.*centralauctionhouse*&select=id,title,agency,source_url,due_date,opi_score&order=opi_score.desc&limit=10');
-      // Filter to only those with no/short rfp_text by checking each record
       const results = [];
       for (const opp of rfpNeeded) {
         const detail = await supabaseGet('?id=eq.' + encodeURIComponent(opp.id) + '&select=rfp_text');
-        if (detail.length > 0 && (!detail[0].rfp_text || detail[0].rfp_text.trim().length < 500)) {
+        const txt = (detail.length > 0 && detail[0].rfp_text) ? detail[0].rfp_text.trim() : '';
+        const isPageHtml = txt.startsWith('Home') && txt.includes('Central Bidding');
+        const isEmpty = txt.length < 200;
+        if (isEmpty || isPageHtml) {
           results.push(opp);
         }
       }
