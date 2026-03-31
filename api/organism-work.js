@@ -84,9 +84,25 @@ function buildCtx(opp, mem, tier) {
 // ═══ AGENT FUNCTIONS — all receive full context ═══
 
 async function agentIntelligence(opp, ctx) {
-  var web = await webSearch(opp.agency + ' ' + (opp.state||'Louisiana') + ' ' + (opp.vertical||'professional services') + ' contracts awarded 2023 2024 2025 who won award amount competitor incumbent');
-  // Lower threshold — even short web results are useful
-  var webCtx = (web && web.length > 30) ? ('\nWEB FINDINGS:\n' + web.slice(0,2000)) : '\n(No new web data — analyze from existing intelligence below)';
+  // MULTI-SEARCH: Run 3-5 targeted searches for deep competitive intel
+  var agency = opp.agency || '';
+  var st = opp.state || 'Louisiana';
+  var ttl = (opp.title || '').slice(0, 60);
+  var vert = opp.vertical || 'professional services';
+  var s1 = await webSearch(agency + ' ' + st + ' contract award ' + vert + ' incumbent consultant 2023 2024 2025');
+  var s2 = await webSearch(agency + ' ' + ttl + ' bid proposal awarded who won price amount');
+  var s3 = await webSearch(agency + ' ' + st + ' council minutes professional services contract approval');
+  var s4 = await webSearch(ttl + ' ' + agency + ' Central Bidding questions addendum amendment 2026');
+  var s5 = await webSearch(st + ' ' + vert + ' consulting firms awarded contracts parishes municipalities 2024 2025');
+  var webParts = [];
+  if (s1 && s1.length > 30) webParts.push('INCUMBENT/AWARD SEARCH:\n' + s1.slice(0,1200));
+  if (s2 && s2.length > 30) webParts.push('SPECIFIC COMPETITION:\n' + s2.slice(0,1200));
+  if (s3 && s3.length > 30) webParts.push('AGENCY PROCUREMENT PATTERNS:\n' + s3.slice(0,1200));
+  if (s4 && s4.length > 30) webParts.push('PORTAL ACTIVITY:\n' + s4.slice(0,1000));
+  if (s5 && s5.length > 30) webParts.push('MARKET COMPETITORS:\n' + s5.slice(0,1000));
+  var web = webParts.join('\n\n');
+  var searchCount = webParts.length;
+  var webCtx = (web.length > 30) ? ('\nWEB FINDINGS (' + searchCount + ' searches):\n' + web.slice(0,5000)) : '\n(No new web data — analyze from existing intelligence below)';
   var a = await think(
     'HGI competitive intelligence analyst. HGI has NEVER had a direct federal contract — all work through state/local agencies. Cite specific dollar amounts, firm names, dates. Flag anything that contradicts what the proposal or research already assumes.',
     ctx + webCtx + '\n\nExtract and update: (1) Named competitors likely to bid — specific firms and why they are threats (2) Recent comparable contract award amounts with sources (3) Incumbent contractor if any (4) Agency procurement patterns and decision-maker info (5) Red flags or competitive advantages not yet captured in the proposal draft above.',
