@@ -1,7 +1,7 @@
 // api/intake.js — HGI Opportunity Intake Engine
 // Receives normalized opportunity data from Make.com or any external source
 // Validates, deduplicates, analyzes with Claude, stores in Supabase
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 60, api: { bodyParser: { sizeLimit: '50mb' } } };
 
 import { HGI_CONTEXT, HGI_KEYWORDS, HGI_CLASSIFICATION_GUIDE } from './hgi-master-context.js';
 
