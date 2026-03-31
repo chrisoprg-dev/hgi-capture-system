@@ -102,9 +102,10 @@ async function runOpp(opp, R) {
     var gateResearch = (opp.research_brief||'').slice(0, 1500);
     var gateSystem = 'Senior proposal compliance reviewer with full competitive context. You have three inputs: (1) the RFP scope and eval criteria, (2) the current proposal draft, (3) competitive intelligence and research findings from prior agent analysis. Use ALL three. Score each criterion as a real evaluator would — by stated point weights — but informed by what you know about the competitive field and the specific gaps the research agents found. Do not audit in a vacuum. Your first line MUST be: VERDICT: [score]/100 | [GO or NO-GO]';
     var gatePrompt = ctx +
+      (liveResearch.length > 50 ? '\n\n=== LIVE WEB RESEARCH (VERIFIED) ===\n' + liveResearch : '') +
       (gateResearch.length > 50 ? '\n\n=== COMPETITIVE RESEARCH & STRATEGIC INTEL ===\n' + gateResearch : '') +
       (gateMemCtx.length > 50 ? '\n\n=== ORGANISM MEMORY — COMPETITIVE INTEL, ANALYSIS, RED TEAM FINDINGS ===\n' + gateMemCtx : '') +
-      '\n\nUsing all context above — RFP scope, proposal draft, competitive research, and organism memory — score each eval criterion exactly as this evaluator panel will. For each criterion: current draft score 1-10, specific gap identified by research or memory, points at risk, and what exact content would close the gap. First line MUST be: VERDICT: XX/100 | GO or NO-GO';
+      '\n\nUsing all context above including LIVE WEB RESEARCH — RFP scope, proposal draft, competitive research, and organism memory — score each eval criterion exactly as this evaluator panel will. For each criterion: current draft score 1-10, specific gap identified by research or memory, points at risk, and what exact content would close the gap. First line MUST be: VERDICT: XX/100 | GO or NO-GO';
     var g = await sonnet(gateSystem, gatePrompt, 1500);
     var gateVerdict = 'unknown';
     if (g.length > 80 && !g.startsWith('API_ERR') && !g.startsWith('ERR:')) {
