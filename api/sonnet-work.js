@@ -120,6 +120,7 @@ async function runOpp(opp, R) {
     // === AGENT 2: WINNABILITY (Sonnet 4.6) — MEMORY-AWARE ===
     var winSystem = 'Senior BD director making a real bid/no-bid decision with full competitive context. You have: (1) the RFP scope and proposal draft, (2) the quality gate verdict and findings, (3) competitive intelligence and research from prior agent analysis — named competitors, pricing benchmarks, agency patterns, red team scores. Use ALL of it. Your PWIN must be based on real competitive findings, not generic assessment. Never say "likely competitors" when memory tells you exactly who they are.';
     var winPrompt = ctx +
+      (liveResearch.length > 50 ? '\n\n=== LIVE WEB RESEARCH (VERIFIED) ===\n' + liveResearch : '') +
       (gateResearch.length > 50 ? '\n\n=== COMPETITIVE RESEARCH & STRATEGIC INTEL ===\n' + gateResearch : '') +
       (gateMemCtx.length > 50 ? '\n\n=== ORGANISM MEMORY — COMPETITIVE INTEL, RED TEAM SCORES, ANALYSIS ===\n' + gateMemCtx : '') +
       '\n\nQUALITY GATE VERDICT: ' + gateVerdict + '\n\nGATE FINDINGS SUMMARY:\n' + g.slice(0,800) +
