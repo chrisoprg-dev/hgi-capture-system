@@ -21,7 +21,8 @@
     "api/red-team.js": { "maxDuration": 300 },
     "api/scrape-sam-gov.js": { "maxDuration": 120 },
     "api/contract-expiration.js": { "maxDuration": 120 },
-    "api/opus-build.js": { "maxDuration": 300 }
+    "api/opus-build.js": { "maxDuration": 300 },
+    "api/extract-pdf.js": { "maxDuration": 120 }
   },
   "crons": [
     { "path": "/api/hunt", "schedule": "*/6 * * * *" },
@@ -29,15 +30,6 @@
     { "path": "/api/scrape-grants-gov", "schedule": "0 0,6,12,18 * * *" },
     { "path": "/api/scrape-sam-gov", "schedule": "0 1,13 * * *" },
     { "path": "/api/scrape-alabama", "schedule": "0 7,19 * * *" },
-    { "path": "/api/scrape-georgia", "schedule": "0 8,20 * * *" },
-    { "path": "/api/organism-think", "schedule": "0 13 * * *" },
-    { "path": "/api/organism-work", "schedule": "0 18 * * *" },
-    { "path": "/api/sonnet-work", "schedule": "15 18 * * *" },
-    { "path": "/api/opus-build", "schedule": "20 18 * * *" },
-    { "path": "/api/red-team", "schedule": "30 18 * * *" },
-    { "path": "/api/proposal-loop", "schedule": "45 18 * * *" },
-    { "path": "/api/disaster-monitor", "schedule": "0 14 * * *" },
-    { "path": "/api/contract-expiration", "schedule": "30 13 * * *" },
-    { "path": "/api/health-monitor", "schedule": "0 15 * * *" }
+    { "path": "/api/scrape-georgia", "schedule": "0 8,20 * * *" }
   ]
 }
