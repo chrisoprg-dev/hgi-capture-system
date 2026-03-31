@@ -513,6 +513,8 @@ const crawler = new PlaywrightCrawler({
                                 source_id: bidUrl.split('/').pop().replace(/\.html?$/i, ''),
                                 response_deadline: bidData.deadline || '',
                                 state: 'LA',
+                                rfp_document_text: rfpDocumentText || '',
+                                rfp_document_url: rfpDocumentUrl || '',
 
                             };
                             
