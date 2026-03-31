@@ -428,6 +428,58 @@ const crawler = new PlaywrightCrawler({
                             
                             stats.bids_reviewed++;
                             
+                            // === PDF DOCUMENT CAPTURE ===
+                            let rfpDocumentText = '';
+                            let rfpDocumentUrl = '';
+                            try {
+                                const pdfLinks = await page.evaluate(() => {
+                                    const allLinks = Array.from(document.querySelectorAll('a[href]'));
+                                    return allLinks
+                                        .filter(a => {
+                                            const href = (a.href || '').toLowerCase();
+                                            const text = (a.textContent || '').toLowerCase();
+                                            return href.endsWith('.pdf') || text.includes('download') || text.includes('bid document') || text.includes('view document');
+                                        })
+                                        .map(a => a.href)
+                                        .filter(href => href && href.startsWith('http'));
+                                });
+                                
+                                if (pdfLinks.length > 0) {
+                                    rfpDocumentUrl = pdfLinks[0];
+                                    log.info('Found PDF: ' + rfpDocumentUrl);
+                                    
+                                    try {
+                                        const pdfResponse = await page.request.get(rfpDocumentUrl);
+                                        const pdfBody = await pdfResponse.body();
+                                        if (pdfBody && pdfBody.length > 1000) {
+                                            const base64Pdf = pdfBody.toString('base64');
+                                            log.info('PDF downloaded: ' + pdfBody.length + ' bytes, extracting...');
+                                            
+                                            const extractRes = await fetch('https://hgi-capture-system.vercel.app/api/extract-pdf', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ base64: base64Pdf })
+                                            });
+                                            
+                                            if (extractRes.ok) {
+                                                const extractData = await extractRes.json();
+                                                rfpDocumentText = extractData.extractedText || '';
+                                                log.info('PDF EXTRACTED: ' + rfpDocumentText.length + ' chars');
+                                            } else {
+                                                log.error('extract-pdf failed: ' + extractRes.status);
+                                            }
+                                        }
+                                    } catch (dlErr) {
+                                        log.error('PDF download error: ' + dlErr.message);
+                                    }
+                                } else {
+                                    log.info('No PDF attachments found on page');
+                                }
+                            } catch (pdfErr) {
+                                log.error('PDF capture error: ' + pdfErr.message);
+                            }
+                            // === END PDF CAPTURE ===
+                            
                             // Check relevance against full page text
                             const combinedText = finalTitle + ' ' + fullPageText;
                             if (!isRelevant(finalTitle, combinedText)) {
