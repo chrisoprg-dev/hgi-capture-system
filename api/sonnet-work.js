@@ -82,7 +82,23 @@ async function runOpp(opp, R) {
       (opp.financial_analysis||'').slice(0,1500);
     oppR.ctx = ctx.length;
 
-    // === AGENT 1: QUALITY GATE (Sonnet 4.6) — MEMORY-AWARE ===
+    // === RESEARCH PHASE: Live web search before agents fire ===
+    var agency = opp.agency || '';
+    var st = opp.state || 'Louisiana';
+    var ttl = (opp.title || '').slice(0, 60);
+    var r1 = await webSearch(agency + ' ' + st + ' contract award incumbent consultant ' + (opp.vertical||'') + ' 2024 2025 2026');
+    var r2 = await webSearch(ttl + ' ' + agency + ' Central Bidding questions addendum amendment bidders 2026');
+    var r3 = await webSearch(agency + ' ' + st + ' comparable contract value pricing hourly rate professional services');
+    var liveResearch = '';
+    if (r1 && r1.length > 30) liveResearch += 'LIVE INTEL — INCUMBENT/COMPETITORS:\n' + r1.slice(0,1500) + '\n\n';
+    if (r2 && r2.length > 30) liveResearch += 'LIVE INTEL — PORTAL ACTIVITY:\n' + r2.slice(0,1200) + '\n\n';
+    if (r3 && r3.length > 30) liveResearch += 'LIVE INTEL — PRICING BENCHMARKS:\n' + r3.slice(0,1200) + '\n\n';
+    oppR.live_searches = (r1?1:0) + (r2?1:0) + (r3?1:0);
+    if (liveResearch.length > 50) {
+      await mem('research_phase', opp.id, agency+',verified_live,research', 'LIVE RESEARCH (sonnet-work):\n' + liveResearch.slice(0,3000), 'competitive_intel');
+    }
+
+    // === AGENT 1: QUALITY GATE (Sonnet 4.6) — MEMORY-AWARE + LIVE RESEARCH ===
     var gateResearch = (opp.research_brief||'').slice(0, 1500);
     var gateSystem = 'Senior proposal compliance reviewer with full competitive context. You have three inputs: (1) the RFP scope and eval criteria, (2) the current proposal draft, (3) competitive intelligence and research findings from prior agent analysis. Use ALL three. Score each criterion as a real evaluator would — by stated point weights — but informed by what you know about the competitive field and the specific gaps the research agents found. Do not audit in a vacuum. Your first line MUST be: VERDICT: [score]/100 | [GO or NO-GO]';
     var gatePrompt = ctx +
