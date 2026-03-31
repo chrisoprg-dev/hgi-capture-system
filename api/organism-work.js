@@ -115,8 +115,18 @@ async function agentIntelligence(opp, ctx) {
 }
 
 async function agentCrm(opp, ctx) {
-  var web = await webSearch('procurement director contact ' + opp.agency + ' ' + (opp.state||'Louisiana') + ' professional services contracts email phone 2024 2025');
-  var webCtx = (web && web.length > 30) ? ('\nWEB CONTACT DATA:\n' + web.slice(0,1500)) : '\n(No new web contact data found)';
+  // MULTI-SEARCH: Real contacts and org structure
+  var agency = opp.agency || '';
+  var st = opp.state || 'Louisiana';
+  var c1 = await webSearch(agency + ' ' + st + ' leadership directory staff org chart department head contact');
+  var c2 = await webSearch(agency + ' purchasing procurement director buyer specialist contact email phone');
+  var c3 = await webSearch(agency + ' council board members committee professional services ' + st);
+  var webParts = [];
+  if (c1 && c1.length > 30) webParts.push('LEADERSHIP/ORG CHART:\n' + c1.slice(0,1200));
+  if (c2 && c2.length > 30) webParts.push('PROCUREMENT CONTACTS:\n' + c2.slice(0,1200));
+  if (c3 && c3.length > 30) webParts.push('COUNCIL/BOARD MEMBERS:\n' + c3.slice(0,1000));
+  var web = webParts.join('\n\n');
+  var webCtx = (web.length > 30) ? ('\nWEB CONTACT DATA (' + webParts.length + ' searches):\n' + web.slice(0,3000)) : '\n(No new web contact data found)';
   var a = await think(
     'HGI relationship intelligence agent. Find and verify decision-maker contacts. Flag relationship strength as cold/unknown unless there is clear evidence otherwise.',
     ctx + webCtx + '\n\nExtract: (1) Named decision-makers — titles, emails, phones (2) Relationship status — do we know anyone here? (3) Best outreach approach given agency culture (4) Any cross-agency connections from our existing relationships (5) Who specifically should call or email this week and what to say.',
