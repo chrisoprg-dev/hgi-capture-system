@@ -1,7 +1,7 @@
 // api/extract-pdf.js — text extraction mode: fetch PDF, parse text, send text to Claude
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 
-export const config = { maxDuration: 60, api: { bodyParser: { sizeLimit: '10mb' } } };
+export const config = { maxDuration: 60, api: { bodyParser: { sizeLimit: '50mb' } } };
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 
