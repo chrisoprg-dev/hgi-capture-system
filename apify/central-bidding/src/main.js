@@ -463,7 +463,7 @@ const crawler = new PlaywrightCrawler({
                                             
                                             if (extractRes.ok) {
                                                 const extractData = await extractRes.json();
-                                                rfpDocumentText = extractData.extractedText || '';
+                                                rfpDocumentText = extractData.rawText || extractData.extractedText || '';
                                                 log.info('PDF EXTRACTED: ' + rfpDocumentText.length + ' chars');
                                             } else {
                                                 log.error('extract-pdf failed: ' + extractRes.status);
