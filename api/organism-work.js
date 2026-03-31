@@ -129,8 +129,19 @@ async function agentCrm(opp, ctx) {
 }
 
 async function agentFinancial(opp, ctx) {
-  var web = await webSearch((opp.state||'Louisiana') + ' ' + (opp.vertical||'professional services') + ' ' + (opp.title||'').slice(0,60) + ' consulting contract award amount 2022 2023 2024 comparable contracts');
-  var webCtx = (web && web.length > 30) ? ('\nWEB AWARD DATA:\n' + web.slice(0,1500)) : '\n(No new web award data)';
+  // MULTI-SEARCH: Real comparable awards and pricing benchmarks
+  var agency = opp.agency || '';
+  var st = opp.state || 'Louisiana';
+  var vert = opp.vertical || 'professional services';
+  var f1 = await webSearch(agency + ' ' + vert + ' contract award amount value 2023 2024 2025');
+  var f2 = await webSearch(st + ' ' + vert + ' consulting hourly rate price bid tabulation comparable');
+  var f3 = await webSearch('USAspending ' + st + ' ' + vert + ' grant management program administration award 2024 2025');
+  var webParts = [];
+  if (f1 && f1.length > 30) webParts.push('AGENCY AWARD DATA:\n' + f1.slice(0,1200));
+  if (f2 && f2.length > 30) webParts.push('MARKET RATE BENCHMARKS:\n' + f2.slice(0,1200));
+  if (f3 && f3.length > 30) webParts.push('FEDERAL AWARD COMPARABLES:\n' + f3.slice(0,1200));
+  var web = webParts.join('\n\n');
+  var webCtx = (web.length > 30) ? ('\nWEB AWARD DATA (' + webParts.length + ' searches):\n' + web.slice(0,3500)) : '\n(No new web award data)';
   var a = await think(
     'HGI financial analyst. Only cite verified dollar amounts with sources. Directly compare to the financial analysis already in the proposal record.',
     ctx + webCtx + '\n\nAnalyze: (1) Real comparable award amounts — name agency, amount, period, scope (2) Does our current financial estimate match market reality? High, low, or on target? (3) What should the price-to-win be based on this data? (4) Any pricing risks specific to this agency type (5) Recommended adjustment to our estimate if needed.',
