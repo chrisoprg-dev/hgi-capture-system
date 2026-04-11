@@ -25,7 +25,6 @@
     "api/extract-pdf.js": { "maxDuration": 120 }
   },
   "crons": [
-    { "path": "/api/hunt", "schedule": "*/6 * * * *" },
     { "path": "/api/process-kb", "schedule": "*/6 * * * *" },
     { "path": "/api/scrape-grants-gov", "schedule": "0 0,6,12,18 * * *" },
     { "path": "/api/scrape-sam-gov", "schedule": "0 1,13 * * *" },
