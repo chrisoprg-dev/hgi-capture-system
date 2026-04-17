@@ -1,18 +1,12 @@
-export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+// api/run-delete.js - DISABLED Session 110 for security
+// Previously: no-auth GET wrapper that proxied to /api/delete-records (retired same session).
+// Retired during V1 audit. No restoration path — if deletion tooling is needed, build a properly
+// authenticated /api/documents DELETE with parameterized input.
 
-  try {
-    const response = await fetch('https://hgi-capture-system.vercel.app/api/delete-records');
-    const data = await response.json();
-    
-    return res.status(response.status).json(data);
-  } catch (error) {
-    console.error('Error calling delete-records:', error);
-    return res.status(500).json({ 
-      error: 'Failed to call delete-records endpoint',
-      details: error.message 
-    });
-  }
+export default function handler(req, res) {
+  return res.status(410).json({
+    status: 'DISABLED',
+    message: 'run-delete endpoint retired Session 110 alongside its proxy target /api/delete-records.',
+    disabled_at: '2026-04-17'
+  });
 }
