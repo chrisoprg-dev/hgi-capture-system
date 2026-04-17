@@ -66,7 +66,7 @@ export default async function handler(req, res) {
         file_type: 'txt',
         content_text: docContent,
         vertical: kbVertical,
-        document_class: 'winning_proposal',
+        document_class: 'quality_gated_draft',
         client: agency,
         contract_name: oppTitle,
         intake_secret: IS
