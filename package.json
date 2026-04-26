@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "docx": "^9.0.0",
+    "mammoth": "^1.7.2",
     "pdf-parse": "^1.1.1"
   }
 }
