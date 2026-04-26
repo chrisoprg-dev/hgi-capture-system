@@ -1,3 +1,5 @@
+import mammoth from "mammoth";
+
 export const config = { maxDuration: 300 };
 
 export default async function handler(req, res) {
@@ -40,6 +42,7 @@ export default async function handler(req, res) {
     var b64 = Buffer.from(buf).toString("base64");
     var isPdf = (doc.mime_type || "").includes("pdf") || (doc.filename || "").endsWith(".pdf");
     var isTxt = (doc.file_type === "txt" || doc.file_type === "md");
+    var isDocx = (doc.file_type === "docx") || (doc.mime_type || "").includes("wordprocessingml") || (doc.filename || "").toLowerCase().endsWith(".docx");
 
     var rawText = "";
 
@@ -62,6 +65,12 @@ export default async function handler(req, res) {
       if (!cResp.ok) throw new Error("Claude failed: " + await cResp.text());
       var cData = await cResp.json();
       rawText = cData.content.filter(function(b){return b.type==="text"}).map(function(b){return b.text}).join("");
+    } else if (isDocx) {
+      // S144 fix: Extract .docx via mammoth (pure JS, no system deps).
+      // Previously .docx fell through to "Unsupported file type" — silent extraction failure
+      // for 17+ docs including HGI winning proposals.
+      var dxResult = await mammoth.extractRawText({ buffer: Buffer.from(b64, "base64") });
+      rawText = dxResult.value || "";
     } else {
       throw new Error("Unsupported file type: " + (doc.mime_type || doc.file_type));
     }
