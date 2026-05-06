@@ -14,7 +14,12 @@ export default async function handler(req, res) {
   var dbH = { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY };
 
   // Find one document that needs processing
-  var findResp = await fetch(SUPABASE_URL + "/rest/v1/knowledge_documents?chunk_count=lt.2&storage_path=not.is.null&order=uploaded_at.desc&limit=1&select=id,filename,storage_path,mime_type,file_type,status", {
+  // S166 H2: exclude status='error' so the cron drains rather than looping on
+  // unprocessable docs (e.g. PDFs >100 pages that Anthropic rejects). Status=null
+  // and status='pending' rows still pick up normally; only post-failure docs are
+  // skipped. This means F-S166-3 instrumentation can also clean-mark docs to error
+  // after a real Anthropic-side rejection without re-picking them next cycle.
+  var findResp = await fetch(SUPABASE_URL + "/rest/v1/knowledge_documents?chunk_count=lt.2&storage_path=not.is.null&or=(status.is.null,status.neq.error)&order=uploaded_at.desc&limit=1&select=id,filename,storage_path,mime_type,file_type,status", {
     headers: dbH
   });
   var docs = await findResp.json();
@@ -63,16 +68,22 @@ export default async function handler(req, res) {
           ]}]
         })
       });
-      if (!cResp.ok) throw new Error("Claude failed: " + await cResp.text());
-      var cData = await cResp.json();
-      // S165 Hygiene-1: fire-and-forget cost log for the PDF extraction call.
+      // S166 H3: log cost on BOTH success AND failure paths. Pre-S166 the throw
+      // on !cResp.ok happened BEFORE logV1Cost, so failed Anthropic calls (like
+      // the >100-page PDF rejection on the LHC Guidehouse stuck doc) wrote no row.
+      // Read body once, parse if JSON, log either way, then throw on failure.
+      var rawRespText = await cResp.text();
+      var cData;
+      try { cData = JSON.parse(rawRespText); } catch (_pe) { cData = {}; }
       logV1Cost({
         endpoint: '/api/process-kb',
         agent: 'pdf_extract',
         response: cData,
-        status: 'ok',
+        status: cResp.ok ? 'ok' : 'error',
+        error_message: cResp.ok ? null : ('http_' + cResp.status + ': ' + rawRespText.slice(0, 200)),
         metadata: { document_id: doc.id, filename: doc.filename, mime_type: doc.mime_type }
       });
+      if (!cResp.ok) throw new Error("Claude failed: " + rawRespText);
       rawText = cData.content.filter(function(b){return b.type==="text"}).map(function(b){return b.text}).join("");
     } else if (isDocx) {
       // S144 fix: Extract .docx via mammoth (pure JS, no system deps).
