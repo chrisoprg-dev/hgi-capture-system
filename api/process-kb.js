@@ -1,4 +1,5 @@
 import mammoth from "mammoth";
+import { logV1Cost } from './cost-log-util.js';
 
 export const config = { maxDuration: 300 };
 
@@ -64,6 +65,14 @@ export default async function handler(req, res) {
       });
       if (!cResp.ok) throw new Error("Claude failed: " + await cResp.text());
       var cData = await cResp.json();
+      // S165 Hygiene-1: fire-and-forget cost log for the PDF extraction call.
+      logV1Cost({
+        endpoint: '/api/process-kb',
+        agent: 'pdf_extract',
+        response: cData,
+        status: 'ok',
+        metadata: { document_id: doc.id, filename: doc.filename, mime_type: doc.mime_type }
+      });
       rawText = cData.content.filter(function(b){return b.type==="text"}).map(function(b){return b.text}).join("");
     } else if (isDocx) {
       // S144 fix: Extract .docx via mammoth (pure JS, no system deps).
