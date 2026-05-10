@@ -274,6 +274,17 @@ export default async function handler(req, res) {
     const existing = await dbGet("opportunities", `?id=eq.${encodeURIComponent(recordId)}&select=id,opi_score,hgi_relevance,rfp_text,status`);
     if (existing.length > 0) {
       const rec = existing[0];
+      // S170 (May 10): Filtered rows are decisions, not pending work — never re-analyze.
+      // Closes the gap where rfp_text<200 + status='filtered' fell through to Claude on every scrape.
+      if (rec.status === 'filtered') {
+        return res.status(200).json({
+          skipped: true,
+          reason: "previously_filtered",
+          id: recordId,
+          opi_score: rec.opi_score,
+          hgi_relevance: rec.hgi_relevance,
+        });
+      }
       const hasRealContent = rec.rfp_text && rec.rfp_text.trim().length > 200;
       const isPendingRfp = rec.status === 'pending_rfp';
       const isUnscored = rec.opi_score === null || rec.opi_score === undefined;
